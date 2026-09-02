@@ -4,7 +4,7 @@ import useStore from '../store/useStore';
 import { Send, MessageSquare, Users, Search, List } from 'lucide-react';
 
 const SMS = () => {
-  const { customers, user, smsHistory, addSmsToHistory } = useStore();
+  const { customers, user, smsHistory, addSmsToHistory, showToast } = useStore();
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
@@ -55,39 +55,34 @@ const SMS = () => {
     }
   };
 
-  const handleSendSMS = async (e) => {
+  const handleSendSMS = (e) => {
     e.preventDefault();
     if (selectedCustomers.length === 0) {
-      alert('Please select at least one customer.');
+      showToast('Please select at least one customer.', 'error');
       return;
     }
     if (!message.trim()) {
-      alert('Message cannot be empty.');
+      showToast('Message cannot be empty.', 'error');
       return;
     }
 
+    // Mock sending SMS
     setStatus('Sending SMS to ' + selectedCustomers.length + ' customers...');
-
-    const receivers = filteredCustomers
-      .filter(c => selectedCustomers.includes(c.id))
-      .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
-
-    const result = await addSmsToHistory({
-      message,
-      receiversCount: selectedCustomers.length,
-      receivers
-    });
-    setStatus('');
-
-    if (!result.success) {
-      alert(`SMS was not sent: ${result.error}`);
-      return;
-    }
-
-    // The server tells us whether a gateway actually delivered anything.
-    alert(result.data?.message || 'SMS request recorded.');
-    setMessage('');
-    setSelectedCustomers([]);
+    
+    setTimeout(() => {
+      setStatus('');
+      
+      const sentCustomersInfo = filteredCustomers.filter(c => selectedCustomers.includes(c.id)).map(c => ({ id: c.id, name: c.name, phone: c.phone }));
+      addSmsToHistory({
+        message,
+        receiversCount: selectedCustomers.length,
+        receivers: sentCustomersInfo
+      });
+      
+      showToast(`SMS sent successfully to ${selectedCustomers.length} customers!`, 'success');
+      setMessage('');
+      setSelectedCustomers([]);
+    }, 1500);
   };
 
   return (

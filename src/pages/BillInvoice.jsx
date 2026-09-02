@@ -10,24 +10,7 @@ import PrintFooter from '../components/PrintFooter';
 import './POS.css'; // Reusing POS styles for speed and consistency
 
 const BillInvoice = () => {
-  const { inventory, staff, user, customers, addCustomer, processSale, sales, drafts, saveDraft, deleteDraft, deleteSale } = useStore();
-
-  const handleDeleteSale = async (sale) => {
-    const confirmed = confirm(
-      `Delete invoice ${sale.id}?\n\n` +
-      `Customer: ${sale.customerName || 'N/A'}\n` +
-      `Total: ${Number(sale.total || 0).toLocaleString()}\n\n` +
-      `The invoiced items will go back into stock` +
-      (Number(sale.due_amount || 0) > 0
-        ? ` and ${Number(sale.due_amount).toLocaleString()} will be removed from the customer's due.`
-        : '.') +
-      `\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    const result = await deleteSale(sale.id);
-    if (!result.success) alert(`Invoice was not deleted: ${result.error}`);
-  };
+  const { inventory, staff, user, customers, addCustomer, processSale, sales, showToast } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New', 'History', or 'Drafts'
   
   const location = useLocation();
@@ -59,7 +42,8 @@ const BillInvoice = () => {
   const [endDate, setEndDate] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  const [isSaving, setIsSaving] = useState(false);
+  // Drafts State - Mocking drafts for now as it's not in the store natively
+  const [drafts, setDrafts] = useState([]);
 
   const filteredSales = sales.filter(s => {
     if (!startDate && !endDate) return true;
@@ -86,7 +70,7 @@ const BillInvoice = () => {
       }
       setBarcodeInput('');
     } else {
-      alert('Product not found in inventory!');
+      showToast('Product not found in inventory!', 'error');
     }
   };
 
@@ -104,41 +88,36 @@ const BillInvoice = () => {
 
   const total = Math.max(0, subtotal - invoiceDiscount);
 
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = () => {
     if (cart.length === 0) {
-      alert('Cannot save empty invoice as draft.');
+      showToast('Cannot save empty invoice as draft.', 'error');
       return;
     }
-
-    setIsSaving(true);
-    const result = await saveDraft({
+    const draftId = 'DRF' + Date.now();
+    const newDraft = {
+      id: draftId,
+      date: new Date().toISOString(),
       customerInfo,
       cartItems: cart,
       paymentType,
       invoiceDiscount,
       total,
       salesman: staff.find(s => s.id === selectedSalesman) || { id: 'Admin', name: 'Admin' }
-    });
-    setIsSaving(false);
-
-    if (!result.success) {
-      alert(`Draft was not saved: ${result.error}`);
-      return;
-    }
-
-    alert('Invoice saved to Drafts!');
+    };
+    setDrafts([...drafts, newDraft]);
+    showToast('Invoice saved to Drafts!', 'success');
     setCart([]);
     setCustomerInfo({ name: '', phone: '', location: '' });
     setInvoiceDiscount(0);
     setActiveTab('Drafts');
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!customerInfo.name) {
-      alert('Customer Name is explicitly required for invoicing!');
+      showToast('Customer Name is explicitly required for invoicing!', 'error');
       return;
     }
-
+    
     const salesmanObj = staff.find(s => s.id === selectedSalesman) || { id: 'Admin', name: 'Admin' };
     const saleData = {
       cartItems: cart,
@@ -147,17 +126,11 @@ const BillInvoice = () => {
       invoiceDiscount,
       salesman: salesmanObj
     };
-
-    setIsSaving(true);
-    const result = await processSale(saleData);
-    setIsSaving(false);
-
-    if (!result.success) {
-      alert(`Invoice was not saved: ${result.error}`);
-      return;
-    }
-
-    setCompletedSale(result.data);
+    
+    processSale(saleData);
+    setCompletedSale({ ...saleData, subtotal, total, date: new Date().toISOString(), invoiceId: 'INV' + Date.now() });
+    showToast("Invoice completed successfully!", "success");
+    
     setCart([]);
     setCustomerInfo({ name: '', phone: '', location: '' });
     setInvoiceDiscount(0);
@@ -173,7 +146,7 @@ const BillInvoice = () => {
             onClick={() => setActiveTab('New')}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
           >
-            <Plus size={16} /> Add New
+            <Plus size={16} /> Add
           </button>
           <button 
             type="button"
@@ -335,10 +308,10 @@ const BillInvoice = () => {
           </div>
 
           <div className="checkout-actions" style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="btn-primary checkout-btn" style={{ flex: 1, padding: '0.8rem 0.5rem', fontSize: '0.9rem' }} onClick={handleCheckout} disabled={cart.length === 0 || isSaving}>
-              {isSaving ? 'Saving...' : 'Generate Final Invoice'}
+            <button className="btn-primary checkout-btn" style={{ flex: 1, padding: '0.8rem 0.5rem', fontSize: '0.9rem' }} onClick={handleCheckout} disabled={cart.length === 0}>
+              Generate Final Invoice
             </button>
-            <button className="btn-outline checkout-btn" style={{ flex: 1, padding: '0.8rem 0.5rem', fontSize: '0.9rem' }} onClick={handleSaveDraft} disabled={cart.length === 0 || isSaving}>
+            <button className="btn-outline checkout-btn" style={{ flex: 1, padding: '0.8rem 0.5rem', fontSize: '0.9rem' }} onClick={handleSaveDraft} disabled={cart.length === 0}>
               Save as Draft
             </button>
           </div>
@@ -381,11 +354,6 @@ const BillInvoice = () => {
                       <button className="btn-icon" title="View & Print" onClick={() => setSelectedInvoice(s)}>
                         <Eye size={16} />
                       </button>
-                      {user?.role === 'Admin' && (
-                        <button className="btn-icon" title="Delete Invoice" onClick={() => handleDeleteSale(s)}>
-                          <Trash2 size={16} color="var(--danger)" />
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -422,13 +390,13 @@ const BillInvoice = () => {
                   <td>{d.customerInfo?.name || 'Unknown'}</td>
                   <td className="text-primary font-bold">{d.total.toLocaleString()}</td>
                   <td style={{textAlign:'center'}}>
-                    <button className="btn-primary" style={{ padding: '0.2rem 1rem', fontSize: '0.85rem' }} onClick={async () => {
-                       setCart(d.cartItems || []);
-                       setCustomerInfo(d.customerInfo || { name: '', phone: '', location: '' });
+                    <button className="btn-primary" style={{ padding: '0.2rem 1rem', fontSize: '0.85rem' }} onClick={() => {
+                       setCart(d.cartItems);
+                       setCustomerInfo(d.customerInfo);
                        setPaymentType(d.paymentType);
                        setInvoiceDiscount(d.invoiceDiscount);
+                       setDrafts(drafts.filter(dr => dr.id !== d.id));
                        setActiveTab('New');
-                       await deleteDraft(d.id);
                     }}>
                       Resume Editing
                     </button>

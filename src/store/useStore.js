@@ -34,6 +34,20 @@ const useStore = create(
       activeThemeClass: 'theme-forest',
       isLoading: false,
       lastError: null,
+      toast: { show: false, message: '', type: 'success' },
+
+      showToast: (message, type = 'success') => {
+        set({ toast: { show: true, message, type } });
+        setTimeout(() => {
+          set((state) => {
+            if (state.toast.message === message) {
+              return { toast: { ...state.toast, show: false } };
+            }
+            return state;
+          });
+        }, 3000);
+      },
+      hideToast: () => set((state) => ({ toast: { ...state.toast, show: false } })),
 
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
       setThemeClass: (className) => set({ activeThemeClass: className }),
@@ -254,6 +268,9 @@ const useStore = create(
         }
       },
 
+      updateProduct: (id, updates) => get().updateInventoryItem(id, updates),
+      deleteProduct: (id) => get().deleteInventoryItem(id),
+
       // ---------------------------------------------------------------
       // Contacts
       // ---------------------------------------------------------------
@@ -264,6 +281,21 @@ const useStore = create(
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to save customer.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      updateCustomer: async (customerId, updates) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.CUSTOMER_DETAILS(customerId), updates);
+          set((state) => ({
+            customers: state.customers.map((c) => (c.id === customerId ? { ...c, ...res } : c)),
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update customer.');
           set({ lastError: message });
           return { success: false, error: message };
         }
@@ -394,6 +426,18 @@ const useStore = create(
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to save the purchase.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      updatePurchase: async (id, updates) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.PURCHASE_DETAILS(id), updates);
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update the purchase.');
           set({ lastError: message });
           return { success: false, error: message };
         }
@@ -542,7 +586,39 @@ const useStore = create(
 
       // Optimistic local tweak used by the settle dialog before it submits.
       updateSRSettlement: (id, updates) => set((state) => ({
-        srSettlements: state.srSettlements.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+        srSettlements: (state.srSettlements || []).map((s) => (s.id === id ? { ...s, ...updates } : s)),
+      })),
+
+      updateSRIssuedItems: (id, updatedReturnItems) => set((state) => {
+        const settlement = (state.srSettlements || []).find((s) => s.id === id);
+        if (!settlement) return state;
+        return {
+          srSettlements: state.srSettlements.map((s) => {
+            if (s.id === id) {
+              const newItems = (s.items || []).map((item) => {
+                const updated = updatedReturnItems.find((r) => String(r.productId) === String(item.productId));
+                return updated ? { ...item, quantity: updated.issuedQty } : item;
+              });
+              return { ...s, items: newItems };
+            }
+            return s;
+          }),
+        };
+      }),
+
+      settleBulkSR: async (settlementIds) => {
+        for (const id of settlementIds) {
+          const settlement = (get().srSettlements || []).find((s) => s.id === id);
+          if (settlement && settlement.status !== 'Settled') {
+            await get().settleSRAccount(id, settlement.totalSalesValue || settlement.totalIssuedValue || 0, []);
+          }
+        }
+      },
+
+      unsettleBulkSR: (settlementIds) => set((state) => ({
+        srSettlements: (state.srSettlements || []).map((s) =>
+          settlementIds.includes(s.id) ? { ...s, status: 'Pending', cashReceived: 0 } : s
+        ),
       })),
 
       // ---------------------------------------------------------------
@@ -611,6 +687,21 @@ const useStore = create(
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to save the employee.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      updateStaff: async (staffId, updates) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.STAFF_DETAILS(staffId), updates);
+          set((state) => ({
+            staff: state.staff.map((s) => (s.id === staffId ? { ...s, ...res } : s)),
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update the employee.');
           set({ lastError: message });
           return { success: false, error: message };
         }

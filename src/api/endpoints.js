@@ -53,6 +53,7 @@ export const ENDPOINTS = {
 
   // HR & Payroll
   STAFF: '/hr/staff/',
+  STAFF_DETAILS: (id) => `/hr/staff/${id}/`,
   ATTENDANCE: '/hr/attendance/',
   MARK_ATTENDANCE: '/hr/attendance/mark/',
   LEAVES: '/hr/leaves/',

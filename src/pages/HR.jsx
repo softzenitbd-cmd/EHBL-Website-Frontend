@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Users, Calendar, DollarSign, Award, Plus, Check, X, Eye, Printer, Download, FileText, Filter, RotateCcw, Clock, ShieldCheck } from 'lucide-react';
+import { Users, Calendar, DollarSign, Award, Plus, Check, X, Eye, Printer, Download, FileText, Filter, RotateCcw, Clock, ShieldCheck, Edit } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -16,11 +16,13 @@ const HR = () => {
     attendance = [], 
     leaves = [], 
     payrolls = [], 
-    addStaff, 
+    addStaff,
+    updateStaff, 
     markAttendance, 
     addLeaveRequest, 
     updateLeaveStatus, 
-    generatePayslip 
+    generatePayslip,
+    showToast
   } = useStore();
 
   const safeStaff = Array.isArray(staff) ? staff : [];
@@ -31,6 +33,9 @@ const HR = () => {
   // Modals state
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [newStaff, setNewStaff] = useState({ name: '', role: 'Salesman', baseSalary: '', phone: '', address: '', bankAccount: '', username: '', password: '' });
+
+  const [showEditStaffModal, setShowEditStaffModal] = useState(false);
+  const [editingStaff, setEditingStaff] = useState({ id: '', name: '', role: 'Salesman', baseSalary: '', phone: '', address: '', bankAccount: '', username: '', password: '' });
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -80,40 +85,43 @@ const HR = () => {
   const [payrollMonth, setPayrollMonth] = useState(todayStr.substring(0, 7)); // YYYY-MM
 
   // Handlers
+  const handleEditStaffClick = (staffMember) => {
+    setEditingStaff({ ...staffMember });
+    setShowEditStaffModal(true);
+  };
+
+  const handleUpdateStaff = async (e) => {
+    e.preventDefault();
+    if (!editingStaff.name) { showToast('Name is required', 'error'); return; }
+    await updateStaff(editingStaff.id, {
+      ...editingStaff,
+      baseSalary: parseFloat(editingStaff.baseSalary) || 0
+    });
+    showToast('Staff updated successfully!', 'success');
+    setShowEditStaffModal(false);
+  };
   const handleAddStaff = async (e) => {
     e.preventDefault();
-    if (!newStaff.name) return alert('Name is required');
-    const result = await addStaff({
+    if (!newStaff.name) { showToast('Name is required', 'error'); return; }
+    await addStaff({
       ...newStaff,
       baseSalary: parseFloat(newStaff.baseSalary) || 0,
       joinDate: todayStr
     });
-
-    if (!result.success) {
-      alert(`Employee was not saved: ${result.error}`);
-      return;
-    }
-
     setShowAddStaffModal(false);
     setNewStaff({ name: '', role: 'Salesman', baseSalary: '', phone: '', address: '', bankAccount: '', username: '', password: '' });
   };
 
   const handleApplyLeave = async (e) => {
     e.preventDefault();
-    if (!newLeave.staffId) return alert('Please select a staff member');
+    if (!newLeave.staffId) { showToast('Please select a staff member', 'error'); return; }
     if (newLeave.endDate < newLeave.startDate) {
-      return alert('End Date cannot be earlier than Start Date.');
+      { showToast('End Date cannot be earlier than Start Date.', 'error'); return; }
     }
-    const result = await addLeaveRequest({
+    await addLeaveRequest({
       ...newLeave,
       date: newLeave.startDate
     });
-
-    if (!result.success) {
-      alert(`Leave request was not submitted: ${result.error}`);
-      return;
-    }
-
     setShowLeaveModal(false);
     setNewLeave({ staffId: '', type: 'Casual', reason: '', startDate: todayStr, endDate: todayStr });
   };
@@ -123,9 +131,9 @@ const HR = () => {
     const netPay = Math.round((dailyRate * presentDays) + bonus);
 
     const alreadyPaid = safePayrolls.some(p => String(p.staffId || p.staff_id || p.staff) === String(staffMember.id) && p.month === payrollMonth);
-    if (alreadyPaid) return alert('Payslip already generated for this month!');
+    if (alreadyPaid) { showToast('Payslip already generated for this month!', 'error'); return; }
 
-    const result = await generatePayslip({
+    await generatePayslip({
       month: payrollMonth,
       year: payrollMonth.split('-')[0],
       staffId: staffMember.id,
@@ -135,14 +143,7 @@ const HR = () => {
       bonus,
       netPay
     });
-
-    if (!result.success) {
-      alert(`Payslip was not generated: ${result.error}`);
-      return;
-    }
-
-    const saved = Number(result.data?.netPay ?? netPay);
-    alert(`Payslip generated for ${staffMember.name}. Amount: ৳${saved.toLocaleString()}`);
+    showToast(`Payslip generated for ${staffMember.name}. Amount: ৳${netPay.toLocaleString()}`, 'success');
   };
 
   const handleResetAttendanceFilters = () => {
@@ -276,9 +277,14 @@ const HR = () => {
                         <td>{s.phone || '-'}</td>
                         <td>{s.joinDate || s.created_at?.split('T')[0] || '-'}</td>
                         <td>
-                          <button className="btn-icon" title="View Profile" onClick={() => setSelectedStaff(s)}>
-                            <Eye size={16} />
-                          </button>
+                          <div className="flex-align-gap">
+                            <button type="button" className="btn-icon" title="Edit Profile" onClick={(e) => { e.stopPropagation(); handleEditStaffClick(s); }}>
+                              <Edit size={16} color="var(--primary)" />
+                            </button>
+                            <button className="btn-icon" title="View Profile" onClick={() => setSelectedStaff(s)}>
+                              <Eye size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -939,7 +945,7 @@ const HR = () => {
         <div className="drawer-overlay" onClick={() => setShowAddStaffModal(false)}>
           <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
-              <h2>Add New Staff</h2>
+              <h2>Add New Staff Member</h2>
               <button className="drawer-close-btn" onClick={() => setShowAddStaffModal(false)}>
                 <X size={24} />
               </button>
@@ -949,46 +955,49 @@ const HR = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
                   <div>
                     <label className="text-muted text-sm block mb-1">Full Name *</label>
-                    <input type="text" className="w-full" required value={newStaff.name} onChange={e => setNewStaff({ ...newStaff, name: e.target.value })} placeholder="e.g. Kamal Hossain" />
+                    <input type="text" className="w-full" required value={newStaff.name} onChange={e => setNewStaff({ ...newStaff, name: e.target.value })} placeholder="e.g. Abul Hasan" />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label className="text-muted text-sm block mb-1">Role</label>
                       <select className="w-full" value={newStaff.role} onChange={e => setNewStaff({ ...newStaff, role: e.target.value })}>
-                        <option value="Salesman">Salesman</option>
-                        <option value="Store Incharge">Store Incharge</option>
                         <option value="Manager">Manager</option>
-                        <option value="Delivery">Delivery</option>
-                        <option value="Admin">Admin</option>
+                        <option value="Salesman">Salesman (SR)</option>
+                        <option value="Cashier">Cashier</option>
+                        <option value="Delivery">Delivery Driver</option>
+                        <option value="Support">Support Staff</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-muted text-sm block mb-1">Base Salary (Monthly )</label>
-                      <input type="number" min="0" className="w-full" required value={newStaff.baseSalary} onChange={e => setNewStaff({ ...newStaff, baseSalary: e.target.value })} placeholder="15000" />
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label className="text-muted text-sm block mb-1">Phone</label>
-                      <input type="text" className="w-full" value={newStaff.phone} onChange={e => setNewStaff({ ...newStaff, phone: e.target.value })} placeholder="017xxxxxxxx" />
-                    </div>
-                    <div>
-                      <label className="text-muted text-sm block mb-1">Bank / bKash</label>
-                      <input type="text" className="w-full" value={newStaff.bankAccount} onChange={e => setNewStaff({ ...newStaff, bankAccount: e.target.value })} placeholder="Account or Number" />
+                      <label className="text-muted text-sm block mb-1">Base Salary (৳)</label>
+                      <input type="number" className="w-full" value={newStaff.baseSalary} onChange={e => setNewStaff({ ...newStaff, baseSalary: e.target.value })} placeholder="e.g. 15000" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-muted text-sm block mb-1">Address</label>
-                    <input type="text" className="w-full" value={newStaff.address} onChange={e => setNewStaff({ ...newStaff, address: e.target.value })} placeholder="City, Area" />
+                    <label className="text-muted text-sm block mb-1">Phone Number</label>
+                    <input type="text" className="w-full" value={newStaff.phone} onChange={e => setNewStaff({ ...newStaff, phone: e.target.value })} placeholder="e.g. 01700000000" />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label className="text-muted text-sm block mb-1">System Username</label>
-                      <input type="text" className="w-full" value={newStaff.username} onChange={e => setNewStaff({ ...newStaff, username: e.target.value })} placeholder="Optional login user" />
-                    </div>
-                    <div>
-                      <label className="text-muted text-sm block mb-1">System Password</label>
-                      <input type="password" className="w-full" value={newStaff.password} onChange={e => setNewStaff({ ...newStaff, password: e.target.value })} placeholder="Optional password" />
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Address</label>
+                    <input type="text" className="w-full" value={newStaff.address} onChange={e => setNewStaff({ ...newStaff, address: e.target.value })} placeholder="Full Address" />
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Bank / bKash Account Info</label>
+                    <input type="text" className="w-full" value={newStaff.bankAccount} onChange={e => setNewStaff({ ...newStaff, bankAccount: e.target.value })} placeholder="Account Number for Payroll" />
+                  </div>
+                  
+                  {/* For System Login if applicable */}
+                  <div className="card glass mt-4" style={{ padding: '1rem', border: '1px dashed var(--border-color)' }}>
+                    <h4 className="font-bold mb-2 text-sm text-primary">System Access (Optional)</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label className="text-muted text-sm block mb-1">Username</label>
+                        <input type="text" className="w-full" value={newStaff.username} onChange={e => setNewStaff({ ...newStaff, username: e.target.value })} placeholder="For login" />
+                      </div>
+                      <div>
+                        <label className="text-muted text-sm block mb-1">Password</label>
+                        <input type="password" className="w-full" value={newStaff.password} onChange={e => setNewStaff({ ...newStaff, password: e.target.value })} placeholder="Keep it secure" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -996,7 +1005,83 @@ const HR = () => {
             </div>
             <div className="drawer-footer">
               <button type="button" className="btn-outline" onClick={() => setShowAddStaffModal(false)}>Cancel</button>
-              <button type="submit" form="add-staff-form" className="btn-primary flex-align-gap"><Plus size={18} /> Save Staff</button>
+              <button type="submit" form="add-staff-form" className="btn-primary flex-align-gap"><Check size={18} /> Complete Registration</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Staff Drawer */}
+      {showEditStaffModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowEditStaffModal(false)}>
+          <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Edit Staff Member</h2>
+              <button className="drawer-close-btn" onClick={() => setShowEditStaffModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="drawer-body">
+              <form id="edit-staff-form" onSubmit={handleUpdateStaff}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Staff ID (Cannot change)</label>
+                    <input type="text" className="w-full" value={editingStaff.id} disabled style={{ background: 'var(--bg-hover)' }} />
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Full Name *</label>
+                    <input type="text" className="w-full" required value={editingStaff.name} onChange={e => setEditingStaff({ ...editingStaff, name: e.target.value })} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Role</label>
+                      <select className="w-full" value={editingStaff.role} onChange={e => setEditingStaff({ ...editingStaff, role: e.target.value })}>
+                        <option value="Manager">Manager</option>
+                        <option value="Salesman">Salesman (SR)</option>
+                        <option value="Cashier">Cashier</option>
+                        <option value="Delivery">Delivery Driver</option>
+                        <option value="Support">Support Staff</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Base Salary (৳)</label>
+                      <input type="number" className="w-full" value={editingStaff.baseSalary} onChange={e => setEditingStaff({ ...editingStaff, baseSalary: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Phone Number</label>
+                    <input type="text" className="w-full" value={editingStaff.phone} onChange={e => setEditingStaff({ ...editingStaff, phone: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Address</label>
+                    <input type="text" className="w-full" value={editingStaff.address} onChange={e => setEditingStaff({ ...editingStaff, address: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Bank / bKash Account Info</label>
+                    <input type="text" className="w-full" value={editingStaff.bankAccount} onChange={e => setEditingStaff({ ...editingStaff, bankAccount: e.target.value })} />
+                  </div>
+                  
+                  {/* For System Login if applicable */}
+                  <div className="card glass mt-4" style={{ padding: '1rem', border: '1px dashed var(--border-color)' }}>
+                    <h4 className="font-bold mb-2 text-sm text-primary">System Access (Optional)</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label className="text-muted text-sm block mb-1">Username</label>
+                        <input type="text" className="w-full" value={editingStaff.username || ''} onChange={e => setEditingStaff({ ...editingStaff, username: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-muted text-sm block mb-1">Password</label>
+                        <input type="password" className="w-full" value={editingStaff.password || ''} onChange={e => setEditingStaff({ ...editingStaff, password: e.target.value })} placeholder="Leave blank to keep unchanged" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="drawer-footer">
+              <button type="button" className="btn-outline" onClick={() => setShowEditStaffModal(false)}>Cancel</button>
+              <button type="submit" form="edit-staff-form" className="btn-primary flex-align-gap"><Edit size={18} /> Update Staff</button>
             </div>
           </div>
         </div>,

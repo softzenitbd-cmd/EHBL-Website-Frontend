@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Minus, Search, Trash2, Database, List, Printer, FilePlus, Eye, Download, FileText, X } from 'lucide-react';
+import { Plus, Minus, Search, Trash2, Database, List, Printer, FilePlus, Eye, Download, FileText, X, Edit } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -9,23 +9,7 @@ import PrintFooter from '../components/PrintFooter';
 import './Purchase.css';
 
 const Purchase = () => {
-  const { suppliers, inventory, purchases, processPurchase, deletePurchase, user } = useStore();
-
-  const handleDeletePurchase = async (purchase, dueVal) => {
-    const confirmed = confirm(
-      `Delete purchase ${purchase.id}?\n\n` +
-      `Supplier: ${purchase.supplierName || 'N/A'}\n` +
-      `Total: ${Number(purchase.total || 0).toLocaleString()}\n\n` +
-      `The received items will be taken back out of stock` +
-      (dueVal > 0 ? ` and ${dueVal.toLocaleString()} will be removed from the supplier's due.` : '.') +
-      `\n\nIf any of these goods have already been sold, the delete will be refused.` +
-      `\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    const result = await deletePurchase(purchase.id);
-    if (!result.success) alert(`Purchase was not deleted: ${result.error}`);
-  };
+  const { suppliers, inventory, purchases, processPurchase, updatePurchase, showToast } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -47,13 +31,16 @@ const Purchase = () => {
   
   // Quick Entry State
   const [tempProductId, setTempProductId] = useState('');
-  const [tempVariant, setTempVariant] = useState('');
+  const [tempUnit, setTempUnit] = useState('');
   const [tempQty, setTempQty] = useState(1);
   const [tempPrice, setTempPrice] = useState(0);
 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState({ id: '', supplierName: '', paymentType: 'Cash', total: 0, paidAmount: 0, dueAmount: 0 });
 
   const handleAddQuickItem = () => {
     if (!tempProductId || tempQty <= 0) return;
@@ -68,14 +55,14 @@ const Purchase = () => {
     if (existingIndex >= 0) {
       newItems[existingIndex].quantity += Number(tempQty);
       newItems[existingIndex].price = Number(tempPrice); 
-      if (tempVariant) newItems[existingIndex].variant = tempVariant;
+      if (tempUnit) newItems[existingIndex].unit = tempUnit;
     } else {
-      newItems.push({ productId: finalId, name: finalName, variant: tempVariant, quantity: Number(tempQty), price: Number(tempPrice) });
+      newItems.push({ productId: finalId, name: finalName, unit: tempUnit, quantity: Number(tempQty), price: Number(tempPrice) });
     }
     
     setItems(newItems);
     setTempProductId('');
-    setTempVariant('');
+    setTempUnit('');
     setTempQty(1);
     setTempPrice(0);
   };
@@ -98,11 +85,11 @@ const Purchase = () => {
     }
 
     if (!supplier) {
-      alert('Please select or type a Supplier name.');
+      showToast('Please select or type a Supplier name.', 'error');
       return;
     }
     if (validItems.length === 0) {
-      alert('Please add at least one product with quantity.');
+      showToast('Please add at least one product with quantity.', 'error');
       return;
     }
 
@@ -117,11 +104,11 @@ const Purchase = () => {
     }
 
     if (paymentType === 'Partial' && finalPaidAmount <= 0) {
-      alert('Please enter a valid paid amount for partial payment.');
+      showToast('Please enter a valid paid amount for partial payment.', 'error');
       return;
     }
     if (finalPaidAmount > total) {
-      alert('Paid amount cannot exceed total amount.');
+      showToast('Paid amount cannot exceed total amount.', 'error');
       return;
     }
 
@@ -129,32 +116,52 @@ const Purchase = () => {
     const finalSupplierId = supplierObj ? (supplierObj.supplier_code || supplierObj.id) : `SUP_CUSTOM_${Date.now()}`;
     const finalSupplierName = supplierObj ? supplierObj.name : supplier;
 
-    const result = await processPurchase({
-      supplierId: finalSupplierId,
-      supplierName: finalSupplierName,
-      paymentType,
-      items: validItems,
-      total,
-      paidAmount: finalPaidAmount,
-      date: new Date().toISOString(),
-      id: 'PUR' + Date.now()
-    });
-
-    if (!result.success) {
-      alert(`Purchase was not recorded: ${result.error}`);
-      return;
+    try {
+      await processPurchase({
+        supplierId: finalSupplierId,
+        supplierName: finalSupplierName,
+        paymentType,
+        items: validItems,
+        total,
+        paidAmount: finalPaidAmount,
+        date: new Date().toISOString(),
+        id: 'PUR' + Date.now()
+      });
+      showToast('Purchase successfully recorded and stock updated!', 'success');
+      setSupplier('');
+      setPaidAmount('');
+      setItems([]);
+      setTempProductId('');
+      setTempUnit('');
+      setTempQty(1);
+      setTempPrice(0);
+      navigate('/purchases');
+      setActiveTab('History');
+    } catch (err) {
+      showToast('Failed to record purchase: ' + (err.response?.data?.error || err.message), 'error');
     }
+  };
 
-    alert('Purchase successfully recorded and stock updated!');
-    setSupplier('');
-    setPaidAmount('');
-    setItems([]);
-    setTempProductId('');
-    setTempVariant('');
-    setTempQty(1);
-    setTempPrice(0);
-    navigate('/purchases');
-    setActiveTab('History');
+  const handleEditPurchaseClick = (purchase) => {
+    setEditingPurchase({
+      ...purchase,
+      total: Number(purchase.total || 0),
+      paidAmount: Number(purchase.paidAmount || purchase.paid || 0),
+      dueAmount: Number(purchase.dueAmount || purchase.due || 0)
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdatePurchase = (e) => {
+    e.preventDefault();
+    updatePurchase(editingPurchase.id, {
+      ...editingPurchase,
+      total: Number(editingPurchase.total || 0),
+      paidAmount: Number(editingPurchase.paidAmount || 0),
+      dueAmount: Number(editingPurchase.dueAmount || 0)
+    });
+    showToast('Purchase updated successfully!', 'success');
+    setShowEditModal(false);
   };
 
   const filteredPurchases = purchases.filter(p => {
@@ -185,7 +192,7 @@ const Purchase = () => {
             onClick={() => { setActiveTab('New'); navigate('/purchases?action=add'); }}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
           >
-            <FilePlus size={16} /> New Entry
+            <FilePlus size={16} /> Entry
           </button>
           <button 
             type="button"
@@ -204,7 +211,7 @@ const Purchase = () => {
         {/* TOP COMPACT HEADER */}
         <div className="qe-header">
           <div>
-            <h2 className="text-xl font-bold mb-1">New Purchase</h2>
+            <h2 className="text-xl font-bold mb-1">Purchase</h2>
             <p className="text-muted text-sm">Add items quickly via the input row below.</p>
           </div>
           <div className="flex-align-gap" style={{ flexWrap: 'wrap' }}>
@@ -261,7 +268,10 @@ const Purchase = () => {
                 const val = e.target.value;
                 setTempProductId(val);
                 const prod = inventory.find(p => p.name === val || p.id === val);
-                if (prod) setTempPrice(prod.cost_price || prod.price || 0);
+                if (prod) {
+                  setTempPrice(prod.cost_price || prod.price || 0);
+                  setTempUnit(prod.unit || '');
+                }
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -275,12 +285,12 @@ const Purchase = () => {
             </datalist>
           </div>
           <div className="qe-field" style={{ flex: '1.2' }}>
-            <label>Variant (Optional)</label>
+            <label>Unit</label>
             <input 
               type="text" 
-              placeholder="e.g. 13mm, 4 inch, Steel" 
-              value={tempVariant}
-              onChange={(e) => setTempVariant(e.target.value)}
+              placeholder="e.g. Pcs, Kg" 
+              value={tempUnit}
+              onChange={(e) => setTempUnit(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -335,7 +345,7 @@ const Purchase = () => {
             <thead>
               <tr>
                 <th>Product Name</th>
-                <th>Variant</th>
+                <th>Unit</th>
                 <th style={{ textAlign: 'center' }}>Qty</th>
                 <th style={{ textAlign: 'right' }}>Unit Price ()</th>
                 <th style={{ textAlign: 'right' }}>Total ()</th>
@@ -353,7 +363,7 @@ const Purchase = () => {
                 items.map((item, index) => (
                   <tr key={index}>
                     <td className="font-bold text-main">{item.name}</td>
-                    <td>{item.variant || '-'}</td>
+                    <td>{item.unit || '-'}</td>
                     <td style={{ textAlign: 'center' }}>{item.quantity}</td>
                     <td style={{ textAlign: 'right' }}>{Number(item.price || 0).toLocaleString()}</td>
                     <td style={{ textAlign: 'right', fontWeight: 'bold' }} className="text-primary">
@@ -474,18 +484,23 @@ const Purchase = () => {
                     <td className="text-success font-bold">{paidVal.toLocaleString()}</td>
                     <td className="text-warning font-bold">{dueVal.toLocaleString()}</td>
                     <td>
-                      <button
-                        className="btn-icon"
-                        title="View Receipt"
-                        onClick={() => setSelectedInvoice(purchase)}
-                      >
-                        <Eye size={16} />
-                      </button>
-                      {user?.role === 'Admin' && (
-                        <button className="btn-icon" title="Delete Purchase" onClick={() => handleDeletePurchase(purchase, dueVal)}>
-                          <Trash2 size={16} color="var(--danger)" />
+                      <div className="flex-align-gap" style={{ flexWrap: 'nowrap' }}>
+                        <button 
+                          type="button"
+                          className="btn-icon" 
+                          title="Edit Purchase"
+                          onClick={(e) => { e.stopPropagation(); handleEditPurchaseClick(purchase); }}
+                        >
+                          <Edit size={16} color="var(--primary)" />
                         </button>
-                      )}
+                        <button 
+                          className="btn-icon" 
+                          title="View Receipt"
+                          onClick={() => setSelectedInvoice(purchase)}
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -596,7 +611,7 @@ const Purchase = () => {
                       {(selectedInvoice.items || []).map((item, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
                           <td style={{ padding: '0.75rem 0' }}>
-                            {item.name} {item.variant && <span style={{ color: '#666', fontSize: '0.8rem' }}>({item.variant})</span>} <br/> 
+                            {item.name} {(item.unit || item.variant) && <span style={{ color: '#666', fontSize: '0.8rem' }}>({item.unit || item.variant})</span>} <br/> 
                             <small style={{ color: '#666' }}>{item.quantity} x {Number(item.price || 0).toLocaleString()}</small>
                           </td>
                           <td style={{textAlign: 'right', padding: '0.75rem 0'}}>
@@ -635,6 +650,87 @@ const Purchase = () => {
               </button>
               <button className="btn-outline flex-align-gap text-info" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', borderRadius: '99px' }} onClick={() => downloadAsPDF('printable-single-invoice-pur', `Purchase_${selectedInvoice.id}.pdf`)}>
                 <Download size={20} /> Download PDF
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Purchase Drawer */}
+      {showEditModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Edit Purchase Details</h2>
+              <button type="button" className="drawer-close-btn" onClick={() => setShowEditModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="drawer-body">
+              <form id="edit-purchase-form" onSubmit={handleUpdatePurchase}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Purchase ID (Cannot change)</label>
+                    <input type="text" className="w-full" value={editingPurchase.id} disabled style={{ background: 'var(--bg-hover)' }} />
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Supplier Name</label>
+                    <input 
+                      type="text" 
+                      className="w-full" 
+                      value={editingPurchase.supplierName || ''} 
+                      onChange={e => setEditingPurchase({ ...editingPurchase, supplierName: e.target.value })} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Payment Type</label>
+                    <select 
+                      className="w-full" 
+                      value={editingPurchase.paymentType} 
+                      onChange={e => setEditingPurchase({ ...editingPurchase, paymentType: e.target.value })}
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Baki">Baki (Due)</option>
+                      <option value="Partial">Partial</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Total Cost</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        value={editingPurchase.total} 
+                        onChange={e => setEditingPurchase({ ...editingPurchase, total: e.target.value })} 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Paid Amount</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        value={editingPurchase.paidAmount} 
+                        onChange={e => setEditingPurchase({ ...editingPurchase, paidAmount: e.target.value })} 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Due Amount</label>
+                    <input 
+                      type="number" 
+                      className="w-full" 
+                      value={editingPurchase.dueAmount} 
+                      onChange={e => setEditingPurchase({ ...editingPurchase, dueAmount: e.target.value })} 
+                    />
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="drawer-footer">
+              <button type="button" className="btn-outline" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button type="submit" form="edit-purchase-form" className="btn-primary flex-align-gap">
+                <Edit size={18} /> Update Purchase
               </button>
             </div>
           </div>

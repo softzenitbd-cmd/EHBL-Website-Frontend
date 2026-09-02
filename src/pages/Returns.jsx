@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download, Trash2 } from 'lucide-react';
+import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -9,24 +9,7 @@ import PrintFooter from '../components/PrintFooter';
 import './Returns.css';
 
 const Returns = () => {
-  const { inventory, processReturn, returns, deleteReturn, user } = useStore();
-
-  const handleDeleteReturn = async (record) => {
-    const goesBack = record.returnType === 'Customer'
-      ? `${record.quantity} will be taken back out of stock.`
-      : `${record.quantity} will be put back into stock.`;
-
-    const confirmed = confirm(
-      `Delete ${record.returnType} return ${record.id}?\n\n` +
-      `Product: ${record.productName || record.productId}\n` +
-      `Quantity: ${record.quantity}\n\n` +
-      `Reversing this record means ${goesBack}\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    const result = await deleteReturn(record.id);
-    if (!result.success) alert(`Return was not deleted: ${result.error}`);
-  };
+  const { inventory, processReturn, returns, showToast } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -54,14 +37,14 @@ const Returns = () => {
   const [endDate, setEndDate] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!product) {
-      alert('Please select a product');
+      showToast('Please select a product', 'error');
       return;
     }
-
-    const result = await processReturn({
+    
+    processReturn({
       returnType,
       date: entryDate,
       productId: product,
@@ -69,13 +52,8 @@ const Returns = () => {
       reason,
       referenceId
     });
-
-    if (!result.success) {
-      alert(`Return was not recorded: ${result.error}`);
-      return;
-    }
-
-    alert(`${returnType} Return/Reject processed successfully! Stock has been adjusted.`);
+    
+    showToast(`${returnType} Return/Reject processed successfully! Stock has been adjusted.`, 'success');
     setProduct('');
     setQuantity(1);
     setReason('');
@@ -107,7 +85,7 @@ const Returns = () => {
       <div className="card glass mb-4" style={{ padding: '0.5rem' }}>
         <div className="return-type-selector" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
           <button className={`type-btn ${activeTab === 'New' ? 'active' : ''}`} onClick={() => setActiveTab('New')} style={{ padding: '0.5rem 1rem', flex: '1 1 auto', minWidth: '120px' }}>
-            <Plus size={16} className="inline-block mr-2" /> New Entry
+            <Plus size={16} className="inline-block mr-2" /> Entry
           </button>
           <button className={`type-btn ${activeTab === 'History' ? 'active' : ''}`} onClick={() => setActiveTab('History')} style={{ padding: '0.5rem 1rem', flex: '1 1 auto', minWidth: '120px' }}>
             <List size={16} className="inline-block mr-2" /> Returns History
@@ -256,11 +234,6 @@ const Returns = () => {
                           <button className="btn-icon" title="View & Print" onClick={() => setSelectedInvoice(r)}>
                             <Eye size={16} />
                           </button>
-                          {user?.role === 'Admin' && (
-                            <button className="btn-icon" title="Delete Return" onClick={() => handleDeleteReturn(r)}>
-                              <Trash2 size={16} color="var(--danger)" />
-                            </button>
-                          )}
 </div>
                      </td>
                    </tr>

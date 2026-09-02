@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Printer, Download, Plus } from 'lucide-react';
+import { Search, Printer, Download, Plus, Minus, Edit } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
 const StockRegister = () => {
-  const { inventory, sales, purchases, returns, processPurchase } = useStore();
+  const { inventory, sales, purchases, returns, processPurchase, processReturn, updateInventoryItem, showToast } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showOutModal, setShowOutModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [addForm, setAddForm] = useState({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
+  const [outForm, setOutForm] = useState({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
+  const [editForm, setEditForm] = useState({ id: '', name: '', category: '', variant: '', unit: 'pcs', stock: 0 });
 
   const handleIdChange = (val) => {
     const existing = inventory.find(i => i.id === val || i.name === val);
@@ -29,6 +35,22 @@ const StockRegister = () => {
     }
   };
 
+  const handleIdChangeOut = (val) => {
+    const existing = inventory.find(i => i.id === val || i.name === val);
+    if (existing) {
+      setOutForm({
+        id: existing.id,
+        name: existing.name,
+        category: existing.category || '',
+        variant: existing.variant || '',
+        unit: existing.unit || 'pcs',
+        quantity: 1
+      });
+    } else {
+      setOutForm(prev => ({ ...prev, id: val }));
+    }
+  };
+
   // Calculate stock in, stock out for each item
   const stockData = inventory.map(item => {
     let stockOut = 0;
@@ -36,6 +58,11 @@ const StockRegister = () => {
 
     // Calculate Stock Out from Sales
     sales.forEach(sale => {
+      if (sale.date) {
+        const saleDate = sale.date.split('T')[0];
+        if (startDate && saleDate < startDate) return;
+        if (endDate && saleDate > endDate) return;
+      }
       sale.items?.forEach(saleItem => {
         if (saleItem.id === item.id) {
           stockOut += saleItem.quantity;
@@ -45,6 +72,11 @@ const StockRegister = () => {
 
     // Calculate Stock In from Purchases
     purchases.forEach(purchase => {
+      if (purchase.date) {
+        const purDate = purchase.date.split('T')[0];
+        if (startDate && purDate < startDate) return;
+        if (endDate && purDate > endDate) return;
+      }
       purchase.items?.forEach(purItem => {
         // Purchases might use name instead of id in earlier versions, match both
         if (purItem.id === item.id || purItem.name.toLowerCase() === item.name.toLowerCase()) {
@@ -55,6 +87,11 @@ const StockRegister = () => {
 
     // Calculate from Returns
     returns.forEach(ret => {
+      if (ret.date) {
+        const retDate = ret.date.split('T')[0];
+        if (startDate && retDate < startDate) return;
+        if (endDate && retDate > endDate) return;
+      }
       if (ret.productId === item.id) {
         if (ret.returnType === 'Customer') {
           stockIn += ret.quantity; // customer returns increase stock in
@@ -65,8 +102,9 @@ const StockRegister = () => {
     });
 
     // Initial stock (or adjustments) = current stock + stockOut - stockIn
-    // So total Stock In is effectively current stock + stockOut
-    const totalStockIn = item.stock + stockOut; 
+    // If date filter is active, we just show the stockIn that happened during that period.
+    // Otherwise, we do the original calculation for 'all-time'.
+    const totalStockIn = (startDate || endDate) ? stockIn : (item.stock + stockOut); 
 
     return {
       ...item,
@@ -82,6 +120,10 @@ const StockRegister = () => {
     (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const overallStockIn = filteredData.reduce((sum, item) => sum + (Number(item.stockIn) || 0), 0);
+  const overallStockOut = filteredData.reduce((sum, item) => sum + (Number(item.stockOut) || 0), 0);
+  const overallBalance = filteredData.reduce((sum, item) => sum + (Number(item.balance) || 0), 0);
+
   const handlePrint = () => {
     const printContents = document.getElementById('printable-stock-register').innerHTML;
     const originalContents = document.body.innerHTML;
@@ -91,14 +133,14 @@ const StockRegister = () => {
     window.location.reload();
   };
 
-  const handleAddStock = async (e) => {
+  const handleAddStock = (e) => {
     e.preventDefault();
     if (!addForm.id || !addForm.name || addForm.quantity <= 0) {
-      alert("Item ID, Name, and valid Quantity are required");
+      showToast("Item ID, Name, and valid Quantity are required", "error");
       return;
     }
-
-    const result = await processPurchase({
+    
+    processPurchase({
       supplierId: 'SYSTEM',
       supplierName: 'Direct Stock In',
       paymentType: 'Cash',
@@ -117,13 +159,69 @@ const StockRegister = () => {
       id: 'STKIN_' + Date.now()
     });
 
-    if (!result.success) {
-      alert(`Stock was not added: ${result.error}`);
+    setShowAddModal(false);
+    setAddForm({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
+  };
+
+  const handleStockOut = (e) => {
+    e.preventDefault();
+    if (!outForm.id || !outForm.name || outForm.quantity <= 0) {
+      showToast("Item ID, Name, and valid Quantity are required", "error");
       return;
     }
 
-    setShowAddModal(false);
-    setAddForm({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
+    const item = inventory.find(i => i.id === outForm.id);
+    if (!item) {
+      showToast("Item not found in inventory!", "error");
+      return;
+    }
+
+    if (item.stock < outForm.quantity) {
+      showToast("Not enough stock available!", "error");
+      return;
+    }
+    
+    processReturn({
+      returnType: 'Stock Out',
+      productId: outForm.id,
+      quantity: outForm.quantity,
+      reason: 'Manual Stock Out from Register'
+    });
+
+    setShowOutModal(false);
+    setOutForm({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
+    showToast("Stock Out processed successfully!", "success");
+  };
+
+  const handleEditClick = (item) => {
+    setEditForm({
+      id: item.id,
+      name: item.name,
+      category: item.category || '',
+      variant: item.variant || '',
+      unit: item.unit || 'pcs',
+      stock: item.balance || 0
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateProduct = (e) => {
+    e.preventDefault();
+    if (!editForm.id || !editForm.name) {
+      showToast("Item ID and Name are required", "error");
+      return;
+    }
+    
+    updateInventoryItem(editForm.id, {
+      name: editForm.name,
+      category: editForm.category,
+      variant: editForm.variant,
+      unit: editForm.unit,
+      stock: parseInt(editForm.stock) || 0
+    });
+
+    setShowEditModal(false);
+    showToast("Item updated successfully!", "success");
   };
 
   return (
@@ -137,6 +235,9 @@ const StockRegister = () => {
           <button className="btn-primary flex-align-gap" onClick={() => setShowAddModal(true)}>
             <Plus size={18} /> Add Stock In
           </button>
+          <button className="btn-primary flex-align-gap" style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => setShowOutModal(true)}>
+            <Minus size={18} /> Add Stock Out
+          </button>
           <button className="btn-outline flex-align-gap" onClick={handlePrint}>
             <Printer size={18} /> Print Form
           </button>
@@ -146,8 +247,24 @@ const StockRegister = () => {
         </div>
       </div>
 
+      {/* Mini Dashboard */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div className="card glass" style={{ padding: '1.25rem', borderLeft: '4px solid #16a34a', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <h3 className="text-muted text-sm uppercase font-bold" style={{ margin: 0 }}>Total Stock In</h3>
+          <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#16a34a' }}>{overallStockIn.toLocaleString()}</div>
+        </div>
+        <div className="card glass" style={{ padding: '1.25rem', borderLeft: '4px solid #dc2626', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <h3 className="text-muted text-sm uppercase font-bold" style={{ margin: 0 }}>Total Stock Out</h3>
+          <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#dc2626' }}>{overallStockOut.toLocaleString()}</div>
+        </div>
+        <div className="card glass" style={{ padding: '1.25rem', borderLeft: '4px solid var(--primary)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <h3 className="text-muted text-sm uppercase font-bold" style={{ margin: 0 }}>Total Balance</h3>
+          <div style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)' }}>{overallBalance.toLocaleString()}</div>
+        </div>
+      </div>
+
       <div className="card">
-        <div className="card-toolbar">
+        <div className="card-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
           <div className="search-bar">
             <Search size={18} className="text-muted" />
             <input 
@@ -156,6 +273,31 @@ const StockRegister = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+          </div>
+          <div className="flex-align-gap" style={{ flexWrap: 'wrap' }}>
+            <label className="text-muted text-sm font-bold">Date Range:</label>
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)} 
+              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-card)', color: 'var(--text-main)' }} 
+            />
+            <span className="text-muted text-sm">to</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)} 
+              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-card)', color: 'var(--text-main)' }} 
+            />
+            {(startDate || endDate) && (
+              <button 
+                className="btn-outline text-sm" 
+                style={{ padding: '0.4rem 0.6rem' }} 
+                onClick={() => { setStartDate(''); setEndDate(''); }}
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
 
@@ -171,6 +313,7 @@ const StockRegister = () => {
                 <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Stock In</th>
                 <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Stock Out</th>
                 <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Balance</th>
+                <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -184,11 +327,16 @@ const StockRegister = () => {
                   <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 'bold' }}>{item.stockIn}</td>
                   <td style={{ textAlign: 'center', color: '#dc2626', fontWeight: 'bold' }}>{item.stockOut}</td>
                   <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.balance}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button className="btn-icon" title="Edit Item" onClick={() => handleEditClick(item)}>
+                      <Edit size={16} className="text-primary" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filteredData.length === 0 && (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>No items found</td>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>No items found</td>
                 </tr>
               )}
             </tbody>
@@ -211,6 +359,7 @@ const StockRegister = () => {
           
           <InvoiceHeader />
           <h3 style={{ textAlign: 'center', textDecoration: 'underline', marginBottom: '20px' }}>Stock Form / Register</h3>
+          {(startDate || endDate) && <p style={{textAlign: 'center', marginBottom: '1rem', fontSize: '0.9rem'}}>Date Filter: {startDate || 'Any'} to {endDate || 'Any'}</p>}
           
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
@@ -315,6 +464,156 @@ const StockRegister = () => {
             <div className="drawer-footer">
               <button type="button" className="btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
               <button type="submit" form="add-stock-form" className="btn-primary flex-align-gap"><Plus size={18} /> Save Stock</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Quick Add Stock Out Drawer */}
+      {showOutModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowOutModal(false)}>
+          <div className="drawer-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Quick Add Stock Out</h2>
+              <button className="drawer-close-btn" onClick={() => setShowOutModal(false)}>
+                <Plus size={24} style={{ transform: 'rotate(45deg)' }} />
+              </button>
+            </div>
+            <div className="drawer-body">
+              <form id="add-stock-out-form" onSubmit={handleStockOut}>
+                <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr' }}>
+                  <div>
+                    <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Item Code/ID *</label>
+                    <input 
+                      type="text" 
+                      list="stock-items-out"
+                      className="w-full" 
+                      placeholder="Type or select ID"
+                      value={outForm.id} 
+                      onChange={e => handleIdChangeOut(e.target.value)}
+                      required 
+                    />
+                    <datalist id="stock-items-out">
+                      {inventory.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Product Name *</label>
+                    <input 
+                      type="text" 
+                      className="w-full" 
+                      value={outForm.name} 
+                      onChange={e => setOutForm({...outForm, name: e.target.value})}
+                      required 
+                      disabled
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Category</label>
+                      <input type="text" className="w-full" value={outForm.category} disabled />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Size</label>
+                      <input type="text" className="w-full" value={outForm.variant} disabled />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Unit</label>
+                      <input type="text" className="w-full" value={outForm.unit} disabled />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Stock Out *</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        min="1"
+                        value={outForm.quantity} 
+                        onChange={e => setOutForm({...outForm, quantity: parseInt(e.target.value) || 1})} 
+                        required 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="drawer-footer">
+              <button type="button" className="btn-outline" onClick={() => setShowOutModal(false)}>Cancel</button>
+              <button type="submit" form="add-stock-out-form" className="btn-primary flex-align-gap" style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}><Minus size={18} /> Save Stock Out</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Product Drawer */}
+      {showEditModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="drawer-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Edit Stock Item</h2>
+              <button className="drawer-close-btn" onClick={() => setShowEditModal(false)}>
+                <Plus size={24} style={{ transform: 'rotate(45deg)' }} />
+              </button>
+            </div>
+            <div className="drawer-body">
+              <form id="edit-stock-form" onSubmit={handleUpdateProduct}>
+                <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr' }}>
+                  <div>
+                    <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Item Code/ID * (Cannot Change)</label>
+                    <input 
+                      type="text" 
+                      className="w-full" 
+                      value={editForm.id} 
+                      disabled
+                      style={{ background: 'var(--bg-hover)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Product Name *</label>
+                    <input 
+                      type="text" 
+                      className="w-full" 
+                      value={editForm.name} 
+                      onChange={e => setEditForm({...editForm, name: e.target.value})}
+                      required 
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Category</label>
+                      <input type="text" className="w-full" value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Size</label>
+                      <input type="text" className="w-full" value={editForm.variant} onChange={e => setEditForm({...editForm, variant: e.target.value})} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Unit</label>
+                      <input type="text" className="w-full" value={editForm.unit} onChange={e => setEditForm({...editForm, unit: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Current Balance *</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        min="0"
+                        value={editForm.stock} 
+                        onChange={e => setEditForm({...editForm, stock: parseInt(e.target.value) || 0})} 
+                        required 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="drawer-footer">
+              <button type="button" className="btn-outline" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button type="submit" form="edit-stock-form" className="btn-primary flex-align-gap"><Edit size={18} /> Update Item</button>
             </div>
           </div>
         </div>,

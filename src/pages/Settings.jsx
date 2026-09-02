@@ -1,19 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import useStore from '../store/useStore';
-import { Palette, CheckCircle2, Store, Save } from 'lucide-react';
-
-// Mirrors the ShopProfile fields the invoice letterhead reads.
-const PROFILE_FIELDS = [
-  { key: 'shop_name', label: 'Shop Name', type: 'text' },
-  { key: 'tagline', label: 'Tagline (one line per printed line)', type: 'textarea', rows: 2 },
-  { key: 'address', label: 'Address', type: 'textarea', rows: 2 },
-  { key: 'phone', label: 'Phone', type: 'text' },
-  { key: 'whatsapp', label: 'WhatsApp / Second Phone', type: 'text' },
-  { key: 'email', label: 'Email', type: 'text' },
-  { key: 'footer_disclaimer_1', label: 'Invoice Footer Note 1', type: 'textarea', rows: 2 },
-  { key: 'footer_disclaimer_2', label: 'Invoice Footer Note 2', type: 'textarea', rows: 3 },
-  { key: 'footer_phone', label: 'Footer Phone', type: 'text' },
-];
+import { Palette, CheckCircle2 } from 'lucide-react';
 
 const themes = [
   { id: 'theme-default', name: 'Default Amber', primary: '#f59e0b', secondary: '#0ea5e9' },
@@ -34,50 +21,6 @@ const Settings = () => {
   const isLightMode = useStore((state) => state.theme) === 'light';
   const toggleTheme = useStore((state) => state.toggleTheme);
 
-  const shopProfile = useStore((state) => state.shopProfile);
-  const fetchShopProfile = useStore((state) => state.fetchShopProfile);
-  const updateShopProfile = useStore((state) => state.updateShopProfile);
-
-  const [profileForm, setProfileForm] = useState(null);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
-
-  useEffect(() => {
-    if (!shopProfile) fetchShopProfile();
-  }, [shopProfile, fetchShopProfile]);
-
-  // Seed the form once the profile arrives, without stomping on typing.
-  useEffect(() => {
-    if (shopProfile && profileForm === null) {
-      setProfileForm(
-        PROFILE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: shopProfile[f.key] ?? '' }), {})
-      );
-    }
-  }, [shopProfile, profileForm]);
-
-  const handleProfileChange = (key, value) => {
-    setProfileSaved(false);
-    setProfileForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    if (!profileForm?.shop_name?.trim()) {
-      alert('Shop name cannot be empty - it prints at the top of every invoice.');
-      return;
-    }
-
-    setSavingProfile(true);
-    const result = await updateShopProfile(profileForm);
-    setSavingProfile(false);
-
-    if (!result.success) {
-      alert(`Shop profile was not saved: ${result.error}`);
-      return;
-    }
-    setProfileSaved(true);
-  };
-
   return (
     <div className="settings-page animate-fade-in">
       <div className="page-header">
@@ -87,58 +30,6 @@ const Settings = () => {
         </div>
       </div>
       
-      <div className="card glass" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-          <Store size={24} color="var(--primary)" />
-          <h2 style={{ fontSize: '1.25rem' }}>Shop Profile</h2>
-        </div>
-        <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-          This is the letterhead printed at the top and bottom of every invoice and report.
-        </p>
-
-        {profileForm === null ? (
-          <p className="text-muted">Loading shop profile...</p>
-        ) : (
-          <form onSubmit={handleSaveProfile}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-              {PROFILE_FIELDS.map((field) => (
-                <div
-                  key={field.key}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: field.type === 'textarea' ? '1 / -1' : 'auto' }}
-                >
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{field.label}</label>
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      rows={field.rows || 2}
-                      value={profileForm[field.key] || ''}
-                      onChange={(e) => handleProfileChange(field.key, e.target.value)}
-                      style={{ width: '100%', resize: 'vertical' }}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={profileForm[field.key] || ''}
-                      onChange={(e) => handleProfileChange(field.key, e.target.value)}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.25rem' }}>
-              <button type="submit" className="btn-primary flex-align-gap" disabled={savingProfile}>
-                <Save size={18} /> {savingProfile ? 'Saving...' : 'Save Shop Profile'}
-              </button>
-              {profileSaved && (
-                <span style={{ color: 'var(--success)', fontSize: '0.875rem' }}>
-                  Saved. New invoices will print this.
-                </span>
-              )}
-            </div>
-          </form>
-        )}
-      </div>
-
       <div className="card glass">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
           <Palette size={24} color="var(--primary)" />

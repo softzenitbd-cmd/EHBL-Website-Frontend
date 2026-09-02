@@ -327,8 +327,24 @@ input:focus, select:focus, textarea:focus {
     border: 1px solid #ccc !important;
     page-break-inside: avoid;
   }
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  th, td {
+    border: 1px solid #888 !important;
+    color: #000 !important;
+    padding: 6px 8px !important;
+    font-size: 0.9rem !important;
+  }
+  th {
+    background-color: #f3f4f6 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   .data-table th, .data-table td {
-    border: 1px solid #ddd !important;
+    border: 1px solid #888 !important;
     color: #000 !important;
   }
   .data-table th:last-child, .data-table td:last-child {
@@ -341,6 +357,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Common Print Footer UI Styles */
 .common-print-footer {
+  display: none;
   margin-top: 2rem;
   padding-top: 1rem;
   font-size: 0.85rem;
@@ -358,12 +375,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 @media print {
+  #print-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 95vh !important; /* using 95vh to account for margins */
+  }
   .common-print-footer {
     display: block !important;
-    position: relative !important;
-    width: 100%;
-    background: white;
-    padding: 15px 0px;
-    margin-top: 0;
+    position: static !important;
+    margin-top: auto !important;
+    width: 100% !important;
+    background: white !important;
+    padding: 20px 0 10px 0 !important;
+    box-sizing: border-box;
+    page-break-inside: avoid;
   }
 }

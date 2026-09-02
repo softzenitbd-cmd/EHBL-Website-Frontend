@@ -10,7 +10,7 @@ import PrintFooter from '../components/PrintFooter';
 import './POS.css';
 
 const POS = () => {
-  const { cart, inventory, staff, user, customers, addToCart, removeFromCart, updateCartItem, clearCart, loadDummyData, processSale, sales, deleteSale } = useStore();
+  const { cart, inventory, staff, user, customers, addToCart, removeFromCart, updateCartItem, clearCart, loadDummyData, processSale, sales, showToast } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -31,7 +31,6 @@ const POS = () => {
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [selectedSalesman, setSelectedSalesman] = useState(user?.id || 'Admin');
   const [completedSale, setCompletedSale] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -62,25 +61,8 @@ const POS = () => {
       addToCart({ ...product, isGift: false, itemDiscount: 0 });
       setBarcodeInput('');
     } else {
-      alert('Product not found!');
+      showToast('Product not found!', 'error');
     }
-  };
-
-  const handleDeleteSale = async (sale) => {
-    const confirmed = confirm(
-      `Delete invoice ${sale.id}?\n\n` +
-      `Customer: ${sale.customerName || 'N/A'}\n` +
-      `Total: ${Number(sale.total || 0).toLocaleString()}\n\n` +
-      `The sold items will go back into stock` +
-      (Number(sale.due_amount || 0) > 0
-        ? ` and ${Number(sale.due_amount).toLocaleString()} will be removed from the customer's due.`
-        : '.') +
-      `\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    const result = await deleteSale(sale.id);
-    if (!result.success) alert(`Invoice was not deleted: ${result.error}`);
   };
 
   const toggleGift = (item) => {
@@ -94,12 +76,12 @@ const POS = () => {
 
   const total = Math.max(0, subtotal - invoiceDiscount);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!customerInfo.name) {
-      alert('Customer Name is explicitly required for all sales!');
+      showToast('Customer Name is explicitly required for all sales!', 'error');
       return;
     }
-
+    
     const salesmanObj = staff.find(s => s.id === selectedSalesman) || { id: 'Admin', name: 'Admin' };
     const saleData = {
       cartItems: cart,
@@ -108,19 +90,11 @@ const POS = () => {
       invoiceDiscount,
       salesman: salesmanObj
     };
-
-    setIsSaving(true);
-    const result = await processSale(saleData);
-    setIsSaving(false);
-
-    if (!result.success) {
-      alert(`Sale was not saved: ${result.error}`);
-      return;
-    }
-
-    // Show the invoice the server actually stored, so the receipt carries the
-    // real invoice number rather than a locally generated one.
-    setCompletedSale(result.data);
+    
+    processSale(saleData);
+    setCompletedSale({ ...saleData, subtotal, total, date: new Date().toISOString(), invoiceId: 'INV' + Date.now() });
+    showToast("Sale completed successfully!", "success");
+    
     clearCart();
     setCustomerInfo({ name: '', phone: '', location: '' });
     setInvoiceDiscount(0);
@@ -336,8 +310,8 @@ const POS = () => {
         </div>
 
         <div className="checkout-actions">
-          <button className="btn-primary checkout-btn" onClick={handleCheckout} disabled={cart.length === 0 || isSaving}>
-            {isSaving ? 'Saving Sale...' : 'Complete Sale'}
+          <button className="btn-primary checkout-btn" onClick={handleCheckout} disabled={cart.length === 0}>
+            Complete Sale
           </button>
         </div>
       </div>
@@ -441,11 +415,6 @@ const POS = () => {
                       <button className="btn-icon" title="View & Print" onClick={() => setSelectedInvoice(s)}>
                         <Eye size={16} />
                       </button>
-                      {user?.role === 'Admin' && (
-                        <button className="btn-icon" title="Delete Invoice" onClick={() => handleDeleteSale(s)}>
-                          <Trash2 size={16} color="var(--danger)" />
-                        </button>
-                      )}
 </div>
                   </td>
                 </tr>

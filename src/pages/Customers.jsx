@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, MessageSquare, Phone, Printer, Eye, Download, Plus } from 'lucide-react';
+import { Search, MessageSquare, Phone, Printer, Eye, Download, Plus, Edit, X } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
 const Customers = () => {
-  const { customers, suppliers, settleCustomerDue, settleSupplierDue, fetchLedgerStatement } = useStore();
+  const { customers, suppliers, settleCustomerDue, settleSupplierDue, updateCustomer, updateSupplier, sales, purchases, settlements, showToast } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Customer'); // Customer or Supplier
   const [smsModal, setSmsModal] = useState({ show: false, target: null, message: '' });
@@ -19,6 +19,9 @@ const Customers = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', location: '', due: '', notes: '' });
   const { addCustomer } = useStore();
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPerson, setEditingPerson] = useState({ id: '', name: '', phone: '', location: '', due: '', notes: '' });
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -33,32 +36,48 @@ const Customers = () => {
   }, [location.search]);
 
 
-  // The statement comes from the server. Building it here from the loaded
-  // store arrays missed the opening balance entirely and could only see
-  // invoices that happened to be in memory.
-  const [personLedger, setPersonLedger] = useState([]);
-  const [ledgerLoading, setLedgerLoading] = useState(false);
+  // Compute Ledger for selected person
+  let personLedger = [];
+  if (selectedPerson) {
+    const personSettlements = (settlements || []).filter(s => s.targetId === selectedPerson.id).map(s => ({
+      id: s.id,
+      date: s.date,
+      description: 'Payment / Settlement',
+      amount: s.amount,
+      type: 'payment' // decreases due
+    }));
 
-  useEffect(() => {
-    if (!selectedPerson) {
-      setPersonLedger([]);
-      return undefined;
+    if (activeTab === 'Customer') {
+      const personSales = (sales || []).filter(s => s.customerId === selectedPerson.id && s.paymentType === 'Baki').map(s => ({
+        id: s.id,
+        date: s.date,
+        description: `Baki Sale (${s.items.length} items)`,
+        amount: s.total,
+        type: 'charge' // increases due
+      }));
+      personLedger = [...personSales, ...personSettlements];
+    } else {
+      const personPurchases = (purchases || []).filter(p => p.supplierId === selectedPerson.id && p.paymentType === 'Baki').map(p => ({
+        id: p.id,
+        date: p.date,
+        description: `Baki Purchase (${p.items.length} items)`,
+        amount: p.total,
+        type: 'charge' // increases due
+      }));
+      personLedger = [...personPurchases, ...personSettlements];
     }
 
-    let cancelled = false;
-    setLedgerLoading(true);
-
-    fetchLedgerStatement(activeTab === 'Customer' ? 'customer' : 'supplier', selectedPerson.id)
-      .then((res) => {
-        if (cancelled) return;
-        setPersonLedger(res.success ? (res.data.ledger || []) : []);
-      })
-      .finally(() => {
-        if (!cancelled) setLedgerLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [selectedPerson, activeTab, fetchLedgerStatement]);
+    // Sort ascending by date
+    personLedger.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Calculate running balance
+    let balance = 0;
+    personLedger = personLedger.map(tx => {
+      if (tx.type === 'charge') balance += tx.amount;
+      else if (tx.type === 'payment') balance -= tx.amount;
+      return { ...tx, balance };
+    });
+  }
 
   const currentList = activeTab === 'Customer' ? customers : suppliers;
 
@@ -69,49 +88,69 @@ const Customers = () => {
   );
   const handleSendSMS = (e) => {
     e.preventDefault();
-    alert(`SMS sent to ${smsModal.target.name} (${smsModal.target.phone}):\n"${smsModal.message}"`);
+    showToast(`SMS sent to ${smsModal.target.name}!`, 'success');
     setSmsModal({ show: false, target: null, message: '' });
   };
 
-  const handleAddCustomer = async (e) => {
+  const handleAddCustomer = (e) => {
     e.preventDefault();
     if (!newCustomer.name) {
-      alert("Name is required");
+      showToast("Name is required", "error");
       return;
     }
     const customerToSave = { ...newCustomer };
-    customerToSave.due = customerToSave.due ? parseFloat(customerToSave.due) || 0 : 0;
-
-    const result = await addCustomer(customerToSave);
-    if (!result.success) {
-      alert(`Customer was not saved: ${result.error}`);
-      return;
+    if (customerToSave.due) {
+      customerToSave.due = parseFloat(customerToSave.due) || 0;
+    } else {
+      customerToSave.due = 0;
     }
-
+    addCustomer(customerToSave);
+    showToast("Added successfully!", "success");
     setNewCustomer({ name: '', phone: '', location: '', due: '', notes: '' });
     setShowAddModal(false);
   };
 
+  const handleEditClick = (person) => {
+    setEditingPerson({ ...person });
+    setShowEditModal(true);
+  };
 
-  const handleSettle = async (e) => {
+  const handleUpdatePerson = (e) => {
+    e.preventDefault();
+    if (!editingPerson.name) {
+      showToast("Name is required", "error");
+      return;
+    }
+    const updatedData = { ...editingPerson };
+    if (updatedData.due) updatedData.due = parseFloat(updatedData.due) || 0;
+    else updatedData.due = 0;
+
+    if (activeTab === 'Customer') {
+      updateCustomer(editingPerson.id, updatedData);
+    } else {
+      updateSupplier(editingPerson.id, updatedData);
+    }
+    showToast("Updated successfully!", "success");
+    setShowEditModal(false);
+  };
+
+
+  const handleSettle = (e) => {
     e.preventDefault();
     const amount = parseFloat(settleModal.amount);
     if (!amount || amount <= 0) {
-      alert('Please enter a valid amount to settle.');
+      showToast('Please enter a valid amount to settle.', 'error');
       return;
     }
 
-    const target = settleModal.target;
-    const result = activeTab === 'Customer'
-      ? await settleCustomerDue(target.id, amount, settleModal.date)
-      : await settleSupplierDue(target.id, amount, settleModal.date);
-
-    if (!result.success) {
-      alert(`Payment was not recorded: ${result.error}`);
-      return;
+    if (activeTab === 'Customer') {
+      settleCustomerDue(settleModal.target.id, amount, settleModal.date);
+      showToast(`Successfully settled ৳${amount} for Customer: ${settleModal.target.name}`, 'success');
+    } else {
+      settleSupplierDue(settleModal.target.id, amount, settleModal.date);
+      showToast(`Successfully settled ৳${amount} for Supplier: ${settleModal.target.name}`, 'success');
     }
 
-    alert(`Successfully settled ${amount} for ${activeTab}: ${target.name}`);
     setSettleModal({ show: false, target: null, amount: '', date: '' });
   };
 
@@ -150,7 +189,7 @@ const Customers = () => {
             />
           </div>
           <button className="btn-primary flex-align-gap" onClick={() => setShowAddModal(true)} style={{marginLeft: 'auto'}}>
-            <Plus size={16} /> New Customer
+            <Plus size={16} /> Customer
           </button>
           <button className="btn-outline flex-align-gap" onClick={() => {
             const printContents = document.getElementById('printable-customers-list').innerHTML;
@@ -190,6 +229,9 @@ const Customers = () => {
                     <td><span className="text-danger font-bold">{person.due}</span></td>
                     <td>
                       <div className="action-buttons flex-align-gap" style={{flexWrap:'nowrap'}}>
+                        <button type="button" className="btn-icon" title="Edit" onClick={(e) => { e.stopPropagation(); handleEditClick(person); }}>
+                          <Edit size={16} color="var(--primary)" />
+                        </button>
                         <button className="btn-icon" title="View & Print" onClick={() => setSelectedPerson(person)}>
                           <Eye size={16} />
                         </button>
@@ -382,11 +424,7 @@ const Customers = () => {
                      </tr>
                    </thead>
                    <tbody>
-                     {ledgerLoading ? (
-                       <tr>
-                         <td colSpan="5" style={{ border: '1px solid #ccc', padding: '1rem', textAlign: 'center', color: '#666' }}>Loading statement...</td>
-                       </tr>
-                     ) : personLedger.length > 0 ? (
+                     {personLedger.length > 0 ? (
                        personLedger.map((tx) => (
                          <tr key={tx.id}>
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>{new Date(tx.date).toLocaleDateString()}</td>
@@ -438,11 +476,12 @@ const Customers = () => {
       )}
 
       {/* Add Customer Drawer */}
+      {/* Add Customer Drawer */}
       {showAddModal && createPortal(
         <div className="drawer-overlay" onClick={() => setShowAddModal(false)}>
           <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
-              <h2>Add New Customer</h2>
+              <h2>Add Customer</h2>
               <button type="button" className="drawer-close-btn" onClick={() => setShowAddModal(false)}>
                 <Plus size={24} style={{ transform: 'rotate(45deg)' }} />
               </button>
@@ -496,7 +535,7 @@ const Customers = () => {
                     value={newCustomer.notes} 
                     onChange={e => setNewCustomer({...newCustomer, notes: e.target.value})} 
                     placeholder="Any additional information..." 
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-input)' }}
                     rows={2}
                   />
                 </div>
@@ -505,6 +544,86 @@ const Customers = () => {
             <div className="drawer-footer">
               <button type="button" className="btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
               <button type="submit" form="add-customer-form" className="btn-primary">Add Customer</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Person Drawer */}
+      {showEditModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Edit {activeTab}</h2>
+              <button type="button" className="drawer-close-btn" onClick={() => setShowEditModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="drawer-body">
+              <form id="edit-person-form" onSubmit={handleUpdatePerson} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>ID (Cannot change)</label>
+                  <input 
+                    type="text" 
+                    value={editingPerson.id} 
+                    disabled 
+                    style={{ width: '100%', background: 'var(--bg-hover)' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Name *</label>
+                  <input 
+                    type="text" 
+                    value={editingPerson.name} 
+                    onChange={e => setEditingPerson({...editingPerson, name: e.target.value})} 
+                    required 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Phone Number</label>
+                  <input 
+                    type="text" 
+                    value={editingPerson.phone} 
+                    onChange={e => setEditingPerson({...editingPerson, phone: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Location / Address</label>
+                  <input 
+                    type="text" 
+                    value={editingPerson.location || ''} 
+                    onChange={e => setEditingPerson({...editingPerson, location: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Due Balance</label>
+                  <input 
+                    type="number" 
+                    value={editingPerson.due} 
+                    onChange={e => setEditingPerson({...editingPerson, due: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Notes / Remarks</label>
+                  <textarea 
+                    value={editingPerson.notes || ''} 
+                    onChange={e => setEditingPerson({...editingPerson, notes: e.target.value})} 
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-input)' }}
+                    rows={2}
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="drawer-footer">
+              <button type="button" className="btn-outline" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button type="submit" form="edit-person-form" className="btn-primary flex-align-gap">
+                <Edit size={18} /> Update
+              </button>
             </div>
           </div>
         </div>,

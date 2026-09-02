@@ -77,14 +77,14 @@ const PrintableInvoice = ({ sale, customers }) => {
 
       <table style={{ width: '100%', fontSize: '0.9rem', marginBottom: '10px', color: '#000', borderCollapse: 'collapse' }}>
         <thead>
-          <tr>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', width: '40px' }}>SL</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'left' }}>Item Name</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', width: '60px' }}>Size</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', width: '70px' }}>Quantity</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', width: '60px' }}>Unit</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', width: '80px' }}>Rate</th>
-            <th style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', width: '100px' }}>Amount</th>
+          <tr style={{ backgroundColor: '#f3f4f6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '40px' }}>SL</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left' }}>Item Name</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '60px' }}>Size</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '70px' }}>Quantity</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '60px' }}>Unit</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '80px' }}>Rate</th>
+            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '100px' }}>Amount</th>
           </tr>
         </thead>
         <tbody>

@@ -21,7 +21,8 @@ import {
   Plus,
   Minus,
   ChevronsRight,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Menu
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -96,6 +97,7 @@ const NavItem = ({ item, isMobileMenuOpen, setIsMobileMenuOpen }) => {
 const Layout = () => {
   const { user, logout, theme, toggleTheme, fetchAllData } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const navigate = useNavigate();
 
@@ -127,14 +129,11 @@ const Layout = () => {
       name: 'Sales & Billing', 
       icon: <ShoppingCart size={20} />,
       subItems: [
-        { path: '/pos?action=add', search: '?action=add', name: 'POS (New Sale)' },
+        { path: '/pos?action=add', search: '?action=add', name: 'POS (Sale)' },
         { path: '/pos', search: '', name: 'POS Sales List' },
-        { path: '/invoice?action=add', search: '?action=add', name: 'New Invoice' },
-        { path: '/invoice', search: '', name: 'Invoice List' },
-        { path: '/invoice?action=draft', search: '?action=draft', name: 'Draft Invoice' },
-        { path: '/returns?action=add', search: '?action=add', name: 'New Return' },
+        { path: '/returns?action=add', search: '?action=add', name: 'Return' },
         { path: '/returns', search: '', name: 'Return List' },
-        { path: '/sr-settlements', search: '', name: 'SR Daily Accounts' },
+        { path: '/sr-settlements', search: '', name: 'Order Process' },
       ]
     },
     { 
@@ -143,10 +142,9 @@ const Layout = () => {
       subItems: [
         { path: '/inventory?action=add', search: '?action=add', name: 'Add Product' },
         { path: '/inventory', search: '', name: 'Product List' },
-        { path: '/purchases?action=add', search: '?action=add', name: 'New Purchase' },
+        { path: '/purchases?action=add', search: '?action=add', name: 'Purchase' },
         { path: '/purchases', search: '', name: 'Purchase List' },
         { path: '/stock', search: '', name: 'Stock Form' },
-        { path: '/stock-logs', search: '', name: 'Stock Movement Log' },
       ]
     },
     { 
@@ -193,15 +191,21 @@ const Layout = () => {
 
   return (
     <div className="app-container">
-      <aside className="sidebar glass">
+      <aside className={`sidebar glass ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img src={logoImg} alt="EHBL Logo" style={{ height: '45px', width: '45px', borderRadius: '8px', objectFit: 'contain', background: 'white' }} />
-            <div>
+          <div className="sidebar-brand-container" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img src={logoImg} alt="EHBL Logo" className="sidebar-logo" style={{ height: '45px', width: '45px', borderRadius: '8px', objectFit: 'contain', background: 'white' }} />
+            <div className="sidebar-brand-text">
               <h2>EHBL</h2>
               <span className="role-badge">{user?.role}</span>
             </div>
           </div>
+          <button 
+            className="desktop-menu-toggle btn-icon" 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          >
+            <Menu size={20} />
+          </button>
           <button 
             className="mobile-menu-toggle btn-icon" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

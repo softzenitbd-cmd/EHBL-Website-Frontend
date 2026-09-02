@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Printer, Eye, Download, Plus, Phone } from 'lucide-react';
+import { Search, Printer, Eye, Download, Plus, Phone, Edit, X } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
 const Suppliers = () => {
-  const { suppliers, addSupplier, purchases, settlements } = useStore();
+  const { suppliers, addSupplier, updateSupplier, purchases, settlements, showToast } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPerson, setSelectedPerson] = useState(null);
+  
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newSupplier, setNewSupplier] = useState({ name: '', company: '', phone: '', location: '', due: '', notes: '' });
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState({ id: '', name: '', company: '', phone: '', location: '', due: '', notes: '' });
 
   const getSupplierTransactions = (supplierId) => {
     if (!supplierId) return [];
@@ -40,9 +46,6 @@ const Suppliers = () => {
   const totalPurchased = selectedPersonTransactions.filter(t => t.type === 'Purchase').reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const totalPaid = selectedPersonTransactions.filter(t => t.type === 'Payment').reduce((sum, t) => sum + Number(t.amount || 0), 0);
   
-  // Add Supplier Modal State
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newSupplier, setNewSupplier] = useState({ name: '', company: '', phone: '', email: '', location: '', due: '', notes: '' });
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -62,23 +65,42 @@ const Suppliers = () => {
       person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (person.phone && person.phone.includes(searchTerm))
   );
-  const handleAddSupplier = async (e) => {
+  const handleAddSupplier = (e) => {
     e.preventDefault();
     if (!newSupplier.name) {
-      alert("Name is required");
+      showToast("Name is required", "error");
       return;
     }
     const supplierToSave = { ...newSupplier };
-    supplierToSave.due = supplierToSave.due ? parseFloat(supplierToSave.due) || 0 : 0;
+    if (supplierToSave.due) {
+      supplierToSave.due = parseFloat(supplierToSave.due) || 0;
+    } else {
+      supplierToSave.due = 0;
+    }
+    addSupplier(supplierToSave);
+    showToast("Supplier added successfully!", "success");
+    setNewSupplier({ name: '', company: '', phone: '', location: '', due: '', notes: '' });
+    setShowAddModal(false);
+  };
 
-    const result = await addSupplier(supplierToSave);
-    if (!result.success) {
-      alert(`Supplier was not saved: ${result.error}`);
+  const handleEditSupplierClick = (person) => {
+    setEditingSupplier({ ...person });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateSupplier = (e) => {
+    e.preventDefault();
+    if (!editingSupplier.name) {
+      showToast("Name is required", "error");
       return;
     }
+    const updatedData = { ...editingSupplier };
+    if (updatedData.due) updatedData.due = parseFloat(updatedData.due) || 0;
+    else updatedData.due = 0;
 
-    setNewSupplier({ name: '', company: '', phone: '', email: '', location: '', due: '', notes: '' });
-    setShowAddModal(false);
+    updateSupplier(editingSupplier.id, updatedData);
+    showToast("Supplier updated successfully!", "success");
+    setShowEditModal(false);
   };
 
   return (
@@ -103,7 +125,7 @@ const Suppliers = () => {
           </div>
           <div className="toolbar-actions" style={{ marginLeft: 'auto' }}>
             <button className="btn-primary flex-align-gap" onClick={() => setShowAddModal(true)}>
-              <Plus size={16} /> New Supplier
+              <Plus size={16} /> Supplier
             </button>
             <button className="btn-outline flex-align-gap" onClick={() => window.print()}>
               <Printer size={16} /> Print List
@@ -145,6 +167,9 @@ const Suppliers = () => {
                       <td><span className={person.due > 0 ? "text-danger font-bold" : "text-success font-bold"}>{person.due.toLocaleString()}</span></td>
                       <td>
                         <div className="action-buttons flex-align-gap" style={{flexWrap:'nowrap'}}>
+                          <button type="button" className="btn-icon" title="Edit" onClick={(e) => { e.stopPropagation(); handleEditSupplierClick(person); }}>
+                            <Edit size={16} color="var(--primary)" />
+                          </button>
                           <button className="btn-icon" title="View & Print" onClick={() => setSelectedPerson(person)}>
                             <Eye size={16} />
                           </button>
@@ -165,7 +190,7 @@ const Suppliers = () => {
         <div className="drawer-overlay" onClick={() => setShowAddModal(false)}>
           <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
-              <h2>Add New Supplier</h2>
+              <h2>Add Supplier</h2>
               <button type="button" className="drawer-close-btn" onClick={() => setShowAddModal(false)}>
                 <Plus size={24} style={{ transform: 'rotate(45deg)' }} />
               </button>
@@ -248,6 +273,95 @@ const Suppliers = () => {
             <div className="drawer-footer">
               <button type="button" className="btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
               <button type="submit" form="add-supplier-form" className="btn-primary">Add Supplier</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Supplier Drawer */}
+      {showEditModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Edit Supplier</h2>
+              <button type="button" className="drawer-close-btn" onClick={() => setShowEditModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="drawer-body">
+              <form id="edit-supplier-form" onSubmit={handleUpdateSupplier} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>ID (Cannot change)</label>
+                  <input 
+                    type="text" 
+                    value={editingSupplier.id} 
+                    disabled 
+                    style={{ width: '100%', background: 'var(--bg-hover)' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Supplier Name *</label>
+                  <input 
+                    type="text" 
+                    value={editingSupplier.name} 
+                    onChange={e => setEditingSupplier({...editingSupplier, name: e.target.value})} 
+                    required 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Company / Brand Name</label>
+                  <input 
+                    type="text" 
+                    value={editingSupplier.company || ''} 
+                    onChange={e => setEditingSupplier({...editingSupplier, company: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Phone Number</label>
+                  <input 
+                    type="text" 
+                    value={editingSupplier.phone} 
+                    onChange={e => setEditingSupplier({...editingSupplier, phone: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Location / Address</label>
+                  <input 
+                    type="text" 
+                    value={editingSupplier.location || ''} 
+                    onChange={e => setEditingSupplier({...editingSupplier, location: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Due Balance</label>
+                  <input 
+                    type="number" 
+                    value={editingSupplier.due} 
+                    onChange={e => setEditingSupplier({...editingSupplier, due: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Notes / Remarks</label>
+                  <textarea 
+                    value={editingSupplier.notes || ''} 
+                    onChange={e => setEditingSupplier({...editingSupplier, notes: e.target.value})} 
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-input)' }}
+                    rows={2}
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="drawer-footer">
+              <button type="button" className="btn-outline" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button type="submit" form="edit-supplier-form" className="btn-primary flex-align-gap">
+                <Edit size={18} /> Update
+              </button>
             </div>
           </div>
         </div>,

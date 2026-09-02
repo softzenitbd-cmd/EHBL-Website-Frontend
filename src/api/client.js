@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Detect active port dynamically or fallback to 8000 / 8001
-const initialBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+// Detect active port dynamically or fallback to 8001 / 8000
+const initialBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.68.104:8001/api';
 
 const apiClient = axios.create({
   baseURL: initialBaseURL,

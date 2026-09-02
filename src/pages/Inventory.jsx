@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
-import { Plus, Search, Printer, Trash2, Download, FolderPlus, Layers, X, RotateCcw, Tag, Calendar, ArrowUpDown, History } from 'lucide-react';
+import { Plus, Search, Printer, Trash2, Download, FolderPlus, Layers, X, RotateCcw, Tag, Calendar, ArrowUpDown, Edit } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -27,7 +27,7 @@ const defaultUnits = [
 ];
 
 const Inventory = () => {
-  const { inventory, categories, units, addInventoryItem, deleteInventoryItem, addCategory, addUnit } = useStore();
+  const { inventory, categories, units, addInventoryItem, updateInventoryItem, deleteInventoryItem, addCategory, addUnit, showToast } = useStore();
   
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,8 +42,12 @@ const Inventory = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCatModal, setShowCatModal] = useState(false);
   const [showUnitModal, setShowUnitModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [printQuantity, setPrintQuantity] = useState(21);
+  const [editingProduct, setEditingProduct] = useState({
+    id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0
+  });
 
   // New Category / Unit Inputs
   const [newCatInput, setNewCatInput] = useState('');
@@ -77,19 +81,31 @@ const Inventory = () => {
     ...(units || []).map(u => typeof u === 'string' ? u : u.name).filter(Boolean)
   ]));
 
+  const handleEditProductClick = (product) => {
+    setEditingProduct({ ...product });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateProduct = async (e) => {
+    e.preventDefault();
+    if (!editingProduct.id || !editingProduct.name) {
+      showToast('Product ID and Name are required!', 'error');
+      return;
+    }
+    await updateInventoryItem(editingProduct.id, editingProduct);
+    showToast('Product updated successfully!', 'success');
+    setShowEditModal(false);
+  };
+
   const handleAddProduct = async (e) => {
     e.preventDefault();
     if (!newProduct.id || !newProduct.name) {
-      alert('Product ID and Name are required!');
+      showToast('Product ID and Name are required!', 'error');
       return;
     }
     
-    const result = await addInventoryItem(newProduct);
-    if (!result.success) {
-      alert(`Product was not saved: ${result.error}`);
-      return;
-    }
-
+    await addInventoryItem(newProduct);
+    showToast('Product added successfully!', 'success');
     setShowAddModal(false);
     navigate('/inventory');
     setNewProduct({ id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0 });
@@ -99,22 +115,14 @@ const Inventory = () => {
   const handleCreateCategory = async (e) => {
     e.preventDefault();
     if (!newCatInput.trim()) return;
-    const result = await addCategory(newCatInput.trim());
-    if (!result.success) {
-      alert(`Category was not created: ${result.error}`);
-      return;
-    }
+    await addCategory(newCatInput.trim());
     setNewCatInput('');
   };
 
   const handleCreateUnit = async (e) => {
     e.preventDefault();
     if (!newUnitInput.trim()) return;
-    const result = await addUnit(newUnitInput.trim());
-    if (!result.success) {
-      alert(`Unit was not created: ${result.error}`);
-      return;
-    }
+    await addUnit(newUnitInput.trim());
     setNewUnitInput('');
   };
 
@@ -251,7 +259,7 @@ const Inventory = () => {
             <Download size={18} /> Download PDF
           </button>
           <button className="btn-primary flex-align-gap" onClick={() => setShowAddModal(true)}>
-            <Plus size={18} /> Add New Product
+            <Plus size={18} /> Add Product
           </button>
         </div>
       </div>
@@ -454,15 +462,11 @@ const Inventory = () => {
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <div className="flex-align-gap" style={{ justifyContent: 'center' }}>
+                      <button type="button" className="btn-icon" title="Edit Product" onClick={(e) => { e.stopPropagation(); handleEditProductClick(item); }}>
+                        <Edit size={16} color="var(--primary)" />
+                      </button>
                       <button className="btn-icon" title="Print Barcode" onClick={() => handlePrintBarcode(item)}>
                         <Printer size={16} />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        title="Stock History"
-                        onClick={() => navigate(`/stock-logs?product=${encodeURIComponent(item.id)}`)}
-                      >
-                        <History size={16} />
                       </button>
                       <button className="btn-icon" title="Delete Product" onClick={() => {
                         if (confirm(`Are you sure you want to delete ${item.name}?`)) {
@@ -590,10 +594,10 @@ const Inventory = () => {
 
       {/* Add Product Drawer */}
       {showAddModal && createPortal(
-        <div className="drawer-overlay" onClick={closeModal}>
+        <div className="drawer-overlay" onClick={() => { setShowAddModal(false); navigate('/inventory'); }}>
           <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
-              <h2>Add New Product</h2>
+              <h2>Add Product</h2>
               <button className="drawer-close-btn" onClick={() => { setShowAddModal(false); navigate('/inventory'); }}>
                 <X size={24} />
               </button>
@@ -635,7 +639,7 @@ const Inventory = () => {
                         style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         onClick={() => setIsCustomCategory(!isCustomCategory)}
                       >
-                        {isCustomCategory ? '← Choose from List' : '➕ Type New Category'}
+                        {isCustomCategory ? '← Choose from List' : '➕ Type Category'}
                       </button>
                     </div>
 
@@ -655,7 +659,7 @@ const Inventory = () => {
                         {allCategories.map((catName, idx) => (
                           <option key={idx} value={catName}>{catName}</option>
                         ))}
-                        <option value="__NEW__">➕ + Add New Custom Category...</option>
+                        <option value="__NEW__">➕ + Add Custom Category...</option>
                       </select>
                     ) : (
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -733,6 +737,108 @@ const Inventory = () => {
         document.body
       )}
 
+      {/* Edit Product Drawer */}
+      {showEditModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Edit Product</h2>
+              <button className="drawer-close-btn" onClick={() => setShowEditModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="drawer-body">
+              <form id="edit-product-form" onSubmit={handleUpdateProduct}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Product ID / Barcode * (Cannot Change)</label>
+                    <input 
+                      type="text" 
+                      className="w-full" 
+                      value={editingProduct.id} 
+                      disabled 
+                      style={{ background: 'var(--bg-hover)' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Product Name *</label>
+                    <input 
+                      type="text" 
+                      className="w-full" 
+                      value={editingProduct.name} 
+                      onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} 
+                      required 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-muted text-sm block mb-1">Variant / Size / Model (Optional)</label>
+                    <input 
+                      type="text" 
+                      className="w-full" 
+                      value={editingProduct.variant} 
+                      onChange={e => setEditingProduct({...editingProduct, variant: e.target.value})} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Category</label>
+                      <select 
+                        className="w-full" 
+                        value={editingProduct.category}
+                        onChange={e => setEditingProduct({...editingProduct, category: e.target.value})}
+                      >
+                        {allCategories.map((c, idx) => <option key={idx} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Unit</label>
+                      <select 
+                        className="w-full" 
+                        value={editingProduct.unit}
+                        onChange={e => setEditingProduct({...editingProduct, unit: e.target.value})}
+                      >
+                        {allUnits.map((u, idx) => <option key={idx} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Opening Stock</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        value={editingProduct.stock} 
+                        onChange={e => setEditingProduct({...editingProduct, stock: parseInt(e.target.value) || 0})} 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Selling Price (৳)</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        value={editingProduct.price} 
+                        onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value) || 0})} 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="drawer-footer">
+              <button type="button" className="btn-outline" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button type="submit" form="edit-product-form" className="btn-primary flex-align-gap"><Edit size={18} /> Update Product</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+
       {/* Category Management Modal Portal */}
       {showCatModal && createPortal(
         <div className="drawer-overlay" style={{ zIndex: 10000 }} onClick={() => setShowCatModal(false)}>
@@ -764,7 +870,7 @@ const Inventory = () => {
               <input 
                 type="text" 
                 className="w-full" 
-                placeholder="New Category Name (e.g. Electric Cables)" 
+                placeholder="Category Name (e.g. Electric Cables)" 
                 value={newCatInput} 
                 onChange={e => setNewCatInput(e.target.value)} 
                 required 
@@ -829,7 +935,7 @@ const Inventory = () => {
               <input 
                 type="text" 
                 className="w-full" 
-                placeholder="New Unit (e.g. Coil, Bundle, Drum)" 
+                placeholder="Unit (e.g. Coil, Bundle, Drum)" 
                 value={newUnitInput} 
                 onChange={e => setNewUnitInput(e.target.value)} 
                 required 
