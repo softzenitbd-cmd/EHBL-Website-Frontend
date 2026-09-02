@@ -8,7 +8,7 @@ import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
 const Customers = () => {
-  const { customers, suppliers, settleCustomerDue, settleSupplierDue, sales, purchases, settlements } = useStore();
+  const { customers, suppliers, settleCustomerDue, settleSupplierDue, fetchLedgerStatement } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Customer'); // Customer or Supplier
   const [smsModal, setSmsModal] = useState({ show: false, target: null, message: '' });
@@ -33,48 +33,32 @@ const Customers = () => {
   }, [location.search]);
 
 
-  // Compute Ledger for selected person
-  let personLedger = [];
-  if (selectedPerson) {
-    const personSettlements = (settlements || []).filter(s => s.targetId === selectedPerson.id).map(s => ({
-      id: s.id,
-      date: s.date,
-      description: 'Payment / Settlement',
-      amount: s.amount,
-      type: 'payment' // decreases due
-    }));
+  // The statement comes from the server. Building it here from the loaded
+  // store arrays missed the opening balance entirely and could only see
+  // invoices that happened to be in memory.
+  const [personLedger, setPersonLedger] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
 
-    if (activeTab === 'Customer') {
-      const personSales = (sales || []).filter(s => s.customerId === selectedPerson.id && s.paymentType === 'Baki').map(s => ({
-        id: s.id,
-        date: s.date,
-        description: `Baki Sale (${s.items.length} items)`,
-        amount: s.total,
-        type: 'charge' // increases due
-      }));
-      personLedger = [...personSales, ...personSettlements];
-    } else {
-      const personPurchases = (purchases || []).filter(p => p.supplierId === selectedPerson.id && p.paymentType === 'Baki').map(p => ({
-        id: p.id,
-        date: p.date,
-        description: `Baki Purchase (${p.items.length} items)`,
-        amount: p.total,
-        type: 'charge' // increases due
-      }));
-      personLedger = [...personPurchases, ...personSettlements];
+  useEffect(() => {
+    if (!selectedPerson) {
+      setPersonLedger([]);
+      return undefined;
     }
 
-    // Sort ascending by date
-    personLedger.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    // Calculate running balance
-    let balance = 0;
-    personLedger = personLedger.map(tx => {
-      if (tx.type === 'charge') balance += tx.amount;
-      else if (tx.type === 'payment') balance -= tx.amount;
-      return { ...tx, balance };
-    });
-  }
+    let cancelled = false;
+    setLedgerLoading(true);
+
+    fetchLedgerStatement(activeTab === 'Customer' ? 'customer' : 'supplier', selectedPerson.id)
+      .then((res) => {
+        if (cancelled) return;
+        setPersonLedger(res.success ? (res.data.ledger || []) : []);
+      })
+      .finally(() => {
+        if (!cancelled) setLedgerLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedPerson, activeTab, fetchLedgerStatement]);
 
   const currentList = activeTab === 'Customer' ? customers : suppliers;
 
@@ -89,25 +73,27 @@ const Customers = () => {
     setSmsModal({ show: false, target: null, message: '' });
   };
 
-  const handleAddCustomer = (e) => {
+  const handleAddCustomer = async (e) => {
     e.preventDefault();
     if (!newCustomer.name) {
       alert("Name is required");
       return;
     }
     const customerToSave = { ...newCustomer };
-    if (customerToSave.due) {
-      customerToSave.due = parseFloat(customerToSave.due) || 0;
-    } else {
-      customerToSave.due = 0;
+    customerToSave.due = customerToSave.due ? parseFloat(customerToSave.due) || 0 : 0;
+
+    const result = await addCustomer(customerToSave);
+    if (!result.success) {
+      alert(`Customer was not saved: ${result.error}`);
+      return;
     }
-    addCustomer(customerToSave);
+
     setNewCustomer({ name: '', phone: '', location: '', due: '', notes: '' });
     setShowAddModal(false);
   };
 
 
-  const handleSettle = (e) => {
+  const handleSettle = async (e) => {
     e.preventDefault();
     const amount = parseFloat(settleModal.amount);
     if (!amount || amount <= 0) {
@@ -115,14 +101,17 @@ const Customers = () => {
       return;
     }
 
-    if (activeTab === 'Customer') {
-      settleCustomerDue(settleModal.target.id, amount, settleModal.date);
-      alert(`Successfully settled ${amount} for Customer: ${settleModal.target.name}`);
-    } else {
-      settleSupplierDue(settleModal.target.id, amount, settleModal.date);
-      alert(`Successfully settled ${amount} for Supplier: ${settleModal.target.name}`);
+    const target = settleModal.target;
+    const result = activeTab === 'Customer'
+      ? await settleCustomerDue(target.id, amount, settleModal.date)
+      : await settleSupplierDue(target.id, amount, settleModal.date);
+
+    if (!result.success) {
+      alert(`Payment was not recorded: ${result.error}`);
+      return;
     }
 
+    alert(`Successfully settled ${amount} for ${activeTab}: ${target.name}`);
     setSettleModal({ show: false, target: null, amount: '', date: '' });
   };
 
@@ -393,7 +382,11 @@ const Customers = () => {
                      </tr>
                    </thead>
                    <tbody>
-                     {personLedger.length > 0 ? (
+                     {ledgerLoading ? (
+                       <tr>
+                         <td colSpan="5" style={{ border: '1px solid #ccc', padding: '1rem', textAlign: 'center', color: '#666' }}>Loading statement...</td>
+                       </tr>
+                     ) : personLedger.length > 0 ? (
                        personLedger.map((tx) => (
                          <tr key={tx.id}>
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>{new Date(tx.date).toLocaleDateString()}</td>

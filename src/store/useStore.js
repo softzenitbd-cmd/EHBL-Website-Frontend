@@ -1,77 +1,161 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../api/endpoints';
+
+/**
+ * Pull a readable message out of an axios error from DRF.
+ * DRF returns {detail}, {error}, {non_field_errors: [...]} or {field: [...]}.
+ */
+const extractError = (err, fallback = 'Something went wrong. Please try again.') => {
+  const data = err?.response?.data;
+  if (!data) return err?.message || fallback;
+  const candidate =
+    data.error ||
+    data.detail ||
+    data.non_field_errors?.[0] ||
+    (typeof data === 'string' ? data : Object.values(data)[0]);
+  if (Array.isArray(candidate)) return String(candidate[0]);
+  return typeof candidate === 'string' ? candidate : fallback;
+};
+
+const asArray = (settled) =>
+  settled.status === 'fulfilled' && Array.isArray(settled.value) ? settled.value : null;
 
 const useStore = create(
   persist(
     (set, get) => ({
-      // App State
-      user: null, // { id, name, role: 'Admin' | 'Salesman' }
+      // ---------------------------------------------------------------
+      // Auth & UI
+      // ---------------------------------------------------------------
+      user: null,
+      token: null,
       theme: 'dark',
       activeThemeClass: 'theme-forest',
+      isLoading: false,
+      lastError: null,
+
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
       setThemeClass: (className) => set({ activeThemeClass: className }),
-      login: (userData) => set({ user: userData }),
-      logout: () => set({ user: null }),
+      clearError: () => set({ lastError: null }),
 
-      // Core Data Tables
-      inventory: [
-        { id: '10001', name: 'Bosch Impact Drill 13mm', category: 'Power Tools', stock: 15, unit: 'pcs', price: 3500, dateAdded: new Date().toISOString() },
-        { id: '10002', name: 'Steel Wire Brush 4x16', category: 'Hand Tools', stock: 120, unit: 'pcs', price: 35, dateAdded: new Date().toISOString() },
-        { id: '10003', name: 'Indian Lock Heavy Duty', category: 'Hardware', stock: 50, unit: 'pcs', price: 450, dateAdded: new Date().toISOString() },
-        { id: '10004', name: 'Angle Grinder 4 inch', category: 'Machine Tools', stock: 25, unit: 'pcs', price: 2200, dateAdded: new Date().toISOString() },
-      ],
-      customers: [
-        { id: 'C001', name: 'Fahim Traders', phone: '01719563699', location: 'Kotchandpur', due: 1020 },
-        { id: 'C002', name: 'Zaman Hardware', phone: '01811000000', location: 'Dhaka', due: 5000 },
-      ],
-      suppliers: [
-        { id: 'S001', name: 'Bosch Tools BD', phone: '01911000000', due: 15000 },
-        { id: 'S002', name: 'China Impex Ltd', phone: '01611000000', due: 50000 },
-      ],
-      sales: [
-        { id: 'INV' + (Date.now() - 86400000), date: new Date(Date.now() - 86400000).toISOString(), items: [{id: '10001', name: 'Bosch Impact Drill 13mm', quantity: 1, price: 3500, isGift: false}], subtotal: 3500, invoiceDiscount: 100, total: 3400, paymentType: 'Cash', customerId: 'C002', customerName: 'Zaman Hardware', salesmanId: 'ST001', salesmanName: 'Rashed', isGift: false },
-        { id: 'INV' + Date.now(), date: new Date().toISOString(), items: [{id: '10002', name: 'Steel Wire Brush 4x16', quantity: 12, price: 35, isGift: false}], subtotal: 420, invoiceDiscount: 0, total: 420, paymentType: 'Baki', customerId: 'C001', customerName: 'Fahim Traders', salesmanId: 'ST002', salesmanName: 'Hasan', isGift: false }
-      ],
-      purchases: [
-        { id: 'PUR' + (Date.now() - 172800000), date: new Date(Date.now() - 172800000).toISOString(), items: [{name: 'Indian Lock Heavy Duty', quantity: 50, price: 350}], supplierId: 'S002', supplierName: 'China Impex Ltd', paymentType: 'Baki', total: 17500, paidAmount: 5000, dueAmount: 12500 }
-      ],
-      returns: [
-        { id: 'RET' + Date.now(), date: new Date().toISOString(), returnType: 'Customer', productId: '10004', quantity: 1, reason: 'Motor issue' }
-      ],
-      settlements: [
-        { id: 'STL' + Date.now(), targetId: 'C001', type: 'Customer', amount: 500, date: new Date().toISOString() }
-      ],
-      expenses: [
-        { id: 1, date: new Date().toISOString().split('T')[0], category: 'Transport', amount: 500, description: 'Carrying Loading for tools' },
-        { id: 2, date: new Date().toISOString().split('T')[0], category: 'Utility', amount: 1200, description: 'Electricity Bill' },
-      ],
+      login: async (credentials) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.LOGIN, {
+            username: credentials.username,
+            password: credentials.password,
+            role: credentials.role || 'Admin',
+          });
 
-      // HR & Payroll State
-      staff: [
-        { id: 'ST001', name: 'Rashed', role: 'Store Incharge', baseSalary: 15000, joinDate: '2022-05-10' },
-        { id: 'ST002', name: 'Hasan', role: 'Delivery', baseSalary: 12000, joinDate: '2023-01-15' },
-      ],
-      attendance: [
-        { id: 1, staffId: 'ST001', date: new Date().toISOString().split('T')[0], status: 'Present' },
-        { id: 2, staffId: 'ST002', date: new Date().toISOString().split('T')[0], status: 'Late' }
-      ],
-      leaves: [
-        { id: 1, staffId: 'ST002', date: new Date(Date.now() + 86400000).toISOString().split('T')[0], type: 'Sick', reason: 'Fever', status: 'Pending' }
-      ],
-      payrolls: [
-        { id: 'PR' + Date.now(), staffId: 'ST001', staffName: 'Rashed', month: new Date().toISOString().substring(0, 7), presentDays: 28, baseSalary: 15000, bonus: 2000, netPay: 17000, paymentDate: new Date().toISOString() }
-      ],
+          const token = res.access || res.token;
+          if (token) localStorage.setItem('ehbl_token', token);
 
-      // SMS History
-      smsHistory: [
-        { id: 'SMS1', date: new Date().toISOString(), numbers: ['01719563699'], message: 'Dear Fahim Traders, your due amount is 1020 TK. Please clear it soon.', status: 'Sent' }
-      ],
-      addSmsToHistory: (smsData) => set((state) => ({
-        smsHistory: [{ id: 'SMS' + Date.now(), date: new Date().toISOString(), ...smsData }, ...state.smsHistory]
-      })),
+          const userData = {
+            id: res.user?.id || null,
+            username: res.user?.username || credentials.username,
+            name: res.user?.first_name || res.user?.username || credentials.username,
+            role: res.user?.role || 'Salesman',
+            email: res.user?.email || '',
+          };
 
+          set({ user: userData, token, lastError: null });
+          await get().fetchAllData();
+          return { success: true, user: userData };
+        } catch (err) {
+          const message = extractError(err, 'Invalid username or password.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      // Cart State (Temporary, not persisted to DB logically but kept in Zustand)
+      logout: () => {
+        localStorage.removeItem('ehbl_token');
+        localStorage.removeItem('token');
+        set({ user: null, token: null, cart: [], lastError: null });
+      },
+
+      // ---------------------------------------------------------------
+      // Server-backed collections. These start empty and are filled by
+      // fetchAllData; nothing here is seeded with demo rows.
+      // ---------------------------------------------------------------
+      inventory: [],
+      categories: [],
+      units: [],
+      expenseCategories: [],
+      shopProfile: null, // letterhead shown on printed invoices
+      customers: [],
+      suppliers: [],
+      sales: [],
+      drafts: [],
+      purchases: [],
+      returns: [],
+      settlements: [],
+      srSettlements: [],
+      expenses: [],
+      staff: [],
+      attendance: [],
+      leaves: [],
+      payrolls: [],
+      smsHistory: [],
+
+      fetchAllData: async () => {
+        if (!get().token && !localStorage.getItem('ehbl_token')) return;
+
+        set({ isLoading: true });
+        try {
+          const results = await Promise.allSettled([
+            apiClient.get(ENDPOINTS.PRODUCTS),
+            apiClient.get(ENDPOINTS.CATEGORIES),
+            apiClient.get(ENDPOINTS.UNITS),
+            apiClient.get(ENDPOINTS.CUSTOMERS),
+            apiClient.get(ENDPOINTS.SUPPLIERS),
+            apiClient.get(ENDPOINTS.SALES),
+            apiClient.get(ENDPOINTS.DRAFTS),
+            apiClient.get(ENDPOINTS.PURCHASES),
+            apiClient.get(ENDPOINTS.RETURNS),
+            apiClient.get(ENDPOINTS.SETTLEMENTS),
+            apiClient.get(ENDPOINTS.SR_SETTLEMENTS),
+            apiClient.get(ENDPOINTS.EXPENSES),
+            apiClient.get(ENDPOINTS.EXPENSE_CATEGORIES),
+            apiClient.get(ENDPOINTS.STAFF),
+            apiClient.get(ENDPOINTS.ATTENDANCE),
+            apiClient.get(ENDPOINTS.LEAVES),
+            apiClient.get(ENDPOINTS.PAYROLLS),
+            apiClient.get(ENDPOINTS.SMS_HISTORY),
+          ]);
+
+          const keys = [
+            'inventory', 'categories', 'units', 'customers', 'suppliers',
+            'sales', 'drafts', 'purchases', 'returns', 'settlements',
+            'srSettlements', 'expenses', 'expenseCategories', 'staff',
+            'attendance', 'leaves', 'payrolls', 'smsHistory',
+          ];
+
+          const updates = {};
+          results.forEach((result, i) => {
+            const value = asArray(result);
+            if (value) updates[keys[i]] = value;
+          });
+
+          const failed = results.filter((r) => r.status === 'rejected').length;
+          set({
+            ...updates,
+            isLoading: false,
+            lastError: failed === results.length ? 'Cannot reach the server. Showing last loaded data.' : null,
+          });
+
+          get().fetchShopProfile();
+        } catch (err) {
+          set({ isLoading: false, lastError: extractError(err, 'Failed to load data from the server.') });
+        }
+      },
+
+      // Reports.jsx still calls this as a refresh fallback.
+      loadDummyData: () => get().fetchAllData(),
+
+      // ---------------------------------------------------------------
+      // POS cart (client-side only until checkout)
+      // ---------------------------------------------------------------
       cart: [],
       addToCart: (product) => set((state) => {
         const existing = state.cart.find((item) => item.id === product.id);
@@ -85,392 +169,531 @@ const useStore = create(
         return { cart: [...state.cart, { ...product, quantity: 1, isGift: false, itemDiscount: 0 }] };
       }),
       removeFromCart: (productId) => set((state) => ({
-        cart: state.cart.filter((item) => item.id !== productId)
+        cart: state.cart.filter((item) => item.id !== productId),
       })),
       updateCartItem: (productId, updates) => set((state) => ({
-        cart: state.cart.map((item) =>
-          item.id === productId ? { ...item, ...updates } : item
-        )
+        cart: state.cart.map((item) => (item.id === productId ? { ...item, ...updates } : item)),
       })),
       clearCart: () => set({ cart: [] }),
 
-      // INVENTORY LOGIC
-      addInventoryItem: (item) => set((state) => ({
-        inventory: [{ ...item, dateAdded: item.dateAdded || new Date().toISOString() }, ...state.inventory]
-      })),
-      updateInventoryItem: (id, updates) => set((state) => ({
-        inventory: state.inventory.map(item => item.id === id ? { ...item, ...updates } : item)
-      })),
-      deleteInventoryItem: (id) => set((state) => ({
-        inventory: state.inventory.filter(item => item.id !== id)
-      })),
-
-      // DUE MANAGEMENT
-      settleCustomerDue: (customerId, amount, dateStr) => set((state) => {
-        const date = dateStr || new Date().toISOString();
-        const settlementRecord = { id: 'STL' + Date.now(), targetId: customerId, type: 'Customer', amount, date };
-        return {
-          customers: state.customers.map(c => 
-            c.id === customerId ? { ...c, due: Math.max(0, c.due - amount) } : c
-          ),
-          settlements: [settlementRecord, ...(state.settlements || [])]
-        };
-      }),
-      settleSupplierDue: (supplierId, amount, dateStr) => set((state) => {
-        const date = dateStr || new Date().toISOString();
-        const settlementRecord = { id: 'STL' + Date.now(), targetId: supplierId, type: 'Supplier', amount, date };
-        return {
-          suppliers: state.suppliers.map(s => 
-            s.id === supplierId ? { ...s, due: Math.max(0, s.due - amount) } : s
-          ),
-          settlements: [settlementRecord, ...(state.settlements || [])]
-        };
-      }),
-
-      // BUSINESS LOGIC ACTIONS
-
-      processSale: ({ cartItems, paymentType, customerInfo, invoiceDiscount, salesman }) => set((state) => {
-        const newInventory = [...state.inventory];
-        let subtotal = 0;
-        let isGiftInvoice = false;
-
-        cartItems.forEach(cartItem => {
-          // Adjust Inventory (Deduct stock)
-          const invIndex = newInventory.findIndex(i => i.id === cartItem.id);
-          if (invIndex !== -1) {
-            newInventory[invIndex] = { ...newInventory[invIndex], stock: newInventory[invIndex].stock - cartItem.quantity };
-          }
-          if (!cartItem.isGift) {
-            subtotal += (cartItem.price - cartItem.itemDiscount) * cartItem.quantity;
-          } else {
-            isGiftInvoice = true;
-          }
-        });
-
-        const total = Math.max(0, subtotal - invoiceDiscount);
-        
-        // Handle Baki (Due)
-        const newCustomers = [...state.customers];
-        let customerId = null;
-
-        if (customerInfo.name) {
-          const existingCustIndex = newCustomers.findIndex(c => c.phone === customerInfo.phone || c.name === customerInfo.name);
-          if (existingCustIndex !== -1) {
-            customerId = newCustomers[existingCustIndex].id;
-            if (paymentType === 'Baki') {
-              newCustomers[existingCustIndex] = { ...newCustomers[existingCustIndex], due: newCustomers[existingCustIndex].due + total };
-            }
-          } else {
-            customerId = 'C' + Date.now();
-            newCustomers.push({
-              id: customerId,
-              name: customerInfo.name,
-              phone: customerInfo.phone || '',
-              location: customerInfo.location || '',
-              due: paymentType === 'Baki' ? total : 0
-            });
-          }
+      // ---------------------------------------------------------------
+      // Catalogue
+      // ---------------------------------------------------------------
+      addCategory: async (categoryName) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.CATEGORIES, { name: categoryName });
+          set((state) => ({
+            categories: [...state.categories.filter((c) => (c.name || c) !== categoryName), res],
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to create category.');
+          set({ lastError: message });
+          return { success: false, error: message };
         }
+      },
 
-        const saleRecord = {
-          id: 'INV' + Date.now(),
-          date: new Date().toISOString(),
-          items: cartItems,
-          subtotal,
-          invoiceDiscount,
-          total,
-          paymentType,
-          customerId,
-          customerName: customerInfo.name || 'Walk-in Customer',
-          salesmanId: salesman?.id || 'Admin',
-          salesmanName: salesman?.name || 'Admin',
-          isGift: isGiftInvoice && total === 0
-        };
-
-        return {
-          inventory: newInventory,
-          customers: newCustomers,
-          sales: [saleRecord, ...state.sales],
-          cart: [] // clear cart on success
-        };
-      }),
-
-      processPurchase: ({ items, supplierId, supplierName, paymentType, total, paidAmount }) => set((state) => {
-        const newInventory = [...state.inventory];
-        
-        items.forEach(item => {
-          const invIndex = newInventory.findIndex(i => i.name.toLowerCase() === item.name.toLowerCase());
-          if (invIndex !== -1) {
-            newInventory[invIndex] = { ...newInventory[invIndex], stock: newInventory[invIndex].stock + item.quantity };
-          } else {
-            // Add new product
-            newInventory.push({
-              id: 'P' + Date.now() + Math.floor(Math.random()*100),
-              name: item.name,
-              category: 'Uncategorized',
-              variant: item.variant || '',
-              unit: 'Pcs',
-              stock: item.quantity,
-              price: item.price // Note: this is purchase price, not retail, but simplified here
-            });
-          }
-        });
-
-        const dueAmount = total - paidAmount;
-        const newSuppliers = [...state.suppliers];
-        
-        if (dueAmount > 0) {
-          const supIndex = newSuppliers.findIndex(s => s.id === supplierId);
-          if (supIndex !== -1) {
-            newSuppliers[supIndex] = { ...newSuppliers[supIndex], due: newSuppliers[supIndex].due + dueAmount };
-          }
+      addUnit: async (unitName) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.UNITS, { name: unitName });
+          set((state) => ({
+            units: [...state.units.filter((u) => (u.name || u) !== unitName), res],
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to create unit.');
+          set({ lastError: message });
+          return { success: false, error: message };
         }
+      },
 
-        const purchaseRecord = {
-          id: 'PUR' + Date.now(),
-          date: new Date().toISOString(),
-          items,
-          supplierId,
-          supplierName,
-          paymentType,
-          total,
-          paidAmount,
-          dueAmount
-        };
-
-        return {
-          inventory: newInventory,
-          suppliers: newSuppliers,
-          purchases: [purchaseRecord, ...state.purchases]
-        };
-      }),
-
-      processReturn: ({ returnType, productId, quantity, reason }) => set((state) => {
-        const newInventory = [...state.inventory];
-        const invIndex = newInventory.findIndex(i => i.id === productId);
-        
-        if (invIndex !== -1) {
-          if (returnType === 'Customer') {
-            // Customer returned to us -> increase stock
-            newInventory[invIndex] = { ...newInventory[invIndex], stock: newInventory[invIndex].stock + quantity };
-          } else {
-            // We rejected to supplier -> decrease stock
-            newInventory[invIndex] = { ...newInventory[invIndex], stock: newInventory[invIndex].stock - quantity };
-          }
+      addInventoryItem: async (item) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.PRODUCTS, item);
+          set((state) => ({
+            inventory: [res, ...state.inventory.filter((i) => i.id !== res.id)],
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save product.');
+          set({ lastError: message });
+          return { success: false, error: message };
         }
+      },
 
-        const returnRecord = {
-          id: 'RET' + Date.now(),
-          date: new Date().toISOString(),
-          returnType, // 'Customer' | 'Supplier'
-          productId,
-          quantity,
-          reason
-        };
+      updateInventoryItem: async (id, updates) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.PRODUCT_DETAILS(id), updates);
+          set((state) => ({
+            inventory: state.inventory.map((item) => (item.id === id ? { ...item, ...res } : item)),
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update product.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-        return {
-          inventory: newInventory,
-          returns: [returnRecord, ...state.returns]
-        };
-      }),
+      deleteInventoryItem: async (id) => {
+        try {
+          await apiClient.delete(ENDPOINTS.PRODUCT_DETAILS(id));
+          set((state) => ({
+            inventory: state.inventory.filter((item) => item.id !== id),
+            lastError: null,
+          }));
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete product.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      payCustomerDue: (customerId, amount) => set((state) => ({
-        customers: state.customers.map(c => c.id === customerId ? { ...c, due: Math.max(0, c.due - amount) } : c)
-      })),
+      // ---------------------------------------------------------------
+      // Contacts
+      // ---------------------------------------------------------------
+      addCustomer: async (customerData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.CUSTOMERS, customerData);
+          set((state) => ({ customers: [res, ...state.customers], lastError: null }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save customer.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      paySupplierDue: (supplierId, amount) => set((state) => ({
-        suppliers: state.suppliers.map(s => s.id === supplierId ? { ...s, due: Math.max(0, s.due - amount) } : s)
-      })),
+      addSupplier: async (supplierData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SUPPLIERS, supplierData);
+          set((state) => ({ suppliers: [res, ...state.suppliers], lastError: null }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save supplier.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      addSupplier: (supplierData) => set((state) => ({
-        suppliers: [...state.suppliers, { id: 'SUP' + Date.now(), due: 0, ...supplierData }]
-      })),
+      updateSupplier: async (supplierId, updates) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.SUPPLIER_DETAILS(supplierId), updates);
+          set((state) => ({
+            suppliers: state.suppliers.map((s) => (s.id === supplierId ? { ...s, ...res } : s)),
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update supplier.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      addCustomer: (customerData) => set((state) => ({
-        customers: [...state.customers, { id: 'C' + Date.now(), due: 0, ...customerData }]
-      })),
+      // ---------------------------------------------------------------
+      // Dues. The server is the source of truth for balances, so every
+      // settlement re-syncs rather than adjusting the number locally.
+      // ---------------------------------------------------------------
+      settleCustomerDue: async (customerId, amount, dateStr) => {
+        try {
+          await apiClient.post(ENDPOINTS.SETTLE_DUE, {
+            targetId: customerId,
+            type: 'Customer',
+            amount: parseFloat(amount),
+            date: dateStr || undefined,
+          });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to record the payment.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      updateSupplier: (supplierId, updates) => set((state) => ({
-        suppliers: state.suppliers.map(s => s.id === supplierId ? { ...s, ...updates } : s)
-      })),
+      settleSupplierDue: async (supplierId, amount, dateStr) => {
+        try {
+          await apiClient.post(ENDPOINTS.SETTLE_DUE, {
+            targetId: supplierId,
+            type: 'Supplier',
+            amount: parseFloat(amount),
+            date: dateStr || undefined,
+          });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to record the payment.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      addExpense: (expense) => set((state) => ({
-        expenses: [{ id: Date.now(), ...expense }, ...state.expenses]
-      })),
+      payStaffDue: async (staffId, amount, dateStr) => {
+        try {
+          await apiClient.post(ENDPOINTS.SETTLE_DUE, {
+            targetId: staffId,
+            type: 'Staff',
+            amount: parseFloat(amount),
+            date: dateStr || undefined,
+          });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to record the payment.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      // SR SETTLEMENTS
-      srSettlements: [],
-      issueProductsToSR: (settlementData) => set((state) => {
-        const newInventory = [...state.inventory];
-        settlementData.items.forEach(item => {
-          const invIndex = newInventory.findIndex(i => i.id === item.productId);
-          if (invIndex !== -1) {
-            newInventory[invIndex] = { ...newInventory[invIndex], stock: newInventory[invIndex].stock - item.quantity };
-          }
-        });
-        return {
-          inventory: newInventory,
-          srSettlements: [{ ...settlementData, id: 'SR' + Date.now(), status: 'Pending' }, ...(state.srSettlements || [])]
-        };
-      }),
+      // Kept for compatibility with older call sites.
+      payCustomerDue: (customerId, amount) => get().settleCustomerDue(customerId, amount),
+      paySupplierDue: (supplierId, amount) => get().settleSupplierDue(supplierId, amount),
+
+      /**
+       * Running-balance statement for one customer or supplier.
+       * The server owns this because it sees every invoice, not just the ones
+       * currently loaded into the store, and it starts from the opening balance.
+       */
+      fetchLedgerStatement: async (entityType, entityId) => {
+        try {
+          const res = await apiClient.get(ENDPOINTS.LEDGER_STATEMENT(entityType, entityId));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Could not load the statement.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      // ---------------------------------------------------------------
+      // Transactions
+      // ---------------------------------------------------------------
+      processSale: async (salePayload) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SALES, salePayload);
+          set({ cart: [], lastError: null });
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save the sale.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      processPurchase: async (purchasePayload) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.PURCHASES, purchasePayload);
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save the purchase.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      processReturn: async ({ returnType, productId, quantity, reason, referenceId, date }) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.RETURNS, {
+            returnType,
+            productId,
+            quantity: parseInt(quantity, 10) || 1,
+            reason,
+            referenceId: referenceId || '',
+            date: date || undefined,
+          });
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to record the return.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      /**
+       * Deleting a saved document. The server reverses the stock movement and
+       * the customer/supplier/staff balance the document created, so we always
+       * re-sync afterwards rather than patching state locally.
+       * Admin-only server side.
+       */
+      deleteSale: async (invoiceId) => {
+        try {
+          await apiClient.delete(ENDPOINTS.SALE_DETAILS(invoiceId));
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the invoice.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      deletePurchase: async (purchaseId) => {
+        try {
+          await apiClient.delete(ENDPOINTS.PURCHASE_DETAILS(purchaseId));
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the purchase.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      deleteReturn: async (returnId) => {
+        try {
+          await apiClient.delete(ENDPOINTS.RETURN_DETAILS(returnId));
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the return.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      deleteSRSettlement: async (settlementId) => {
+        try {
+          await apiClient.delete(ENDPOINTS.SR_SETTLEMENT_DETAILS(settlementId));
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the SR settlement.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      // ---------------------------------------------------------------
+      // Draft invoices
+      // ---------------------------------------------------------------
+      saveDraft: async (draftData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.DRAFTS, draftData);
+          set((state) => ({ drafts: [res, ...state.drafts], lastError: null }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save the draft.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      deleteDraft: async (draftId) => {
+        try {
+          await apiClient.delete(ENDPOINTS.DRAFT_DETAILS(draftId));
+          set((state) => ({ drafts: state.drafts.filter((d) => d.id !== draftId), lastError: null }));
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the draft.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      // ---------------------------------------------------------------
+      // SR daily settlements (consignment to salesmen)
+      // ---------------------------------------------------------------
+      issueProductsToSR: async (settlementData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SR_SETTLEMENTS, {
+            salesmanId: settlementData.salesmanId,
+            date: settlementData.date,
+            items: (settlementData.items || []).map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          });
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to issue stock to the SR.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      settleSRAccount: async (id, cashReceived, returnItems = []) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SR_SETTLE(id), {
+            cashReceived: parseFloat(cashReceived) || 0,
+            returnItems: returnItems.map((item) => ({
+              productId: item.productId,
+              returnQty: parseInt(item.returnQty, 10) || 0,
+            })),
+          });
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to settle the SR account.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      // Optimistic local tweak used by the settle dialog before it submits.
       updateSRSettlement: (id, updates) => set((state) => ({
-        srSettlements: (state.srSettlements || []).map(s => s.id === id ? { ...s, ...updates } : s)
+        srSettlements: state.srSettlements.map((s) => (s.id === id ? { ...s, ...updates } : s)),
       })),
-      settleSRAccount: (id, cashReceived, returnItems = []) => set((state) => {
-        const newInventory = [...state.inventory];
-        returnItems.forEach(item => {
-           const invIndex = newInventory.findIndex(i => String(i.id) === String(item.productId));
-           if (invIndex !== -1) {
-             newInventory[invIndex] = { ...newInventory[invIndex], stock: newInventory[invIndex].stock + (item.returnQty || 0) };
-           }
-        });
 
-        const settlement = (state.srSettlements || []).find(s => s.id === id);
-        let dueAmount = 0;
-        if (settlement) {
-           const finalSales = returnItems.reduce((acc, item) => acc + ((item.issuedQty - item.returnQty) * item.price), 0);
-           dueAmount = Math.max(0, finalSales - cashReceived);
+      // ---------------------------------------------------------------
+      // Shop profile (invoice letterhead)
+      // ---------------------------------------------------------------
+      fetchShopProfile: async () => {
+        try {
+          const res = await apiClient.get(ENDPOINTS.SHOP_PROFILE);
+          set({ shopProfile: res });
+          return { success: true, data: res };
+        } catch (err) {
+          // Not fatal: the print components fall back to their built-in text.
+          return { success: false, error: extractError(err, 'Could not load the shop profile.') };
         }
+      },
 
-        const newStaff = [...(state.staff || [])];
-        if (settlement && dueAmount > 0) {
-           const staffIndex = newStaff.findIndex(s => String(s.id) === String(settlement.salesmanId));
-           if (staffIndex !== -1) {
-              newStaff[staffIndex] = { ...newStaff[staffIndex], due: (newStaff[staffIndex].due || 0) + dueAmount };
-           }
+      updateShopProfile: async (profileData) => {
+        try {
+          const res = await apiClient.put(ENDPOINTS.SHOP_PROFILE, profileData);
+          set({ shopProfile: res, lastError: null });
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save the shop profile.');
+          set({ lastError: message });
+          return { success: false, error: message };
         }
+      },
 
-        return {
-          inventory: newInventory,
-          staff: newStaff,
-          srSettlements: (state.srSettlements || []).map(s => s.id === id ? { ...s, status: 'Settled', cashReceived, returnItems } : s)
-        };
-      }),
-      payStaffDue: (staffId, amount, dateStr) => set((state) => {
-        const date = dateStr || new Date().toISOString();
-        const settlementRecord = { id: 'STL' + Date.now(), targetId: staffId, type: 'Staff', amount, date };
-        return {
-          staff: state.staff.map(s => String(s.id) === String(staffId) ? { ...s, due: Math.max(0, (s.due || 0) - amount) } : s),
-          settlements: [settlementRecord, ...(state.settlements || [])]
-        };
-      }),
-
-      // HR ACTIONS
-      addStaff: (staffData) => set((state) => ({
-        staff: [...state.staff, { id: 'ST' + Date.now(), ...staffData }]
-      })),
-      
-      markAttendance: (staffId, date, status) => set((state) => {
-        const existingIndex = state.attendance.findIndex(a => a.staffId === staffId && a.date === date);
-        if (existingIndex !== -1) {
-          const newAttendance = [...state.attendance];
-          newAttendance[existingIndex] = { ...newAttendance[existingIndex], status };
-          return { attendance: newAttendance };
-        } else {
-          return {
-            attendance: [...state.attendance, { id: Date.now() + Math.random(), staffId, date, status }]
-          };
+      // ---------------------------------------------------------------
+      // Expenses
+      // ---------------------------------------------------------------
+      addExpenseCategory: async (name) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.EXPENSE_CATEGORIES, { name });
+          set((state) => ({
+            expenseCategories: [...state.expenseCategories.filter((c) => c.name !== name), res],
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to create the expense category.');
+          set({ lastError: message });
+          return { success: false, error: message };
         }
-      }),
+      },
 
-      addLeaveRequest: (leaveData) => set((state) => ({
-        leaves: [{ id: Date.now(), ...leaveData, status: 'Pending' }, ...state.leaves]
-      })),
+      addExpense: async (expense) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.EXPENSES, expense);
+          set((state) => ({ expenses: [res, ...state.expenses], lastError: null }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save the expense.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      updateLeaveStatus: (leaveId, status) => set((state) => ({
-        leaves: state.leaves.map(l => l.id === leaveId ? { ...l, status } : l)
-      })),
+      // ---------------------------------------------------------------
+      // HR & payroll
+      // ---------------------------------------------------------------
+      addStaff: async (staffData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.STAFF, staffData);
+          set((state) => ({ staff: [res, ...state.staff], lastError: null }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save the employee.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      generatePayslip: (payrollData) => set((state) => {
-        // Automatically add to expenses
-        const expenseEntry = {
-          id: Date.now() + 1,
-          date: new Date().toISOString().split('T')[0],
-          category: 'Staff Cost',
-          amount: payrollData.netPay,
-          description: `Salary for ${payrollData.staffName} (${payrollData.month} ${payrollData.year})`
-        };
+      markAttendance: async (staffId, date, status) => {
+        try {
+          await apiClient.post(ENDPOINTS.MARK_ATTENDANCE, { staffId, date, status });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to mark attendance.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-        return {
-          payrolls: [{ id: 'PR' + Date.now(), ...payrollData, paymentDate: new Date().toISOString() }, ...state.payrolls],
-          expenses: [expenseEntry, ...state.expenses]
-        };
-      }),
+      addLeaveRequest: async (leaveData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.LEAVES, leaveData);
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to submit the leave request.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
-      loadDummyData: () => set((state) => {
-        const todayStr = new Date().toISOString();
-        const justDate = todayStr.split('T')[0];
-        return {
-          inventory: [
-            { id: '10001', name: 'Bosch Impact Drill 13mm', category: 'Power Tools', stock: 15, unit: 'pcs', price: 3500, dateAdded: todayStr },
-            { id: '10002', name: 'Steel Wire Brush 4x16', category: 'Hand Tools', stock: 120, unit: 'pcs', price: 35, dateAdded: todayStr },
-            { id: '10003', name: 'Indian Lock Heavy Duty', category: 'Hardware', stock: 50, unit: 'pcs', price: 450, dateAdded: todayStr },
-            { id: '10004', name: 'Angle Grinder 4 inch', category: 'Machine Tools', stock: 25, unit: 'pcs', price: 2200, dateAdded: todayStr },
-          ],
-          customers: [
-            { id: 'C001', name: 'Fahim Traders', phone: '01719563699', location: 'Kotchandpur', due: 1020 },
-            { id: 'C002', name: 'Zaman Hardware', phone: '01811000000', location: 'Dhaka', due: 5000 },
-          ],
-          suppliers: [
-            { id: 'S001', name: 'Bosch Tools BD', phone: '01911000000', due: 15000 },
-            { id: 'S002', name: 'China Impex Ltd', phone: '01611000000', due: 50000 },
-          ],
-          staff: [
-            { id: 'ST001', name: 'Rashed', role: 'Store Incharge', baseSalary: 15000, joinDate: '2022-05-10' },
-            { id: 'ST002', name: 'Hasan', role: 'Delivery', baseSalary: 12000, joinDate: '2023-01-15' },
-          ],
-          sales: [
-            { id: 'INV' + (Date.now() - 86400000), date: new Date(Date.now() - 86400000).toISOString(), items: [{id: '10001', name: 'Bosch Impact Drill 13mm', quantity: 1, price: 3500, isGift: false}], subtotal: 3500, invoiceDiscount: 100, total: 3400, paymentType: 'Cash', customerId: 'C002', customerName: 'Zaman Hardware', salesmanId: 'ST001', salesmanName: 'Rashed', isGift: false },
-            { id: 'INV' + Date.now(), date: todayStr, items: [{id: '10002', name: 'Steel Wire Brush 4x16', quantity: 12, price: 35, isGift: false}], subtotal: 420, invoiceDiscount: 0, total: 420, paymentType: 'Baki', customerId: 'C001', customerName: 'Fahim Traders', salesmanId: 'ST002', salesmanName: 'Hasan', isGift: false }
-          ],
-          purchases: [
-            { id: 'PUR' + (Date.now() - 172800000), date: new Date(Date.now() - 172800000).toISOString(), items: [{name: 'Indian Lock Heavy Duty', quantity: 50, price: 350}], supplierId: 'S002', supplierName: 'China Impex Ltd', paymentType: 'Baki', total: 17500, paidAmount: 5000, dueAmount: 12500 }
-          ],
-          returns: [
-            { id: 'RET' + Date.now(), date: todayStr, returnType: 'Customer', productId: '10004', quantity: 1, reason: 'Motor issue' }
-          ],
-          settlements: [
-            { id: 'STL' + Date.now(), targetId: 'C001', type: 'Customer', amount: 500, date: todayStr }
-          ],
-          expenses: [
-            { id: 1, date: justDate, category: 'Transport', amount: 500, description: 'Carrying Loading for tools' },
-            { id: 2, date: justDate, category: 'Utility', amount: 1200, description: 'Electricity Bill' },
-          ],
-          attendance: [
-            { id: 1, staffId: 'ST001', date: justDate, status: 'Present' },
-            { id: 2, staffId: 'ST002', date: justDate, status: 'Late' }
-          ],
-          leaves: [
-            { id: 1, staffId: 'ST002', date: new Date(Date.now() + 86400000).toISOString().split('T')[0], type: 'Sick', reason: 'Fever', status: 'Pending' }
-          ],
-          payrolls: [
-            { id: 'PR' + Date.now(), staffId: 'ST001', staffName: 'Rashed', month: justDate.substring(0, 7), presentDays: 28, baseSalary: 15000, bonus: 2000, netPay: 17000, paymentDate: todayStr }
-          ],
-          smsHistory: [
-            { id: 'SMS1', date: todayStr, numbers: ['01719563699'], message: 'Dear Fahim Traders, your due amount is 1020 TK. Please clear it soon.', status: 'Sent' }
-          ],
-          srSettlements: [
-            {
-              id: 'SR_DUMMY_1',
-              date: justDate,
-              salesmanId: 'ST001',
-              salesmanName: 'Rashed',
-              items: [
-                { productId: '10001', name: 'Bosch Impact Drill 13mm', quantity: 2, price: 3500 },
-                { productId: '10002', name: 'Steel Wire Brush 4x16', quantity: 10, price: 35 }
-              ],
-              totalIssuedValue: 7350,
-              totalSalesValue: 7350,
-              cashReceived: 0,
-              status: 'Pending'
-            }
-          ]
-        };
-      }),
+      updateLeaveStatus: async (leaveId, status) => {
+        try {
+          await apiClient.post(`/hr/leaves/${leaveId}/status/`, { status });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update the leave request.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
 
+      generatePayslip: async (payrollData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.GENERATE_PAYSLIP, payrollData);
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to generate the payslip.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      // ---------------------------------------------------------------
+      // SMS
+      // ---------------------------------------------------------------
+      addSmsToHistory: async (smsData) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SMS_SEND, {
+            message: smsData.message,
+            customerIds: smsData.receivers?.map((r) => r.id) || smsData.selectedCustomers || [],
+            numbers: smsData.numbers || [],
+          });
+          await get().fetchAllData();
+          return { success: true, data: res, delivered: res?.delivered === true, status: res?.status };
+        } catch (err) {
+          const message = extractError(err, 'Failed to send the SMS.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
     }),
     {
-      name: 'retail-shop-storage', // key in localStorage
+      name: 'retail-shop-storage',
+      // Only session and UI preferences survive a reload. Business data always
+      // comes from the server, so a stale browser can never masquerade as books.
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        theme: state.theme,
+        activeThemeClass: state.activeThemeClass,
+        cart: state.cart,
+      }),
     }
   )
 );

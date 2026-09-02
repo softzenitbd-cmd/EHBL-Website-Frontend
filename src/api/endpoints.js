@@ -19,12 +19,14 @@ export const ENDPOINTS = {
   CATEGORIES: '/inventory/categories/',
   UNITS: '/inventory/units/',
   STOCK_LOGS: '/inventory/stock-logs/',
+  STOCK_LOG_SUMMARY: '/inventory/stock-logs/summary/',
   BARCODE_SEARCH: '/inventory/products/barcode-search/',
 
   // Sales / POS
   SALES: '/sales/invoices/',
   SALE_DETAILS: (id) => `/sales/invoices/${id}/`,
   DRAFTS: '/sales/drafts/',
+  DRAFT_DETAILS: (id) => `/sales/drafts/${id}/`,
   
   // Purchases
   PURCHASES: '/purchases/',
@@ -32,6 +34,7 @@ export const ENDPOINTS = {
 
   // Returns & Rejections
   RETURNS: '/returns/',
+  RETURN_DETAILS: (id) => `/returns/${id}/`,
 
   // Ledger & Dues
   SETTLE_DUE: '/ledger/settle-due/',
@@ -42,6 +45,11 @@ export const ENDPOINTS = {
   EXPENSES: '/expenses/',
   EXPENSE_CATEGORIES: '/expenses/categories/',
   EXPENSE_MONTHLY_REPORT: '/expenses/monthly-report/',
+
+  // SR Daily Settlements (consignment to salesmen)
+  SR_SETTLEMENTS: '/sr/settlements/',
+  SR_SETTLEMENT_DETAILS: (id) => `/sr/settlements/${id}/`,
+  SR_SETTLE: (id) => `/sr/settlements/${id}/settle/`,
 
   // HR & Payroll
   STAFF: '/hr/staff/',

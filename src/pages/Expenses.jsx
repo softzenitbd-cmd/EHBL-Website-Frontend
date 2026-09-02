@@ -8,10 +8,21 @@ import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
-const EXPENSE_CATEGORIES = ['Shop Rent', 'Electricity Bill', 'Transport', 'Staff Cost', 'Others'];
+// Shown even before the server list loads, and kept so an existing shop never
+// sees its usual heads disappear.
+const DEFAULT_EXPENSE_CATEGORIES = ['Shop Rent', 'Electricity Bill', 'Transport', 'Staff Cost', 'Others'];
 
 const Expenses = () => {
-  const { expenses, addExpense } = useStore();
+  const { expenses, addExpense, expenseCategories, addExpenseCategory } = useStore();
+
+  // Defaults first, then anything the shop has added on the server.
+  const allCategories = Array.from(new Set([
+    ...DEFAULT_EXPENSE_CATEGORIES,
+    ...(expenseCategories || []).map((c) => (typeof c === 'string' ? c : c.name)).filter(Boolean),
+  ]));
+
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [showModal, setShowModal] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
   
@@ -27,33 +38,54 @@ const Expenses = () => {
     }
   }, [location.search]);
 
-  const [newExpense, setNewExpense] = useState({ date: todayStr, category: EXPENSE_CATEGORIES[0], amount: '', description: '' });
+  const [newExpense, setNewExpense] = useState({ date: todayStr, category: DEFAULT_EXPENSE_CATEGORIES[0], amount: '', description: '' });
   const [selectedExpense, setSelectedExpense] = useState(null);
+
+  const handleCreateCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+
+    const result = await addExpenseCategory(name);
+    if (!result.success) {
+      alert(`Category was not created: ${result.error}`);
+      return;
+    }
+    setNewExpense((prev) => ({ ...prev, category: name }));
+    setNewCategoryName('');
+    setShowNewCategory(false);
+  };
 
   const [showReport, setShowReport] = useState(false);
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().substring(0, 7));
   const totalDailyExpense = expenses.filter(e => e.date === todayStr).reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  const handleAddExpense = (e) => {
+  const handleAddExpense = async (e) => {
     e.preventDefault();
-    addExpense({
+    const result = await addExpense({
       ...newExpense,
       amount: parseFloat(newExpense.amount)
     });
+
+    if (!result.success) {
+      alert(`Expense was not saved: ${result.error}`);
+      return;
+    }
+
     setShowModal(false);
-    setNewExpense({ date: todayStr, category: EXPENSE_CATEGORIES[0], amount: '', description: '' });
+    setNewExpense({ date: todayStr, category: DEFAULT_EXPENSE_CATEGORIES[0], amount: '', description: '' });
   };
 
   // Monthly Report Calculations
   const monthlyExpenses = expenses.filter(e => e.date && e.date.startsWith(reportMonth));
   const totalMonthlyExpense = monthlyExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-  const categoryTotals = EXPENSE_CATEGORIES.map(cat => ({
+  const categoryTotals = allCategories.map(cat => ({
     category: cat,
     amount: monthlyExpenses.filter(e => e.category === cat).reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
   })).filter(c => c.amount > 0);
 
-  // Add dynamically added categories like 'Staff Cost' if they exist in data but not in EXPENSE_CATEGORIES constant
-  const otherCategories = [...new Set(monthlyExpenses.map(e => e.category))].filter(cat => !EXPENSE_CATEGORIES.includes(cat));
+  // Catch heads that appear in the data but are not in the known list, such as
+  // the 'Staff Cost' rows payroll writes automatically.
+  const otherCategories = [...new Set(monthlyExpenses.map(e => e.category))].filter(cat => !allCategories.includes(cat));
   otherCategories.forEach(cat => {
     categoryTotals.push({
       category: cat,
@@ -209,14 +241,43 @@ const Expenses = () => {
                   />
                 </div>
                 <div className="form-group mb-4">
-                  <label>Category</label>
-                  <select 
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label>Category</label>
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      style={{ fontSize: '0.8rem', color: 'var(--primary)', padding: '0.15rem 0.4rem' }}
+                      onClick={() => setShowNewCategory(!showNewCategory)}
+                    >
+                      {showNewCategory ? 'Cancel' : '+ New Category'}
+                    </button>
+                  </div>
+                  <select
                     className="w-full"
-                    value={newExpense.category} 
+                    value={newExpense.category}
                     onChange={e => setNewExpense({...newExpense, category: e.target.value})}
                   >
-                    {EXPENSE_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
+
+                  {showNewCategory && (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <input
+                        type="text"
+                        placeholder="e.g. Generator Fuel"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleCreateCategory();
+                          }
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <button type="button" className="btn-primary" onClick={handleCreateCategory}>Add</button>
+                    </div>
+                  )}
                 </div>
                 <div className="form-group mb-4">
                   <label>Amount (BDT)</label>

@@ -9,7 +9,23 @@ import PrintFooter from '../components/PrintFooter';
 import './Purchase.css';
 
 const Purchase = () => {
-  const { suppliers, inventory, purchases, processPurchase } = useStore();
+  const { suppliers, inventory, purchases, processPurchase, deletePurchase, user } = useStore();
+
+  const handleDeletePurchase = async (purchase, dueVal) => {
+    const confirmed = confirm(
+      `Delete purchase ${purchase.id}?\n\n` +
+      `Supplier: ${purchase.supplierName || 'N/A'}\n` +
+      `Total: ${Number(purchase.total || 0).toLocaleString()}\n\n` +
+      `The received items will be taken back out of stock` +
+      (dueVal > 0 ? ` and ${dueVal.toLocaleString()} will be removed from the supplier's due.` : '.') +
+      `\n\nIf any of these goods have already been sold, the delete will be refused.` +
+      `\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const result = await deletePurchase(purchase.id);
+    if (!result.success) alert(`Purchase was not deleted: ${result.error}`);
+  };
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -113,30 +129,32 @@ const Purchase = () => {
     const finalSupplierId = supplierObj ? (supplierObj.supplier_code || supplierObj.id) : `SUP_CUSTOM_${Date.now()}`;
     const finalSupplierName = supplierObj ? supplierObj.name : supplier;
 
-    try {
-      await processPurchase({
-        supplierId: finalSupplierId,
-        supplierName: finalSupplierName,
-        paymentType,
-        items: validItems,
-        total,
-        paidAmount: finalPaidAmount,
-        date: new Date().toISOString(),
-        id: 'PUR' + Date.now()
-      });
-      alert('Purchase successfully recorded and stock updated!');
-      setSupplier('');
-      setPaidAmount('');
-      setItems([]);
-      setTempProductId('');
-      setTempVariant('');
-      setTempQty(1);
-      setTempPrice(0);
-      navigate('/purchases');
-      setActiveTab('History');
-    } catch (err) {
-      alert('Failed to record purchase: ' + (err.response?.data?.error || err.message));
+    const result = await processPurchase({
+      supplierId: finalSupplierId,
+      supplierName: finalSupplierName,
+      paymentType,
+      items: validItems,
+      total,
+      paidAmount: finalPaidAmount,
+      date: new Date().toISOString(),
+      id: 'PUR' + Date.now()
+    });
+
+    if (!result.success) {
+      alert(`Purchase was not recorded: ${result.error}`);
+      return;
     }
+
+    alert('Purchase successfully recorded and stock updated!');
+    setSupplier('');
+    setPaidAmount('');
+    setItems([]);
+    setTempProductId('');
+    setTempVariant('');
+    setTempQty(1);
+    setTempPrice(0);
+    navigate('/purchases');
+    setActiveTab('History');
   };
 
   const filteredPurchases = purchases.filter(p => {
@@ -456,13 +474,18 @@ const Purchase = () => {
                     <td className="text-success font-bold">{paidVal.toLocaleString()}</td>
                     <td className="text-warning font-bold">{dueVal.toLocaleString()}</td>
                     <td>
-                      <button 
-                        className="btn-icon" 
+                      <button
+                        className="btn-icon"
                         title="View Receipt"
                         onClick={() => setSelectedInvoice(purchase)}
                       >
                         <Eye size={16} />
                       </button>
+                      {user?.role === 'Admin' && (
+                        <button className="btn-icon" title="Delete Purchase" onClick={() => handleDeletePurchase(purchase, dueVal)}>
+                          <Trash2 size={16} color="var(--danger)" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

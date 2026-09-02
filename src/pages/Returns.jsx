@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download } from 'lucide-react';
+import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download, Trash2 } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -9,7 +9,24 @@ import PrintFooter from '../components/PrintFooter';
 import './Returns.css';
 
 const Returns = () => {
-  const { inventory, processReturn, returns } = useStore();
+  const { inventory, processReturn, returns, deleteReturn, user } = useStore();
+
+  const handleDeleteReturn = async (record) => {
+    const goesBack = record.returnType === 'Customer'
+      ? `${record.quantity} will be taken back out of stock.`
+      : `${record.quantity} will be put back into stock.`;
+
+    const confirmed = confirm(
+      `Delete ${record.returnType} return ${record.id}?\n\n` +
+      `Product: ${record.productName || record.productId}\n` +
+      `Quantity: ${record.quantity}\n\n` +
+      `Reversing this record means ${goesBack}\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const result = await deleteReturn(record.id);
+    if (!result.success) alert(`Return was not deleted: ${result.error}`);
+  };
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -37,14 +54,14 @@ const Returns = () => {
   const [endDate, setEndDate] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!product) {
       alert('Please select a product');
       return;
     }
-    
-    processReturn({
+
+    const result = await processReturn({
       returnType,
       date: entryDate,
       productId: product,
@@ -52,7 +69,12 @@ const Returns = () => {
       reason,
       referenceId
     });
-    
+
+    if (!result.success) {
+      alert(`Return was not recorded: ${result.error}`);
+      return;
+    }
+
     alert(`${returnType} Return/Reject processed successfully! Stock has been adjusted.`);
     setProduct('');
     setQuantity(1);
@@ -234,6 +256,11 @@ const Returns = () => {
                           <button className="btn-icon" title="View & Print" onClick={() => setSelectedInvoice(r)}>
                             <Eye size={16} />
                           </button>
+                          {user?.role === 'Admin' && (
+                            <button className="btn-icon" title="Delete Return" onClick={() => handleDeleteReturn(r)}>
+                              <Trash2 size={16} color="var(--danger)" />
+                            </button>
+                          )}
 </div>
                      </td>
                    </tr>

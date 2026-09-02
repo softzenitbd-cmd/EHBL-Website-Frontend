@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Layout from './components/Layout';
 import Inventory from './pages/Inventory';
 import StockRegister from './pages/StockRegister';
+import StockLogs from './pages/StockLogs';
 import SRSettlement from './pages/SRSettlement';
 import Purchase from './pages/Purchase';
 import Returns from './pages/Returns';
@@ -70,6 +71,7 @@ function App() {
           <Route path="pos" element={<POS />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="stock" element={<StockRegister />} />
+          <Route path="stock-logs" element={<StockLogs />} />
           <Route path="purchases" element={<Purchase />} />
           <Route path="/returns" element={<Returns />} />
           <Route path="/suppliers" element={<Suppliers />} />

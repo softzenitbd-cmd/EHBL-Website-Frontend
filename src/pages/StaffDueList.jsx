@@ -28,12 +28,18 @@ const StaffDueList = () => {
     setShowPayModal(true);
   };
 
-  const handlePayDue = () => {
+  const handlePayDue = async () => {
     if (!selectedStaff || !payAmount || isNaN(payAmount) || parseFloat(payAmount) <= 0) {
       alert('Please enter a valid amount.');
       return;
     }
-    payStaffDue(selectedStaff.id, parseFloat(payAmount), payDate);
+
+    const result = await payStaffDue(selectedStaff.id, parseFloat(payAmount), payDate);
+    if (!result.success) {
+      alert(`Payment was not recorded: ${result.error}`);
+      return;
+    }
+
     setShowPayModal(false);
     setSelectedStaff(null);
     setPayAmount('');

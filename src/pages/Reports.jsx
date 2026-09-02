@@ -169,8 +169,8 @@ const Reports = () => {
         giftItems.push({
           date: sale.date,
           invoiceId: sale.id,
-          customerName: sale.customerInfo?.name,
-          customerPhone: sale.customerInfo?.phone,
+          customerName: sale.customerInfo?.name || sale.customerName || 'N/A',
+          customerPhone: sale.customerInfo?.phone || sale.customer_phone || '',
           itemName: item.name,
           quantity: item.quantity,
           value: (item.price - (item.itemDiscount || 0)) * item.quantity

@@ -83,11 +83,17 @@ const HR = () => {
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (!newStaff.name) return alert('Name is required');
-    await addStaff({
+    const result = await addStaff({
       ...newStaff,
       baseSalary: parseFloat(newStaff.baseSalary) || 0,
       joinDate: todayStr
     });
+
+    if (!result.success) {
+      alert(`Employee was not saved: ${result.error}`);
+      return;
+    }
+
     setShowAddStaffModal(false);
     setNewStaff({ name: '', role: 'Salesman', baseSalary: '', phone: '', address: '', bankAccount: '', username: '', password: '' });
   };
@@ -98,10 +104,16 @@ const HR = () => {
     if (newLeave.endDate < newLeave.startDate) {
       return alert('End Date cannot be earlier than Start Date.');
     }
-    await addLeaveRequest({
+    const result = await addLeaveRequest({
       ...newLeave,
       date: newLeave.startDate
     });
+
+    if (!result.success) {
+      alert(`Leave request was not submitted: ${result.error}`);
+      return;
+    }
+
     setShowLeaveModal(false);
     setNewLeave({ staffId: '', type: 'Casual', reason: '', startDate: todayStr, endDate: todayStr });
   };
@@ -113,7 +125,7 @@ const HR = () => {
     const alreadyPaid = safePayrolls.some(p => String(p.staffId || p.staff_id || p.staff) === String(staffMember.id) && p.month === payrollMonth);
     if (alreadyPaid) return alert('Payslip already generated for this month!');
 
-    await generatePayslip({
+    const result = await generatePayslip({
       month: payrollMonth,
       year: payrollMonth.split('-')[0],
       staffId: staffMember.id,
@@ -123,7 +135,14 @@ const HR = () => {
       bonus,
       netPay
     });
-    alert(`Payslip generated for ${staffMember.name}. Amount: ৳{netPay.toLocaleString()}`);
+
+    if (!result.success) {
+      alert(`Payslip was not generated: ${result.error}`);
+      return;
+    }
+
+    const saved = Number(result.data?.netPay ?? netPay);
+    alert(`Payslip generated for ${staffMember.name}. Amount: ৳${saved.toLocaleString()}`);
   };
 
   const handleResetAttendanceFilters = () => {

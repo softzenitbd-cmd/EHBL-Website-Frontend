@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
-import { Plus, Search, Printer, Trash2, Download, FolderPlus, Layers, X, RotateCcw, Tag, Calendar, ArrowUpDown } from 'lucide-react';
+import { Plus, Search, Printer, Trash2, Download, FolderPlus, Layers, X, RotateCcw, Tag, Calendar, ArrowUpDown, History } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -84,7 +84,12 @@ const Inventory = () => {
       return;
     }
     
-    await addInventoryItem(newProduct);
+    const result = await addInventoryItem(newProduct);
+    if (!result.success) {
+      alert(`Product was not saved: ${result.error}`);
+      return;
+    }
+
     setShowAddModal(false);
     navigate('/inventory');
     setNewProduct({ id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0 });
@@ -94,14 +99,22 @@ const Inventory = () => {
   const handleCreateCategory = async (e) => {
     e.preventDefault();
     if (!newCatInput.trim()) return;
-    await addCategory(newCatInput.trim());
+    const result = await addCategory(newCatInput.trim());
+    if (!result.success) {
+      alert(`Category was not created: ${result.error}`);
+      return;
+    }
     setNewCatInput('');
   };
 
   const handleCreateUnit = async (e) => {
     e.preventDefault();
     if (!newUnitInput.trim()) return;
-    await addUnit(newUnitInput.trim());
+    const result = await addUnit(newUnitInput.trim());
+    if (!result.success) {
+      alert(`Unit was not created: ${result.error}`);
+      return;
+    }
     setNewUnitInput('');
   };
 
@@ -443,6 +456,13 @@ const Inventory = () => {
                     <div className="flex-align-gap" style={{ justifyContent: 'center' }}>
                       <button className="btn-icon" title="Print Barcode" onClick={() => handlePrintBarcode(item)}>
                         <Printer size={16} />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        title="Stock History"
+                        onClick={() => navigate(`/stock-logs?product=${encodeURIComponent(item.id)}`)}
+                      >
+                        <History size={16} />
                       </button>
                       <button className="btn-icon" title="Delete Product" onClick={() => {
                         if (confirm(`Are you sure you want to delete ${item.name}?`)) {

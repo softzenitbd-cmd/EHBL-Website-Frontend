@@ -62,19 +62,21 @@ const Suppliers = () => {
       person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (person.phone && person.phone.includes(searchTerm))
   );
-  const handleAddSupplier = (e) => {
+  const handleAddSupplier = async (e) => {
     e.preventDefault();
     if (!newSupplier.name) {
       alert("Name is required");
       return;
     }
     const supplierToSave = { ...newSupplier };
-    if (supplierToSave.due) {
-      supplierToSave.due = parseFloat(supplierToSave.due) || 0;
-    } else {
-      supplierToSave.due = 0;
+    supplierToSave.due = supplierToSave.due ? parseFloat(supplierToSave.due) || 0 : 0;
+
+    const result = await addSupplier(supplierToSave);
+    if (!result.success) {
+      alert(`Supplier was not saved: ${result.error}`);
+      return;
     }
-    addSupplier(supplierToSave);
+
     setNewSupplier({ name: '', company: '', phone: '', email: '', location: '', due: '', notes: '' });
     setShowAddModal(false);
   };

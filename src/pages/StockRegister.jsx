@@ -91,14 +91,14 @@ const StockRegister = () => {
     window.location.reload();
   };
 
-  const handleAddStock = (e) => {
+  const handleAddStock = async (e) => {
     e.preventDefault();
     if (!addForm.id || !addForm.name || addForm.quantity <= 0) {
       alert("Item ID, Name, and valid Quantity are required");
       return;
     }
-    
-    processPurchase({
+
+    const result = await processPurchase({
       supplierId: 'SYSTEM',
       supplierName: 'Direct Stock In',
       paymentType: 'Cash',
@@ -116,6 +116,11 @@ const StockRegister = () => {
       date: new Date().toISOString(),
       id: 'STKIN_' + Date.now()
     });
+
+    if (!result.success) {
+      alert(`Stock was not added: ${result.error}`);
+      return;
+    }
 
     setShowAddModal(false);
     setAddForm({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });

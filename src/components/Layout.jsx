@@ -146,6 +146,7 @@ const Layout = () => {
         { path: '/purchases?action=add', search: '?action=add', name: 'New Purchase' },
         { path: '/purchases', search: '', name: 'Purchase List' },
         { path: '/stock', search: '', name: 'Stock Form' },
+        { path: '/stock-logs', search: '', name: 'Stock Movement Log' },
       ]
     },
     { 

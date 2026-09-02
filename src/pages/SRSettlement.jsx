@@ -7,7 +7,27 @@ import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
 const SRSettlement = () => {
-  const { staff, inventory, srSettlements, issueProductsToSR, settleSRAccount, updateSRSettlement } = useStore();
+  const { staff, inventory, srSettlements, issueProductsToSR, settleSRAccount, deleteSRSettlement } = useStore();
+
+  const handleDeleteSettlement = async (settlement) => {
+    const stillOut = settlement.items.reduce(
+      (acc, i) => acc + (i.quantity - (i.returnQty || 0)), 0
+    );
+    const due = Number(settlement.dueAmount || 0);
+
+    const confirmed = confirm(
+      `Delete SR account ${settlement.id}?\n\n` +
+      `Salesman: ${settlement.salesmanName}\n` +
+      `Status: ${settlement.status}\n\n` +
+      (stillOut > 0 ? `${stillOut} item(s) still with the SR will go back into stock.\n` : '') +
+      (due > 0 ? `${due.toLocaleString()} will be removed from the SR's due.\n` : '') +
+      `\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const result = await deleteSRSettlement(settlement.id);
+    if (!result.success) alert(`Settlement was not deleted: ${result.error}`);
+  };
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -64,7 +84,7 @@ const SRSettlement = () => {
     setTempQty(1);
   };
 
-  const handleSaveIssue = () => {
+  const handleSaveIssue = async () => {
     if (!selectedSR) {
       alert("Please select a Salesman / SR from the dropdown.");
       return;
@@ -81,23 +101,25 @@ const SRSettlement = () => {
     
     const totalValue = issueItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
 
-    try {
-      issueProductsToSR({
-        date: selectedDate,
-        salesmanId: srData.id,
-        salesmanName: srData.name,
-        items: issueItems,
-        totalIssuedValue: totalValue,
-        totalSalesValue: totalValue,
-        cashReceived: 0
-      });
-      alert("Stock successfully issued to " + srData.name);
-      setShowIssueModal(false);
-      setSelectedSR('');
-      setIssueItems([]);
-    } catch (err) {
-      alert("Error saving issue: " + err.message);
+    const result = await issueProductsToSR({
+      date: selectedDate,
+      salesmanId: srData.id,
+      salesmanName: srData.name,
+      items: issueItems,
+      totalIssuedValue: totalValue,
+      totalSalesValue: totalValue,
+      cashReceived: 0
+    });
+
+    if (!result.success) {
+      alert(`Stock was not issued: ${result.error}`);
+      return;
     }
+
+    alert("Stock successfully issued to " + srData.name);
+    setShowIssueModal(false);
+    setSelectedSR('');
+    setIssueItems([]);
   };
 
   const openSettleModal = (settlement) => {
@@ -136,24 +158,31 @@ const SRSettlement = () => {
     }
   };
 
-  const handleSaveSettlement = () => {
+  const handleSaveSettlement = async () => {
     if (!activeSettlement) return;
-    const finalTotalSales = returnItems.reduce((acc, item) => {
-      return acc + ((item.issuedQty - item.returnQty) * item.price);
-    }, 0);
-    
-    // Only pass back items that were actually returned > 0 to save space
+
+    // Only send back items that were actually returned.
     const actualReturns = returnItems.filter(r => r.returnQty > 0);
-    
-    // Also update the totalSalesValue in the settlement
-    updateSRSettlement(activeSettlement.id, {
-      totalSalesValue: finalTotalSales,
-      cashReceived: parseFloat(cashReceived) || 0
-    });
-    
-    // Mark as settled and put stock back
-    settleSRAccount(activeSettlement.id, parseFloat(cashReceived) || 0, actualReturns);
-    
+
+    // The server recomputes sales value, shortfall and stock, then we re-sync.
+    const result = await settleSRAccount(
+      activeSettlement.id,
+      parseFloat(cashReceived) || 0,
+      actualReturns
+    );
+
+    if (!result.success) {
+      alert(`Settlement failed: ${result.error}`);
+      return;
+    }
+
+    const due = Number(result.data?.dueAmount || 0);
+    alert(
+      due > 0
+        ? `Settled. ${activeSettlement.salesmanName} owes ${due.toLocaleString()} which has been added to their due.`
+        : 'Settled. Nothing outstanding.'
+    );
+
     setShowSettleModal(false);
     setActiveSettlement(null);
   };
@@ -220,17 +249,22 @@ const SRSettlement = () => {
                   </span>
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <button 
-                    className="btn-outline flex-align-gap" 
-                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
-                    onClick={() => openSettleModal(settlement)}
-                  >
-                    {settlement.status === 'Pending' ? (
-                      <><CheckCircle size={14} /> Settle / Edit</>
-                    ) : (
-                      <><Edit size={14} /> View / Edit</>
-                    )}
-                  </button>
+                  <div className="flex-align-gap" style={{ justifyContent: 'center' }}>
+                    <button
+                      className="btn-outline flex-align-gap"
+                      style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
+                      onClick={() => openSettleModal(settlement)}
+                    >
+                      {settlement.status === 'Pending' ? (
+                        <><CheckCircle size={14} /> Settle / Edit</>
+                      ) : (
+                        <><Edit size={14} /> View / Edit</>
+                      )}
+                    </button>
+                    <button className="btn-icon" title="Delete Settlement" onClick={() => handleDeleteSettlement(settlement)}>
+                      <Trash2 size={16} color="var(--danger)" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
