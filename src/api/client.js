@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Detect active port dynamically or fallback to 8001 / 8000
-const initialBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.68.104:8001/api';
+// Detect active port dynamically or fallback to VPS backend
+const initialBaseURL = import.meta.env.VITE_API_BASE_URL || 'https://server-ehblbackend-lynwib-9e6748-62-84-177-235.sslip.io/api';
 
 const apiClient = axios.create({
   baseURL: initialBaseURL,
