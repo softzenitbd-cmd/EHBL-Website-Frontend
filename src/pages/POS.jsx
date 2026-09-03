@@ -162,7 +162,7 @@ const POS = () => {
                 }}
                 onClick={() => addToCart({ ...item, isGift: false, itemDiscount: 0 })}
               >
-                {item.name} ({item.price})
+                {item.name} (Buy: {item.purchasePrice || 0} | Sell: {item.price})
               </button>
             ))
           )}
@@ -176,7 +176,7 @@ const POS = () => {
               <div className="cart-item glass" key={item.id}>
                 <div className="item-info">
                   <h4>{item.name}</h4>
-                  <span className="text-muted">ID: {item.id} | {item.price} x {item.quantity}</span>
+                  <span className="text-muted">ID: {item.id} | Buy: {item.purchasePrice || 0} | Sell: {item.price} x {item.quantity}</span>
                 </div>
                 <div className="item-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div className="quantity-control" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--bg-input)', padding: '0.25rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}>

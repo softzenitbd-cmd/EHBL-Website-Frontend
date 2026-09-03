@@ -5,6 +5,10 @@ const useStore = create(
   persist(
     (set, get) => ({
       // App State
+      transactions: [],
+      addTransaction: (transaction) => set((state) => ({
+        transactions: [{ id: 'TRX' + Date.now(), date: new Date().toISOString(), ...transaction }, ...state.transactions]
+      })),
       user: null, // { id, name, role: 'Admin' | 'Salesman' }
       theme: 'light',
       activeThemeClass: 'theme-forest',
@@ -42,10 +46,10 @@ const useStore = create(
 
       // Core Data Tables
       inventory: [
-        { id: '10001', name: 'Bosch Impact Drill 13mm', category: 'Power Tools', stock: 15, unit: 'pcs', price: 3500, dateAdded: new Date().toISOString() },
-        { id: '10002', name: 'Steel Wire Brush 4x16', category: 'Hand Tools', stock: 120, unit: 'pcs', price: 35, dateAdded: new Date().toISOString() },
-        { id: '10003', name: 'Indian Lock Heavy Duty', category: 'Hardware', stock: 50, unit: 'pcs', price: 450, dateAdded: new Date().toISOString() },
-        { id: '10004', name: 'Angle Grinder 4 inch', category: 'Machine Tools', stock: 25, unit: 'pcs', price: 2200, dateAdded: new Date().toISOString() },
+        { id: '10001', name: 'Bosch Impact Drill 13mm', category: 'Power Tools', stock: 15, unit: 'pcs', price: 3500, purchasePrice: 3200, dateAdded: new Date().toISOString() },
+        { id: '10002', name: 'Steel Wire Brush 4x16', category: 'Hand Tools', stock: 120, unit: 'pcs', price: 35, purchasePrice: 25, dateAdded: new Date().toISOString() },
+        { id: '10003', name: 'Indian Lock Heavy Duty', category: 'Hardware', stock: 50, unit: 'pcs', price: 450, purchasePrice: 380, dateAdded: new Date().toISOString() },
+        { id: '10004', name: 'Angle Grinder 4 inch', category: 'Machine Tools', stock: 25, unit: 'pcs', price: 2200, purchasePrice: 1950, dateAdded: new Date().toISOString() },
       ],
       customers: [
         { id: 'C001', name: 'Fahim Traders', phone: '01719563699', location: 'Kotchandpur', due: 1020 },
@@ -514,10 +518,10 @@ const useStore = create(
         const justDate = todayStr.split('T')[0];
         return {
           inventory: [
-            { id: '10001', name: 'Bosch Impact Drill 13mm', category: 'Power Tools', stock: 15, unit: 'pcs', price: 3500, dateAdded: todayStr },
-            { id: '10002', name: 'Steel Wire Brush 4x16', category: 'Hand Tools', stock: 120, unit: 'pcs', price: 35, dateAdded: todayStr },
-            { id: '10003', name: 'Indian Lock Heavy Duty', category: 'Hardware', stock: 50, unit: 'pcs', price: 450, dateAdded: todayStr },
-            { id: '10004', name: 'Angle Grinder 4 inch', category: 'Machine Tools', stock: 25, unit: 'pcs', price: 2200, dateAdded: todayStr },
+            { id: '10001', name: 'Bosch Impact Drill 13mm', category: 'Power Tools', stock: 15, unit: 'pcs', price: 3500, purchasePrice: 3200, dateAdded: todayStr },
+            { id: '10002', name: 'Steel Wire Brush 4x16', category: 'Hand Tools', stock: 120, unit: 'pcs', price: 35, purchasePrice: 25, dateAdded: todayStr },
+            { id: '10003', name: 'Indian Lock Heavy Duty', category: 'Hardware', stock: 50, unit: 'pcs', price: 450, purchasePrice: 380, dateAdded: todayStr },
+            { id: '10004', name: 'Angle Grinder 4 inch', category: 'Machine Tools', stock: 25, unit: 'pcs', price: 2200, purchasePrice: 1950, dateAdded: todayStr },
           ],
           customers: [
             { id: 'C001', name: 'Fahim Traders', phone: '01719563699', location: 'Kotchandpur', due: 1020 },
@@ -560,6 +564,10 @@ const useStore = create(
           ],
           smsHistory: [
             { id: 'SMS1', date: todayStr, numbers: ['01719563699'], message: 'Dear Fahim Traders, your due amount is 1020 TK. Please clear it soon.', status: 'Sent' }
+          ],
+          transactions: [
+            { id: 'TRX_DUMMY_1', date: justDate, entityName: 'Zaman Hardware', type: 'Credit', amount: 1000, description: 'Advance payment', reference: 'Cash' },
+            { id: 'TRX_DUMMY_2', date: justDate, entityName: 'Rent', type: 'Debit', amount: 5000, description: 'Shop rent for June', reference: 'Cash' }
           ],
           srSettlements: [
             {

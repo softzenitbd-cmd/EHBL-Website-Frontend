@@ -46,7 +46,7 @@ const Inventory = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [printQuantity, setPrintQuantity] = useState(21);
   const [editingProduct, setEditingProduct] = useState({
-    id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0
+    id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0
   });
 
   // New Category / Unit Inputs
@@ -55,7 +55,7 @@ const Inventory = () => {
   const [isCustomCategory, setIsCustomCategory] = useState(false);
 
   const [newProduct, setNewProduct] = useState({
-    id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0
+    id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0
   });
   
   const location = useLocation();
@@ -108,7 +108,7 @@ const Inventory = () => {
     showToast('Product added successfully!', 'success');
     setShowAddModal(false);
     navigate('/inventory');
-    setNewProduct({ id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0 });
+    setNewProduct({ id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0 });
     setIsCustomCategory(false);
   };
 
@@ -432,7 +432,8 @@ const Inventory = () => {
                 <th>Variant</th>
                 <th>Unit</th>
                 <th>Stock</th>
-                <th>Price (BDT)</th>
+                <th>Purchase (BDT)</th>
+                <th>Sale (BDT)</th>
                 <th>Date Added</th>
                 <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
@@ -454,7 +455,8 @@ const Inventory = () => {
                       {item.stock}
                     </span>
                   </td>
-                  <td style={{ fontWeight: '600' }}>{Number(item.price || 0).toLocaleString()}</td>
+                  <td style={{ fontWeight: '500', color: 'var(--danger)' }}>{Number(item.purchasePrice || 0).toLocaleString()}</td>
+                  <td style={{ fontWeight: '600', color: 'var(--success)' }}>{Number(item.price || 0).toLocaleString()}</td>
                   <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Calendar size={12} /> {formatProductDate(item.dateAdded || item.date_added)}
@@ -715,7 +717,18 @@ const Inventory = () => {
                     </div>
 
                     <div>
-                      <label className="text-muted text-sm block mb-1">Price (BDT)</label>
+                      <label className="text-muted text-sm block mb-1">Purchase Rate (BDT)</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        min="0" 
+                        value={newProduct.purchasePrice} 
+                        onChange={e => setNewProduct({...newProduct, purchasePrice: parseFloat(e.target.value) || 0})} 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Sale Rate (BDT)</label>
                       <input 
                         type="number" 
                         className="w-full" 
@@ -806,7 +819,7 @@ const Inventory = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label className="text-muted text-sm block mb-1">Opening Stock</label>
                       <input 
@@ -817,7 +830,16 @@ const Inventory = () => {
                       />
                     </div>
                     <div>
-                      <label className="text-muted text-sm block mb-1">Selling Price (৳)</label>
+                      <label className="text-muted text-sm block mb-1">Purchase Rate (৳)</label>
+                      <input 
+                        type="number" 
+                        className="w-full" 
+                        value={editingProduct.purchasePrice} 
+                        onChange={e => setEditingProduct({...editingProduct, purchasePrice: parseFloat(e.target.value) || 0})} 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1">Sale Rate (৳)</label>
                       <input 
                         type="number" 
                         className="w-full" 
