@@ -20,6 +20,9 @@ import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
 import SMS from './pages/SMS';
 import BillInvoice from './pages/BillInvoice';
+import TransactionEntry from './pages/TransactionEntry';
+import AccountLedger from './pages/AccountLedger';
+import StockLedger from './pages/StockLedger';
 import GlobalToast from './components/GlobalToast';
 
 // Placeholder Pages (will be extracted to separate files in later phases)
@@ -81,6 +84,9 @@ function App() {
           <Route path="/sms" element={<SMS />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/invoice" element={<BillInvoice />} />
+          <Route path="/transaction-entry" element={<TransactionEntry />} />
+          <Route path="/account-ledger" element={<AccountLedger />} />
+          <Route path="/stock-ledger" element={<StockLedger />} />
           
           {/* Admin Only Routes */}
           <Route path="hr" element={<ProtectedRoute requiredRole="Admin"><HR /></ProtectedRoute>} />

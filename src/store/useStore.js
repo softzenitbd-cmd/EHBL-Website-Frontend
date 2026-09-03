@@ -30,10 +30,14 @@ const useStore = create(
       // ---------------------------------------------------------------
       user: null,
       token: null,
-      theme: 'dark',
+      theme: 'light',
       activeThemeClass: 'theme-forest',
       isLoading: false,
       lastError: null,
+      transactions: [],
+      addTransaction: (transaction) => set((state) => ({
+        transactions: [{ id: 'TRX' + Date.now(), date: new Date().toISOString(), ...transaction }, ...(state.transactions || [])]
+      })),
       toast: { show: false, message: '', type: 'success' },
 
       showToast: (message, type = 'success') => {
@@ -784,6 +788,7 @@ const useStore = create(
         theme: state.theme,
         activeThemeClass: state.activeThemeClass,
         cart: state.cart,
+        transactions: state.transactions,
       }),
     }
   )

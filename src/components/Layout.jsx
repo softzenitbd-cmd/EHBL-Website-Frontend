@@ -159,6 +159,15 @@ const Layout = () => {
         { path: '/expenses?action=add', search: '?action=add', name: 'Add Expense' },
         { path: '/expenses', search: '', name: 'Expense List' },
       ]
+    },
+    { 
+      name: 'Ledgers & Reports', 
+      icon: <FileSpreadsheet size={20} />,
+      subItems: [
+        { path: '/transaction-entry', search: '', name: 'Transaction Entry' },
+        { path: '/account-ledger', search: '', name: 'Account Ledger' },
+        { path: '/stock-ledger', search: '', name: 'Stock Ledger' },
+      ]
     }
   ];
 
