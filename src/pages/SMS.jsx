@@ -55,7 +55,7 @@ const SMS = () => {
     }
   };
 
-  const handleSendSMS = (e) => {
+  const handleSendSMS = async (e) => {
     e.preventDefault();
     if (selectedCustomers.length === 0) {
       showToast('Please select at least one customer.', 'error');
@@ -66,23 +66,29 @@ const SMS = () => {
       return;
     }
 
-    // Mock sending SMS
     setStatus('Sending SMS to ' + selectedCustomers.length + ' customers...');
-    
-    setTimeout(() => {
-      setStatus('');
-      
-      const sentCustomersInfo = filteredCustomers.filter(c => selectedCustomers.includes(c.id)).map(c => ({ id: c.id, name: c.name, phone: c.phone }));
-      addSmsToHistory({
-        message,
-        receiversCount: selectedCustomers.length,
-        receivers: sentCustomersInfo
-      });
-      
-      showToast(`SMS sent successfully to ${selectedCustomers.length} customers!`, 'success');
-      setMessage('');
-      setSelectedCustomers([]);
-    }, 1500);
+
+    const receivers = filteredCustomers
+      .filter(c => selectedCustomers.includes(c.id))
+      .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
+
+    const result = await addSmsToHistory({
+      message,
+      receiversCount: selectedCustomers.length,
+      receivers
+    });
+    setStatus('');
+
+    if (!result.success) {
+      showToast(`SMS was not sent: ${result.error}`, 'error');
+      return;
+    }
+
+    // The server says whether a gateway actually delivered anything, or whether
+    // the campaign was only recorded because none is configured.
+    showToast(result.data?.message || 'SMS request recorded.', result.delivered ? 'success' : 'warning');
+    setMessage('');
+    setSelectedCustomers([]);
   };
 
   return (

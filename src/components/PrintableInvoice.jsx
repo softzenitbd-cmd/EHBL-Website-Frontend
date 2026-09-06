@@ -1,6 +1,7 @@
 import React from 'react';
 import InvoiceHeader from './InvoiceHeader';
 import PrintFooter from './PrintFooter';
+import { pageRule, A5_CONTENT_CSS } from '../utils/printStyles';
 
 const PrintableInvoice = ({ sale, customers }) => {
   if (!sale) return null;
@@ -23,10 +24,8 @@ const PrintableInvoice = ({ sale, customers }) => {
       <style>
         {`
           @media print {
-            @page {
-              size: B5;
-              margin: 10mm;
-            }
+            ${pageRule()}
+            ${A5_CONTENT_CSS}
           }
         `}
       </style>

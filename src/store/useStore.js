@@ -19,6 +19,40 @@ const extractError = (err, fallback = 'Something went wrong. Please try again.')
   return typeof candidate === 'string' ? candidate : fallback;
 };
 
+/**
+ * The settle dialog fires updateSRIssuedItems() and settleSRAccount() one after
+ * the other without awaiting the first. Both now hit the server, and the settle
+ * must not overtake the issued-quantity correction or it would compute the
+ * shortfall from stale quantities. Queueing them keeps that order without the
+ * caller having to await.
+ */
+/**
+ * Manual journal entries used to be persisted in this browser only. Now that
+ * they live on the server they are no longer written to localStorage, so read
+ * whatever is still sitting there once, at module load, before the persist
+ * middleware rewrites the key without them. They get pushed up on the first
+ * successful sync and the flag stops it happening twice.
+ */
+const LEGACY_TX_FLAG = 'ehbl_transactions_migrated';
+const legacyTransactions = (() => {
+  try {
+    if (localStorage.getItem(LEGACY_TX_FLAG) === '1') return [];
+    const raw = localStorage.getItem('retail-shop-storage');
+    if (!raw) return [];
+    const list = JSON.parse(raw)?.state?.transactions;
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+})();
+
+let srMutationChain = Promise.resolve();
+const queueSrMutation = (run) => {
+  const next = srMutationChain.then(run, run);
+  srMutationChain = next.catch(() => {});
+  return next;
+};
+
 const asArray = (settled) =>
   settled.status === 'fulfilled' && Array.isArray(settled.value) ? settled.value : null;
 
@@ -35,9 +69,85 @@ const useStore = create(
       isLoading: false,
       lastError: null,
       transactions: [],
-      addTransaction: (transaction) => set((state) => ({
-        transactions: [{ id: 'TRX' + Date.now(), date: new Date().toISOString(), ...transaction }, ...(state.transactions || [])]
-      })),
+
+      /**
+       * Manual journal entry. These used to live only in this browser, so they
+       * were lost on a cache clear and invisible on any other device.
+       */
+      addTransaction: async (transaction) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.TRANSACTIONS, {
+            date: transaction.date,
+            entityName: transaction.entityName,
+            type: transaction.type || 'Debit',
+            amount: transaction.amount,
+            reference: transaction.reference || '',
+            description: transaction.description || '',
+          });
+          set((state) => ({ transactions: [res, ...(state.transactions || [])], lastError: null }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to save the transaction.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      /**
+       * Upload journal entries left over from when they were browser-only.
+       * Runs at most once, skips anything the server already has, and never
+       * blocks the rest of the sync.
+       */
+      migrateLegacyTransactions: async () => {
+        if (localStorage.getItem(LEGACY_TX_FLAG) === '1' || legacyTransactions.length === 0) return;
+
+        const onServer = new Set(
+          (get().transactions || []).map((t) => `${t.date}|${t.entityName}|${t.amount}`)
+        );
+
+        let uploaded = 0;
+        for (const t of legacyTransactions) {
+          if (!t?.entityName || !t?.amount) continue;
+          if (onServer.has(`${String(t.date).split('T')[0]}|${t.entityName}|${t.amount}`)) continue;
+          try {
+            await apiClient.post(ENDPOINTS.TRANSACTIONS, {
+              date: String(t.date).split('T')[0],
+              entityName: t.entityName,
+              type: t.type || 'Debit',
+              amount: t.amount,
+              reference: t.reference || '',
+              description: t.description || '',
+            });
+            uploaded += 1;
+          } catch {
+            // Leave the flag unset so the next sync tries again.
+            return;
+          }
+        }
+
+        localStorage.setItem(LEGACY_TX_FLAG, '1');
+        if (uploaded > 0) {
+          console.info(`Moved ${uploaded} manual transaction(s) from this browser to the server.`);
+          const res = await apiClient.get(ENDPOINTS.TRANSACTIONS).catch(() => null);
+          if (Array.isArray(res)) set({ transactions: res });
+        }
+      },
+
+      deleteTransaction: async (transactionId) => {
+        try {
+          await apiClient.delete(ENDPOINTS.TRANSACTION_DETAILS(transactionId));
+          set((state) => ({
+            transactions: (state.transactions || []).filter((t) => t.id !== transactionId),
+            lastError: null,
+          }));
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the transaction.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
       toast: { show: false, message: '', type: 'success' },
 
       showToast: (message, type = 'success') => {
@@ -132,6 +242,7 @@ const useStore = create(
             apiClient.get(ENDPOINTS.PURCHASES),
             apiClient.get(ENDPOINTS.RETURNS),
             apiClient.get(ENDPOINTS.SETTLEMENTS),
+            apiClient.get(ENDPOINTS.TRANSACTIONS),
             apiClient.get(ENDPOINTS.SR_SETTLEMENTS),
             apiClient.get(ENDPOINTS.EXPENSES),
             apiClient.get(ENDPOINTS.EXPENSE_CATEGORIES),
@@ -145,7 +256,7 @@ const useStore = create(
           const keys = [
             'inventory', 'categories', 'units', 'customers', 'suppliers',
             'sales', 'drafts', 'purchases', 'returns', 'settlements',
-            'srSettlements', 'expenses', 'expenseCategories', 'staff',
+            'transactions', 'srSettlements', 'expenses', 'expenseCategories', 'staff',
             'attendance', 'leaves', 'payrolls', 'smsHistory',
           ];
 
@@ -163,6 +274,7 @@ const useStore = create(
           });
 
           get().fetchShopProfile();
+          get().migrateLegacyTransactions();
         } catch (err) {
           set({ isLoading: false, lastError: extractError(err, 'Failed to load data from the server.') });
         }
@@ -570,7 +682,7 @@ const useStore = create(
         }
       },
 
-      settleSRAccount: async (id, cashReceived, returnItems = []) => {
+      settleSRAccount: async (id, cashReceived, returnItems = []) => queueSrMutation(async () => {
         try {
           const res = await apiClient.post(ENDPOINTS.SR_SETTLE(id), {
             cashReceived: parseFloat(cashReceived) || 0,
@@ -586,44 +698,80 @@ const useStore = create(
           set({ lastError: message });
           return { success: false, error: message };
         }
-      },
+      }),
 
       // Optimistic local tweak used by the settle dialog before it submits.
       updateSRSettlement: (id, updates) => set((state) => ({
         srSettlements: (state.srSettlements || []).map((s) => (s.id === id ? { ...s, ...updates } : s)),
       })),
 
-      updateSRIssuedItems: (id, updatedReturnItems) => set((state) => {
-        const settlement = (state.srSettlements || []).find((s) => s.id === id);
-        if (!settlement) return state;
-        return {
-          srSettlements: state.srSettlements.map((s) => {
-            if (s.id === id) {
-              const newItems = (s.items || []).map((item) => {
-                const updated = updatedReturnItems.find((r) => String(r.productId) === String(item.productId));
-                return updated ? { ...item, quantity: updated.issuedQty } : item;
-              });
-              return { ...s, items: newItems };
-            }
-            return s;
-          }),
-        };
-      }),
+      /**
+       * Correct the issued quantities on an open SR account.
+       * The server moves the stock to match, so this is not a local-only tweak.
+       */
+      updateSRIssuedItems: async (id, updatedReturnItems) => {
+        const items = (updatedReturnItems || [])
+          .filter((r) => r.issuedQty !== undefined && r.issuedQty !== null)
+          .map((r) => ({ productId: r.productId, issuedQty: parseInt(r.issuedQty, 10) || 0 }));
+
+        if (items.length === 0) return { success: true };
+
+        return queueSrMutation(async () => {
+          try {
+            const res = await apiClient.patch(ENDPOINTS.SR_ISSUED_ITEMS(id), { items });
+            await get().fetchAllData();
+            return { success: true, data: res };
+          } catch (err) {
+            const message = extractError(err, 'Failed to update the issued quantities.');
+            set({ lastError: message });
+            return { success: false, error: message };
+          }
+        });
+      },
 
       settleBulkSR: async (settlementIds) => {
+        const failures = [];
         for (const id of settlementIds) {
           const settlement = (get().srSettlements || []).find((s) => s.id === id);
           if (settlement && settlement.status !== 'Settled') {
-            await get().settleSRAccount(id, settlement.totalSalesValue || settlement.totalIssuedValue || 0, []);
+            const res = await get().settleSRAccount(
+              id, settlement.totalSalesValue || settlement.totalIssuedValue || 0, []
+            );
+            if (!res.success) failures.push(`${id}: ${res.error}`);
           }
         }
+
+        if (failures.length) {
+          const message = failures.join('; ');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+        return { success: true };
       },
 
-      unsettleBulkSR: (settlementIds) => set((state) => ({
-        srSettlements: (state.srSettlements || []).map((s) =>
-          settlementIds.includes(s.id) ? { ...s, status: 'Pending', cashReceived: 0 } : s
-        ),
-      })),
+      /**
+       * Reopen settled SR accounts. The server puts the returned goods back out
+       * with the SR and takes the shortfall off their due; marking them Pending
+       * only in the browser used to vanish on the next refresh.
+       */
+      unsettleBulkSR: async (settlementIds) => {
+        const failures = [];
+        for (const id of settlementIds) {
+          try {
+            await apiClient.post(ENDPOINTS.SR_UNSETTLE(id));
+          } catch (err) {
+            failures.push(`${id}: ${extractError(err, 'could not be reopened')}`);
+          }
+        }
+        await get().fetchAllData();
+
+        if (failures.length) {
+          const message = failures.join('; ');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+        return { success: true };
+      },
 
       // ---------------------------------------------------------------
       // Shop profile (invoice letterhead)
@@ -788,7 +936,7 @@ const useStore = create(
         theme: state.theme,
         activeThemeClass: state.activeThemeClass,
         cart: state.cart,
-        transactions: state.transactions,
+        // transactions are no longer kept here - the server owns them now
       }),
     }
   )

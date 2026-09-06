@@ -65,7 +65,7 @@ const Suppliers = () => {
       person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (person.phone && person.phone.includes(searchTerm))
   );
-  const handleAddSupplier = (e) => {
+  const handleAddSupplier = async (e) => {
     e.preventDefault();
     if (!newSupplier.name) {
       showToast("Name is required", "error");
@@ -77,7 +77,12 @@ const Suppliers = () => {
     } else {
       supplierToSave.due = 0;
     }
-    addSupplier(supplierToSave);
+    const result = await addSupplier(supplierToSave);
+    if (!result.success) {
+      showToast(`Supplier was not saved: ${result.error}`, 'error');
+      return;
+    }
+
     showToast("Supplier added successfully!", "success");
     setNewSupplier({ name: '', company: '', phone: '', location: '', due: '', notes: '' });
     setShowAddModal(false);
@@ -88,7 +93,7 @@ const Suppliers = () => {
     setShowEditModal(true);
   };
 
-  const handleUpdateSupplier = (e) => {
+  const handleUpdateSupplier = async (e) => {
     e.preventDefault();
     if (!editingSupplier.name) {
       showToast("Name is required", "error");
@@ -98,7 +103,12 @@ const Suppliers = () => {
     if (updatedData.due) updatedData.due = parseFloat(updatedData.due) || 0;
     else updatedData.due = 0;
 
-    updateSupplier(editingSupplier.id, updatedData);
+    const result = await updateSupplier(editingSupplier.id, updatedData);
+    if (!result.success) {
+      showToast(`Supplier was not updated: ${result.error}`, 'error');
+      return;
+    }
+
     showToast("Supplier updated successfully!", "success");
     setShowEditModal(false);
   };

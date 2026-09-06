@@ -2,26 +2,43 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Package, DollarSign, TrendingUp, TrendingDown, Truck, RefreshCcw, Users, ArrowRight, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
+import apiClient from '../api/client';
+import { ENDPOINTS } from '../api/endpoints';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const mockChartData = [
-  { name: 'Mon', sales: 12000, profit: 4000 },
-  { name: 'Tue', sales: 19000, profit: 6000 },
-  { name: 'Wed', sales: 15000, profit: 5500 },
-  { name: 'Thu', sales: 22000, profit: 7800 },
-  { name: 'Fri', sales: 28000, profit: 9000 },
-  { name: 'Sat', sales: 35000, profit: 12000 },
-  { name: 'Sun', sales: 24500, profit: 8200 },
-];
+// Shown while the real series loads, and if the server cannot be reached, so
+// the chart never invents numbers the shop might act on.
+const emptyWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((name) => ({
+  name, sales: 0, profit: 0,
+}));
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
   const { user, sales = [], expenses = [], inventory = [], customers = [], suppliers = [], purchases = [], fetchAllData } = useStore();
 
+  const [chartData, setChartData] = useState(emptyWeek);
+
   useEffect(() => {
     if (fetchAllData) fetchAllData();
   }, []);
+
+  // The 7-day sales/profit series is aggregated server-side.
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get(ENDPOINTS.REPORTS_SUMMARY)
+      .then((res) => {
+        if (!cancelled && Array.isArray(res?.chartData) && res.chartData.length) {
+          setChartData(res.chartData);
+        }
+      })
+      .catch(() => {
+        // Keep the empty week; the tiles above still show synced figures.
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   const isAdmin = user?.role === 'Admin';
 
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -268,7 +285,7 @@ const Dashboard = () => {
           </div>
           <div style={{ width: '100%', height: 350 }}>
             <ResponsiveContainer>
-              <AreaChart data={mockChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />

@@ -5,6 +5,7 @@ import '../common.css';
 
 const TransactionEntry = () => {
   const { addTransaction, showToast } = useStore();
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     entityName: '',
@@ -19,18 +20,25 @@ const TransactionEntry = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.entityName || !formData.amount) {
       showToast('Please fill all required fields.', 'error');
       return;
     }
 
-    addTransaction({
+    setSaving(true);
+    const result = await addTransaction({
       ...formData,
       amount: Number(formData.amount)
     });
-    
+    setSaving(false);
+
+    if (!result.success) {
+      showToast(`Transaction was not saved: ${result.error}`, 'error');
+      return;
+    }
+
     showToast('Transaction saved successfully!', 'success');
     setFormData({
       date: new Date().toISOString().split('T')[0],
@@ -135,8 +143,8 @@ const TransactionEntry = () => {
             <button type="button" className="btn-outline flex-align-gap" onClick={() => setFormData({ date: new Date().toISOString().split('T')[0], entityName: '', type: 'Debit', amount: '', reference: '', description: '' })}>
               <X size={18} /> Clear Form
             </button>
-            <button type="submit" className="btn-primary flex-align-gap">
-              <Save size={18} /> Save Transaction
+            <button type="submit" className="btn-primary flex-align-gap" disabled={saving}>
+              <Save size={18} /> {saving ? 'Saving...' : 'Save Transaction'}
             </button>
           </div>
         </form>

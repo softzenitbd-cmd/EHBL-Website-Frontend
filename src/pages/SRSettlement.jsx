@@ -7,7 +7,30 @@ import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
 const SRSettlement = () => {
-  const { staff, inventory, srSettlements, issueProductsToSR, settleSRAccount, updateSRSettlement, updateSRIssuedItems, settleBulkSR, unsettleBulkSR, showToast } = useStore();
+  const { staff, inventory, srSettlements, issueProductsToSR, settleSRAccount, updateSRIssuedItems, settleBulkSR, unsettleBulkSR, showToast, deleteSRSettlement } = useStore();
+
+  const handleDeleteSettlement = async (settlement) => {
+    const stillOut = (settlement.items || []).reduce(
+      (acc, i) => acc + (i.quantity - (i.returnQty || 0)), 0
+    );
+    const due = Number(settlement.dueAmount || 0);
+
+    const confirmed = confirm(
+      `Delete SR account ${settlement.id}?\n\n` +
+      `Salesman: ${settlement.salesmanName}\n` +
+      `Status: ${settlement.status}\n\n` +
+      (stillOut > 0 ? `${stillOut} item(s) still with the SR will go back into stock.\n` : '') +
+      (due > 0 ? `${due.toLocaleString()} will be removed from the SR's due.\n` : '') +
+      `\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const result = await deleteSRSettlement(settlement.id);
+    showToast(
+      result.success ? `SR account ${settlement.id} deleted and stock reversed.` : `Settlement was not deleted: ${result.error}`,
+      result.success ? 'success' : 'error'
+    );
+  };
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -71,7 +94,7 @@ const SRSettlement = () => {
     setTempQty(1);
   };
 
-  const handleSaveIssue = () => {
+  const handleSaveIssue = async () => {
     if (!selectedSR) {
       showToast("Please select a Salesman / SR from the dropdown.", "error");
       return;
@@ -88,23 +111,25 @@ const SRSettlement = () => {
     
     const totalValue = issueItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
 
-    try {
-      issueProductsToSR({
-        date: selectedDate,
-        salesmanId: srData.id,
-        salesmanName: srData.name,
-        items: issueItems,
-        totalIssuedValue: totalValue,
-        totalSalesValue: totalValue,
-        cashReceived: 0
-      });
-      showToast("Stock successfully issued to " + srData.name, "success");
-      setShowIssueModal(false);
-      setSelectedSR('');
-      setIssueItems([]);
-    } catch (err) {
-      showToast("Error saving issue: " + err.message, "error");
+    const result = await issueProductsToSR({
+      date: selectedDate,
+      salesmanId: srData.id,
+      salesmanName: srData.name,
+      items: issueItems,
+      totalIssuedValue: totalValue,
+      totalSalesValue: totalValue,
+      cashReceived: 0
+    });
+
+    if (!result.success) {
+      showToast(`Stock was not issued: ${result.error}`, 'error');
+      return;
     }
+
+    showToast("Stock successfully issued to " + srData.name, "success");
+    setShowIssueModal(false);
+    setSelectedSR('');
+    setIssueItems([]);
   };
 
   const openSettleModal = (settlement) => {
@@ -174,47 +199,68 @@ const SRSettlement = () => {
     }
   };
 
-  const handleSaveSettlement = () => {
+  const handleSaveSettlement = async () => {
     if (!activeSettlement) return;
-    
-    // Update issued items and inventory if issuedQty was edited
-    updateSRIssuedItems(activeSettlement.id, returnItems);
 
-    const finalTotalSales = returnItems.reduce((acc, item) => {
-      return acc + ((item.issuedQty - item.returnQty) * item.price);
-    }, 0);
-    
-    // Only pass back items that were actually returned > 0 to save space
+    // Correct the issued quantities first - the settle below computes the
+    // shortfall from them, so it must not run against stale figures.
+    const corrected = await updateSRIssuedItems(activeSettlement.id, returnItems);
+    if (!corrected.success) {
+      showToast(`Issued quantities were not saved: ${corrected.error}`, 'error');
+      return;
+    }
+
+    // Only send back items that were actually returned.
     const actualReturns = returnItems.filter(r => r.returnQty > 0);
-    
-    // Also update the totalSalesValue in the settlement
-    updateSRSettlement(activeSettlement.id, {
-      totalSalesValue: finalTotalSales,
-      cashReceived: parseFloat(cashReceived) || 0
-    });
-    
-    // Mark as settled and put stock back
-    settleSRAccount(activeSettlement.id, parseFloat(cashReceived) || 0, actualReturns);
-    
+
+    const result = await settleSRAccount(
+      activeSettlement.id,
+      parseFloat(cashReceived) || 0,
+      actualReturns
+    );
+
+    if (!result.success) {
+      showToast(`Settlement failed: ${result.error}`, 'error');
+      return;
+    }
+
+    const due = Number(result.data?.dueAmount || 0);
+    showToast(
+      due > 0
+        ? `Settled. ${activeSettlement.salesmanName} owes ${due.toLocaleString()}, added to their due.`
+        : 'Settled. Nothing outstanding.',
+      'success'
+    );
+
     setShowSettleModal(false);
     setActiveSettlement(null);
   };
 
-  const handleGlobalProcessAll = () => {
+  const handleGlobalProcessAll = async () => {
     const pendingIds = filteredSettlements.filter(s => s.status === 'Pending').map(s => s.id);
     if (pendingIds.length === 0) {
       showToast("No pending accounts found to process.", "warning");
       return;
     }
-    settleBulkSR(pendingIds);
-    showToast("Accounts Processed Successfully!", "success");
+    const result = await settleBulkSR(pendingIds);
+    showToast(
+      result?.success === false
+        ? `Some accounts were not processed: ${result.error}`
+        : `${pendingIds.length} account(s) processed successfully!`,
+      result?.success === false ? 'error' : 'success'
+    );
   };
 
-  const handleGlobalUnprocessAll = () => {
+  const handleGlobalUnprocessAll = async () => {
     const settledIds = filteredSettlements.filter(s => s.status === 'Settled').map(s => s.id);
     if (settledIds.length === 0) return;
-    unsettleBulkSR(settledIds);
-    showToast("Accounts Reverted to Pending!", "warning");
+    const result = await unsettleBulkSR(settledIds);
+    showToast(
+      result?.success === false
+        ? `Some accounts could not be reopened: ${result.error}`
+        : `${settledIds.length} account(s) reverted to Pending.`,
+      result?.success === false ? 'error' : 'warning'
+    );
   };
 
   const handlePrint = () => {
@@ -332,6 +378,9 @@ const SRSettlement = () => {
                     ) : (
                       <><Edit size={14} /> View / Edit</>
                     )}
+                  </button>
+                  <button className="btn-icon" title="Delete Settlement" onClick={() => handleDeleteSettlement(settlement)}>
+                    <Trash2 size={16} color="var(--danger)" />
                   </button>
                 </td>
               </tr>

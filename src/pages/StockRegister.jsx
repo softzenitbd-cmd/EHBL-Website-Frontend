@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, Printer, Download, Plus, Minus, Edit } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
+import { pageRule, A5_CONTENT_CSS } from '../utils/printStyles';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 
@@ -133,14 +134,14 @@ const StockRegister = () => {
     window.location.reload();
   };
 
-  const handleAddStock = (e) => {
+  const handleAddStock = async (e) => {
     e.preventDefault();
     if (!addForm.id || !addForm.name || addForm.quantity <= 0) {
       showToast("Item ID, Name, and valid Quantity are required", "error");
       return;
     }
-    
-    processPurchase({
+
+    const result = await processPurchase({
       supplierId: 'SYSTEM',
       supplierName: 'Direct Stock In',
       paymentType: 'Cash',
@@ -159,11 +160,17 @@ const StockRegister = () => {
       id: 'STKIN_' + Date.now()
     });
 
+    if (!result.success) {
+      showToast(`Stock was not added: ${result.error}`, 'error');
+      return;
+    }
+
+    showToast('Stock added successfully!', 'success');
     setShowAddModal(false);
     setAddForm({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
   };
 
-  const handleStockOut = (e) => {
+  const handleStockOut = async (e) => {
     e.preventDefault();
     if (!outForm.id || !outForm.name || outForm.quantity <= 0) {
       showToast("Item ID, Name, and valid Quantity are required", "error");
@@ -181,12 +188,17 @@ const StockRegister = () => {
       return;
     }
     
-    processReturn({
+    const result = await processReturn({
       returnType: 'Stock Out',
       productId: outForm.id,
       quantity: outForm.quantity,
       reason: 'Manual Stock Out from Register'
     });
+
+    if (!result.success) {
+      showToast(`Stock Out failed: ${result.error}`, 'error');
+      return;
+    }
 
     setShowOutModal(false);
     setOutForm({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
@@ -205,20 +217,25 @@ const StockRegister = () => {
     setShowEditModal(true);
   };
 
-  const handleUpdateProduct = (e) => {
+  const handleUpdateProduct = async (e) => {
     e.preventDefault();
     if (!editForm.id || !editForm.name) {
       showToast("Item ID and Name are required", "error");
       return;
     }
     
-    updateInventoryItem(editForm.id, {
+    const result = await updateInventoryItem(editForm.id, {
       name: editForm.name,
       category: editForm.category,
       variant: editForm.variant,
       unit: editForm.unit,
       stock: parseInt(editForm.stock) || 0
     });
+
+    if (!result.success) {
+      showToast(`Item was not updated: ${result.error}`, 'error');
+      return;
+    }
 
     setShowEditModal(false);
     showToast("Item updated successfully!", "success");
@@ -350,7 +367,8 @@ const StockRegister = () => {
           <style>
             {`
               @media print {
-                @page { size: A4; margin: 10mm; }
+                ${pageRule()}
+                ${A5_CONTENT_CSS}
                 table { page-break-inside: auto; }
                 tr { page-break-inside: avoid; page-break-after: auto; }
               }

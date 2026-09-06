@@ -38,6 +38,8 @@ export const ENDPOINTS = {
 
   // Ledger & Dues
   SETTLE_DUE: '/ledger/settle-due/',
+  TRANSACTIONS: '/ledger/transactions/',
+  TRANSACTION_DETAILS: (id) => `/ledger/transactions/${id}/`,
   LEDGER_STATEMENT: (type, id) => `/ledger/statement/${type}/${id}/`,
   SETTLEMENTS: '/ledger/settlements/',
 
@@ -50,6 +52,8 @@ export const ENDPOINTS = {
   SR_SETTLEMENTS: '/sr/settlements/',
   SR_SETTLEMENT_DETAILS: (id) => `/sr/settlements/${id}/`,
   SR_SETTLE: (id) => `/sr/settlements/${id}/settle/`,
+  SR_UNSETTLE: (id) => `/sr/settlements/${id}/unsettle/`,
+  SR_ISSUED_ITEMS: (id) => `/sr/settlements/${id}/issued-items/`,
 
   // HR & Payroll
   STAFF: '/hr/staff/',

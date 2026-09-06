@@ -9,7 +9,26 @@ import PrintFooter from '../components/PrintFooter';
 import './Purchase.css';
 
 const Purchase = () => {
-  const { suppliers, inventory, purchases, processPurchase, updatePurchase, showToast } = useStore();
+  const { suppliers, inventory, purchases, processPurchase, updatePurchase, showToast, deletePurchase, user } = useStore();
+
+  const handleDeletePurchase = async (purchase, dueVal) => {
+    const confirmed = confirm(
+      `Delete purchase ${purchase.id}?\n\n` +
+      `Supplier: ${purchase.supplierName || 'N/A'}\n` +
+      `Total: ${Number(purchase.total || 0).toLocaleString()}\n\n` +
+      `The received items will be taken back out of stock` +
+      (dueVal > 0 ? ` and ${dueVal.toLocaleString()} will be removed from the supplier's due.` : '.') +
+      `\n\nIf any of these goods have already been sold, the delete will be refused.` +
+      `\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const result = await deletePurchase(purchase.id);
+    showToast(
+      result.success ? `Purchase ${purchase.id} deleted and stock reversed.` : `Purchase was not deleted: ${result.error}`,
+      result.success ? 'success' : 'error'
+    );
+  };
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -152,14 +171,20 @@ const Purchase = () => {
     setShowEditModal(true);
   };
 
-  const handleUpdatePurchase = (e) => {
+  const handleUpdatePurchase = async (e) => {
     e.preventDefault();
-    updatePurchase(editingPurchase.id, {
+    const result = await updatePurchase(editingPurchase.id, {
       ...editingPurchase,
       total: Number(editingPurchase.total || 0),
       paidAmount: Number(editingPurchase.paidAmount || 0),
       dueAmount: Number(editingPurchase.dueAmount || 0)
     });
+
+    if (!result.success) {
+      showToast(`Purchase was not updated: ${result.error}`, 'error');
+      return;
+    }
+
     showToast('Purchase updated successfully!', 'success');
     setShowEditModal(false);
   };
@@ -493,13 +518,22 @@ const Purchase = () => {
                         >
                           <Edit size={16} color="var(--primary)" />
                         </button>
-                        <button 
-                          className="btn-icon" 
+                        <button
+                          className="btn-icon"
                           title="View Receipt"
                           onClick={() => setSelectedInvoice(purchase)}
                         >
                           <Eye size={16} />
                         </button>
+                        {user?.role === 'Admin' && (
+                          <button
+                            className="btn-icon"
+                            title="Delete Purchase"
+                            onClick={(e) => { e.stopPropagation(); handleDeletePurchase(purchase, dueVal); }}
+                          >
+                            <Trash2 size={16} color="var(--danger)" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

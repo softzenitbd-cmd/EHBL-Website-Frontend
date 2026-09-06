@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download } from 'lucide-react';
+import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download, Trash2 } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 import './Returns.css';
 
+// 'Stock Out' is a third kind of record, not a supplier reject, so it needs its
+// own wording rather than falling through to "Reject".
+const RETURN_LABELS = {
+  Customer: 'Customer Return',
+  Supplier: 'Supplier Reject',
+  'Stock Out': 'Manual Stock Out',
+};
+const returnLabel = (type) => RETURN_LABELS[type] || `${type} Reject`;
+
 const Returns = () => {
-  const { inventory, processReturn, returns, showToast } = useStore();
+  const { inventory, processReturn, returns, showToast, deleteReturn, user } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -37,14 +46,34 @@ const Returns = () => {
   const [endDate, setEndDate] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleDeleteReturn = async (record) => {
+    const goesBack = record.returnType === 'Customer'
+      ? `${record.quantity} will be taken back out of stock.`
+      : `${record.quantity} will be put back into stock.`;
+
+    const confirmed = confirm(
+      `Delete ${record.returnType} return ${record.id}?\n\n` +
+      `Product: ${record.productName || record.productId}\n` +
+      `Quantity: ${record.quantity}\n\n` +
+      `Reversing this record means ${goesBack}\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const result = await deleteReturn(record.id);
+    showToast(
+      result.success ? `Return ${record.id} deleted and stock reversed.` : `Return was not deleted: ${result.error}`,
+      result.success ? 'success' : 'error'
+    );
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!product) {
       showToast('Please select a product', 'error');
       return;
     }
-    
-    processReturn({
+
+    const result = await processReturn({
       returnType,
       date: entryDate,
       productId: product,
@@ -52,7 +81,12 @@ const Returns = () => {
       reason,
       referenceId
     });
-    
+
+    if (!result.success) {
+      showToast(`Return was not recorded: ${result.error}`, 'error');
+      return;
+    }
+
     showToast(`${returnType} Return/Reject processed successfully! Stock has been adjusted.`, 'success');
     setProduct('');
     setQuantity(1);
@@ -223,7 +257,7 @@ const Returns = () => {
                      <td>{r.referenceId || '-'}</td>
                      <td>
                         <span className={`badge ${r.returnType === 'Customer' ? 'bg-success text-success' : 'bg-danger text-danger'}`} style={{padding: '0.2rem 0.5rem', borderRadius: '4px', background: r.returnType === 'Customer' ? 'rgba(40,167,69,0.1)' : 'rgba(220,53,69,0.1)'}}>
-                          {r.returnType} {r.returnType === 'Customer' ? 'Return' : 'Reject'}
+                          {returnLabel(r.returnType)}
                         </span>
                      </td>
                      <td>{getProductName(r.productId)}</td>
@@ -234,6 +268,11 @@ const Returns = () => {
                           <button className="btn-icon" title="View & Print" onClick={() => setSelectedInvoice(r)}>
                             <Eye size={16} />
                           </button>
+                          {user?.role === 'Admin' && (
+                            <button className="btn-icon" title="Delete Return" onClick={() => handleDeleteReturn(r)}>
+                              <Trash2 size={16} color="var(--danger)" />
+                            </button>
+                          )}
 </div>
                      </td>
                    </tr>
@@ -298,7 +337,7 @@ const Returns = () => {
               <div id="printable-single-return" style={{ padding: '1.5rem', background: '#fff', color: '#000' }}>
                  <InvoiceHeader />
                  <p style={{ textAlign: 'center', fontSize: '0.85rem', marginBottom: '1rem', color: '#555' }}>
-                   {selectedInvoice.returnType} {selectedInvoice.returnType === 'Customer' ? 'Return' : 'Reject'} Receipt<br/>
+                   {returnLabel(selectedInvoice.returnType)} Receipt<br/>
                    ID: {selectedInvoice.id}<br/>
                    Date: {new Date(selectedInvoice.date).toLocaleString()}
                  </p>
