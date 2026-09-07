@@ -18,7 +18,10 @@ const StockRegister = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [addForm, setAddForm] = useState({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
   const [outForm, setOutForm] = useState({ id: '', name: '', category: '', variant: '', unit: 'pcs', quantity: 1 });
-  const [editForm, setEditForm] = useState({ id: '', name: '', category: '', variant: '', unit: 'pcs', stock: 0 });
+  const [editForm, setEditForm] = useState({
+    id: '', name: '', category: '', variant: '', unit: 'pcs', stock: 0,
+    addIn: 0, addOut: 0, adjustReason: '',
+  });
 
   const handleIdChange = (val) => {
     const existing = inventory.find(i => i.id === val || i.name === val);
@@ -212,7 +215,10 @@ const StockRegister = () => {
       category: item.category || '',
       variant: item.variant || '',
       unit: item.unit || 'pcs',
-      stock: item.balance || 0
+      stock: item.balance || 0,
+      addIn: 0,
+      addOut: 0,
+      adjustReason: '',
     });
     setShowEditModal(true);
   };
@@ -224,12 +230,23 @@ const StockRegister = () => {
       return;
     }
     
+    const addIn = parseInt(editForm.addIn) || 0;
+    const addOut = parseInt(editForm.addOut) || 0;
+    const balance = parseInt(editForm.stock) || 0;
+
+    if (addOut > balance) {
+      showToast(`Cannot take out ${addOut}; only ${balance} in stock.`, 'error');
+      return;
+    }
+
+    // The details are saved without touching stock. Any quantity typed into
+    // Stock In / Stock Out is recorded as a real movement instead, so the
+    // balance always has a document behind it.
     const result = await updateInventoryItem(editForm.id, {
       name: editForm.name,
       category: editForm.category,
       variant: editForm.variant,
       unit: editForm.unit,
-      stock: parseInt(editForm.stock) || 0
     });
 
     if (!result.success) {
@@ -237,8 +254,49 @@ const StockRegister = () => {
       return;
     }
 
+    const reason = editForm.adjustReason.trim() || 'Adjusted from Stock Register';
+
+    if (addIn > 0) {
+      const inRes = await processPurchase({
+        supplierId: 'SYSTEM',
+        supplierName: 'Direct Stock In',
+        paymentType: 'Cash',
+        items: [{
+          productId: editForm.id,
+          name: editForm.name,
+          category: editForm.category || 'Uncategorized',
+          variant: editForm.variant || '',
+          unit: editForm.unit || 'pcs',
+          quantity: addIn,
+          price: 0,
+        }],
+        total: 0,
+        paidAmount: 0,
+        date: new Date().toISOString(),
+        id: 'STKIN_' + Date.now(),
+      });
+      if (!inRes.success) {
+        showToast(`Details saved, but the stock in failed: ${inRes.error}`, 'error');
+        return;
+      }
+    }
+
+    if (addOut > 0) {
+      const outRes = await processReturn({
+        returnType: 'Stock Out',
+        productId: editForm.id,
+        quantity: addOut,
+        reason,
+      });
+      if (!outRes.success) {
+        showToast(`Details saved, but the stock out failed: ${outRes.error}`, 'error');
+        return;
+      }
+    }
+
     setShowEditModal(false);
-    showToast("Item updated successfully!", "success");
+    const moved = [addIn > 0 ? `+${addIn}` : '', addOut > 0 ? `-${addOut}` : ''].filter(Boolean).join(' ');
+    showToast(moved ? `Item updated. Stock ${moved} recorded.` : 'Item updated successfully!', 'success');
   };
 
   return (
@@ -615,17 +673,62 @@ const StockRegister = () => {
                       <input type="text" className="w-full" value={editForm.unit} onChange={e => setEditForm({...editForm, unit: e.target.value})} />
                     </div>
                     <div>
-                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Current Balance *</label>
-                      <input 
-                        type="number" 
-                        className="w-full" 
-                        min="0"
-                        value={editForm.stock} 
-                        onChange={e => setEditForm({...editForm, stock: parseInt(e.target.value) || 0})} 
-                        required 
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Current Balance</label>
+                      <input
+                        type="number"
+                        className="w-full"
+                        value={editForm.stock}
+                        readOnly
+                        style={{ background: 'var(--bg-hover)' }}
+                        title="Balance follows the Stock In / Stock Out entries below"
                       />
                     </div>
                   </div>
+
+                  <hr style={{ margin: '1.25rem 0', borderColor: 'var(--border-color)' }} />
+
+                  <p className="text-muted text-sm" style={{ marginBottom: '0.75rem' }}>
+                    Adjust the stock by recording a movement. Leave both at 0 to only edit the details above.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Stock In (+)</label>
+                      <input
+                        type="number"
+                        className="w-full"
+                        min="0"
+                        value={editForm.addIn}
+                        onChange={e => setEditForm({ ...editForm, addIn: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Stock Out (-)</label>
+                      <input
+                        type="number"
+                        className="w-full"
+                        min="0"
+                        max={editForm.stock}
+                        value={editForm.addOut}
+                        onChange={e => setEditForm({ ...editForm, addOut: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-muted text-sm block mb-1 uppercase font-bold text-xs">Reason (for the movement)</label>
+                    <input
+                      type="text"
+                      className="w-full"
+                      placeholder="e.g. Recount correction, damaged, shop use"
+                      value={editForm.adjustReason}
+                      onChange={e => setEditForm({ ...editForm, adjustReason: e.target.value })}
+                    />
+                  </div>
+
+                  {(editForm.addIn > 0 || editForm.addOut > 0) && (
+                    <p className="text-sm" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                      New balance will be {Number(editForm.stock) + Number(editForm.addIn || 0) - Number(editForm.addOut || 0)}
+                    </p>
+                  )}
                 </div>
               </form>
             </div>

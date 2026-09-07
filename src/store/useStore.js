@@ -559,13 +559,14 @@ const useStore = create(
         }
       },
 
-      processReturn: async ({ returnType, productId, quantity, reason, referenceId, date }) => {
+      processReturn: async ({ returnType, productId, quantity, reason, referenceId, partyName, date }) => {
         try {
           const res = await apiClient.post(ENDPOINTS.RETURNS, {
             returnType,
             productId,
             quantity: parseInt(quantity, 10) || 1,
             reason,
+            partyName: partyName || '',
             referenceId: referenceId || '',
             date: date || undefined,
           });

@@ -18,7 +18,7 @@ const RETURN_LABELS = {
 const returnLabel = (type) => RETURN_LABELS[type] || `${type} Reject`;
 
 const Returns = () => {
-  const { inventory, processReturn, returns, showToast, deleteReturn, user } = useStore();
+  const { inventory, processReturn, returns, showToast, deleteReturn, user, customers, suppliers } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   
   const location = useLocation();
@@ -39,7 +39,11 @@ const Returns = () => {
   const [product, setProduct] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState('');
-  const [referenceId, setReferenceId] = useState('');
+  // The party the goods came back from, or went back to. Returns are looked up
+  // by who they were with, not by the invoice number.
+  const [partyName, setPartyName] = useState('');
+
+  const partyOptions = (returnType === 'Customer' ? customers : suppliers) || [];
 
   // History State
   const [startDate, setStartDate] = useState('');
@@ -79,7 +83,7 @@ const Returns = () => {
       productId: product,
       quantity,
       reason,
-      referenceId
+      partyName: partyName.trim()
     });
 
     if (!result.success) {
@@ -91,7 +95,7 @@ const Returns = () => {
     setProduct('');
     setQuantity(1);
     setReason('');
-    setReferenceId('');
+    setPartyName('');
     setEntryDate(new Date().toISOString().split('T')[0]);
   };
 
@@ -161,14 +165,22 @@ const Returns = () => {
             </div>
 
             <div className="form-group mb-4">
-              <label>{returnType === 'Customer' ? 'Sale Invoice ID (Optional)' : 'Purchase ID (Optional)'}</label>
-              <input 
-                type="text" 
-                placeholder="e.g. INV-12345"
-                value={referenceId}
-                onChange={(e) => setReferenceId(e.target.value)}
+              <label>{returnType === 'Customer' ? 'Customer' : 'Supplier'}</label>
+              <input
+                type="text"
+                list="return-party-list"
+                placeholder={returnType === 'Customer' ? 'Search or type customer name...' : 'Search or type supplier name...'}
+                value={partyName}
+                onChange={(e) => setPartyName(e.target.value)}
                 className="w-full"
               />
+              <datalist id="return-party-list">
+                {partyOptions.map(p => (
+                  <option key={p.id} value={p.name}>
+                    {p.name}{p.phone ? ` (${p.phone})` : ''}
+                  </option>
+                ))}
+              </datalist>
             </div>
 
             <div className="form-group mb-4">
@@ -241,7 +253,7 @@ const Returns = () => {
                  <tr>
                    <th>ID</th>
                    <th>Date</th>
-                   <th>Ref ID</th>
+                   <th>Party</th>
                    <th>Type</th>
                    <th>Product</th>
                    <th>Qty</th>
@@ -254,7 +266,7 @@ const Returns = () => {
                    <tr key={r.id}>
                      <td>{r.id}</td>
                      <td>{r.date.split('T')[0]}</td>
-                     <td>{r.referenceId || '-'}</td>
+                     <td>{r.partyName || r.referenceId || '-'}</td>
                      <td>
                         <span className={`badge ${r.returnType === 'Customer' ? 'bg-success text-success' : 'bg-danger text-danger'}`} style={{padding: '0.2rem 0.5rem', borderRadius: '4px', background: r.returnType === 'Customer' ? 'rgba(40,167,69,0.1)' : 'rgba(220,53,69,0.1)'}}>
                           {returnLabel(r.returnType)}
@@ -293,7 +305,7 @@ const Returns = () => {
                   <tr style={{ background: '#f1f5f9' }}>
                     <th style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'left'}}>Date</th>
                     <th style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'left'}}>Return ID</th>
-                    <th style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'left'}}>Ref ID</th>
+                    <th style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'left'}}>Party</th>
                     <th style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'left'}}>Type</th>
                     <th style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'left'}}>Product</th>
                     <th style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'center'}}>Qty</th>
@@ -306,7 +318,7 @@ const Returns = () => {
                      <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{new Date(r.date).toLocaleDateString()}</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{r.id}</td>
-                       <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{r.referenceId || '-'}</td>
+                       <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{r.partyName || r.referenceId || '-'}</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{r.returnType}</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{getProductName(r.productId)} (ID: {r.productId})</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'center', verticalAlign: 'top'}}>{r.quantity}</td>
@@ -345,6 +357,9 @@ const Returns = () => {
                  
                  <div style={{ fontSize: '0.9rem', color: '#333', lineHeight: '2' }}>
                    <p><strong>Product Name:</strong> {getProductName(selectedInvoice.productId)}</p>
+                   {selectedInvoice.partyName && (
+                     <p><strong>{selectedInvoice.returnType === 'Customer' ? 'Customer' : 'Supplier'}:</strong> {selectedInvoice.partyName}</p>
+                   )}
                    {selectedInvoice.referenceId && (
                      <p><strong>{selectedInvoice.returnType === 'Customer' ? 'Sale Invoice ID' : 'Purchase ID'}:</strong> {selectedInvoice.referenceId}</p>
                    )}

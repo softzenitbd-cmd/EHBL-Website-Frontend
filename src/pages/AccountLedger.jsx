@@ -4,8 +4,27 @@ import { Search, FileText, Printer } from 'lucide-react';
 import '../common.css';
 
 const AccountLedger = () => {
-  const { sales, purchases, settlements, expenses, transactions } = useStore();
-  
+  const { sales, purchases, settlements, expenses, transactions, customers, suppliers } = useStore();
+
+  // Suggestions for the party box. These are drawn from the same names the
+  // search below actually matches on, so picking one can never come back empty.
+  const partySuggestions = useMemo(() => {
+    const names = new Map(); // lower-cased key -> display name, to drop duplicates
+    const add = (name, kind) => {
+      const clean = String(name || '').trim();
+      if (!clean) return;
+      const key = clean.toLowerCase();
+      if (!names.has(key)) names.set(key, { name: clean, kind });
+    };
+
+    (customers || []).forEach(c => add(c.name, 'Customer'));
+    (suppliers || []).forEach(s => add(s.name, 'Supplier'));
+    (transactions || []).forEach(t => add(t.entityName, 'Manual Entry'));
+    (expenses || []).forEach(e => add(e.category, 'Expense Head'));
+
+    return [...names.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [customers, suppliers, transactions, expenses]);
+
   const [searchParams, setSearchParams] = useState({
     entityName: '',
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -129,14 +148,20 @@ const AccountLedger = () => {
         <form onSubmit={handleSearch} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', alignItems: 'end' }}>
           <div>
             <label className="text-muted text-sm" style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500' }}>Party / Account Name</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
+              list="ledger-party-list"
               style={{ width: '100%' }}
-              placeholder="e.g. Karim, Rent, Supplier..."
+              placeholder="Search customer, supplier or expense head..."
               value={searchParams.entityName}
               onChange={(e) => setSearchParams({...searchParams, entityName: e.target.value})}
               required
             />
+            <datalist id="ledger-party-list">
+              {partySuggestions.map(p => (
+                <option key={`${p.kind}-${p.name}`} value={p.name}>{p.name} ({p.kind})</option>
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="text-muted text-sm" style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500' }}>Start Date</label>
