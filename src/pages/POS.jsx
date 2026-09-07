@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
@@ -27,6 +27,49 @@ const POS = () => {
 
   const [barcodeInput, setBarcodeInput] = useState('');
   const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', location: '' });
+  // Suggestions for the customer box. The shop mostly serves regulars, so
+  // typing a letter or two should bring the name up; anyone not on file can
+  // still be typed in full, which is how a walk-in gets billed.
+  const customerOptions = useMemo(() => {
+    const seen = new Map(); // lower-cased name -> customer, to drop duplicates
+    (customers || []).forEach((c) => {
+      const name = String(c.name || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!seen.has(key)) seen.set(key, { id: c.id, name, phone: c.phone || '', location: c.location || '' });
+    });
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [customers]);
+
+  // Remembers whose details were filled in automatically, so they can be taken
+  // back out again if the name is changed to someone else. Anything the shop
+  // typed by hand is left alone.
+  const [autoFilledFor, setAutoFilledFor] = useState(null);
+
+  // Picking a name off the list fills in what the shop already knows about
+  // them, so a regular does not have to have their phone retyped every visit.
+  const handleCustomerNameChange = (name) => {
+    const match = customerOptions.find(
+      (c) => c.name.toLowerCase() === name.trim().toLowerCase()
+    );
+
+    if (match) {
+      setCustomerInfo({ name: match.name, phone: match.phone, location: match.location });
+      setAutoFilledFor(match.name);
+      return;
+    }
+
+    // Typing over a name that was picked from the list means a different
+    // person, so the previous one's phone and address must not stay behind and
+    // end up on their bill.
+    setCustomerInfo((prev) => (
+      autoFilledFor
+        ? { name, phone: '', location: '' }
+        : { ...prev, name }
+    ));
+    setAutoFilledFor(null);
+  };
+
   const [paymentType, setPaymentType] = useState('Cash');
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [selectedSalesman, setSelectedSalesman] = useState(user?.id || 'Admin');
@@ -267,11 +310,19 @@ const POS = () => {
           <label>Customer Details <span className="text-danger">*</span></label>
           <input 
             type="text" 
-            placeholder="Customer Name (Required)" 
+            list="pos-customer-list"
+            placeholder="Search or type customer name..." 
             value={customerInfo.name}
-            onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})}
+            onChange={e => handleCustomerNameChange(e.target.value)}
             className="mb-2"
           />
+          <datalist id="pos-customer-list">
+            {customerOptions.map(c => (
+              <option key={c.id} value={c.name}>
+                {c.name}{c.phone ? ` (${c.phone})` : ''}
+              </option>
+            ))}
+          </datalist>
           <input 
             type="text" 
             placeholder="Phone Number" 
