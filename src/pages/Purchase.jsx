@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Minus, Search, Trash2, Database, List, Printer, FilePlus, Eye, Download, FileText, X, Edit } from 'lucide-react';
+import { Plus, Minus, Search, Trash2, Database, List, Printer, FilePlus, Eye, Download, FileText, X, Edit, Users } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -30,6 +30,12 @@ const Purchase = () => {
     );
   };
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
+  // The number of the document just saved. A toast fades, but the shop needs
+  // to copy this onto the paper slip, so it stays on screen until the next one.
+  const [lastSaved, setLastSaved] = useState(null);
+
+  // One block per supplier, so "what did we buy from this party?" is one look.
+  const [groupByParty, setGroupByParty] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -136,7 +142,9 @@ const Purchase = () => {
     const finalSupplierName = supplierObj ? supplierObj.name : supplier;
 
     try {
-      await processPurchase({
+      // No id is sent: the server issues the running number (PUR-0001), and a
+      // client-made one would override it with something nobody can read.
+      const created = await processPurchase({
         supplierId: finalSupplierId,
         supplierName: finalSupplierName,
         paymentType,
@@ -144,9 +152,15 @@ const Purchase = () => {
         total,
         paidAmount: finalPaidAmount,
         date: new Date().toISOString(),
-        id: 'PUR' + Date.now()
       });
-      showToast('Purchase successfully recorded and stock updated!', 'success');
+      const purchaseNo = created?.data?.purchase_number || created?.data?.id || '';
+      showToast(
+        purchaseNo
+          ? `Purchase saved. Number: ${purchaseNo}`
+          : 'Purchase successfully recorded and stock updated!',
+        'success'
+      );
+      setLastSaved(purchaseNo ? { number: purchaseNo } : null);
       setSupplier('');
       setPaidAmount('');
       setItems([]);
@@ -197,6 +211,16 @@ const Purchase = () => {
     return true;
   });
 
+  const partyGroups = useMemo(() => {
+    const groups = new Map();
+    filteredPurchases.forEach((row) => {
+      const party = String(row.supplierName || '').trim() || 'No supplier';
+      if (!groups.has(party)) groups.set(party, []);
+      groups.get(party).push(row);
+    });
+    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filteredPurchases]);
+
   const currentTotal = items.reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.price || 0)), 0) + 
     (items.length === 0 && tempProductId ? (Number(tempQty) * Number(tempPrice)) : 0);
 
@@ -208,6 +232,25 @@ const Purchase = () => {
           <p className="text-muted">Enter new purchases from suppliers (Cash or Baki).</p>
         </div>
       </div>
+
+      {lastSaved && (
+        <div
+          className="glass"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: '1rem', padding: '0.75rem 1rem', marginBottom: '1rem',
+            border: '1px solid var(--success, #16a34a)', borderRadius: '10px',
+          }}
+        >
+          <span className="text-sm">
+            Saved. Purchase No:{' '}
+            <strong style={{ fontSize: '1.05rem', letterSpacing: '0.02em' }}>{lastSaved.number}</strong>
+          </span>
+          <button type="button" className="btn-icon" onClick={() => setLastSaved(null)} aria-label="Dismiss">
+            &times;
+          </button>
+        </div>
+      )}
 
       <div className="card" style={{ padding: '0.5rem', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem auto' }}>
         <div className="segmented-control">
@@ -456,6 +499,14 @@ const Purchase = () => {
               onChange={(e) => setEndDate(e.target.value)} 
               title="End Date"
             />
+            <button
+              type="button"
+              className={groupByParty ? 'btn-primary flex-align-gap' : 'btn-outline flex-align-gap'}
+              onClick={() => setGroupByParty(v => !v)}
+              title="Break the list into one block per supplier"
+            >
+              <Users size={16} /> {groupByParty ? 'Party-wise: On' : 'Party-wise'}
+            </button>
             <button className="btn-primary flex-align-gap" onClick={() => {
                  const printContents = document.getElementById('printable-all-purchases-details').innerHTML;
                  const originalContents = document.body.innerHTML;
@@ -488,7 +539,23 @@ const Purchase = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredPurchases.map((purchase) => {
+              {(groupByParty
+                ? partyGroups.flatMap(([party, rows]) => [
+                    <tr key={`grp-${party}`} style={{ background: 'var(--bg-muted, rgba(127,127,127,0.10))' }}>
+                      <td colSpan={9} style={{ fontWeight: 700, padding: '0.5rem 0.75rem' }}>
+                        {party}
+                        <span className="text-muted" style={{ fontWeight: 400, marginLeft: '0.75rem' }}>
+                          {rows.length} purchase{rows.length === 1 ? '' : 's'} &middot; Total{' '}
+                          {rows.reduce((n, x) => n + Number(x.total || 0), 0).toLocaleString()} &middot; Due{' '}
+                          {rows.reduce((n, x) => n + Number(x.dueAmount || x.due || 0), 0).toLocaleString()}
+                        </span>
+                      </td>
+                    </tr>,
+                    ...rows,
+                  ])
+                : filteredPurchases
+              ).map((purchase) => {
+                if (React.isValidElement(purchase)) return purchase;
                 const totalCost = Number(purchase.total || 0);
                 const paidVal = Number(purchase.paidAmount || purchase.paid || 0);
                 const dueVal = Number(purchase.dueAmount || purchase.due || Math.max(0, totalCost - paidVal));

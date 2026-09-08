@@ -160,7 +160,6 @@ const StockRegister = () => {
       total: 0,
       paidAmount: 0,
       date: new Date().toISOString(),
-      id: 'STKIN_' + Date.now()
     });
 
     if (!result.success) {
@@ -273,7 +272,6 @@ const StockRegister = () => {
         total: 0,
         paidAmount: 0,
         date: new Date().toISOString(),
-        id: 'STKIN_' + Date.now(),
       });
       if (!inRes.success) {
         showToast(`Details saved, but the stock in failed: ${inRes.error}`, 'error');

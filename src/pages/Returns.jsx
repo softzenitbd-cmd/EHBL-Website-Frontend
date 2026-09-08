@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download, Trash2 } from 'lucide-react';
+import { RefreshCcw, Search, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Download, Trash2, Users } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
@@ -20,6 +20,13 @@ const returnLabel = (type) => RETURN_LABELS[type] || `${type} Reject`;
 const Returns = () => {
   const { inventory, processReturn, returns, showToast, deleteReturn, user, customers, suppliers } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
+  // The number of the document just saved. A toast fades, but the shop needs
+  // to copy this onto the paper slip, so it stays on screen until the next one.
+  const [lastSaved, setLastSaved] = useState(null);
+
+  // The shop asks "what did this party return?", so the list can be broken into
+  // one block per party instead of one long run of rows.
+  const [groupByParty, setGroupByParty] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -91,7 +98,16 @@ const Returns = () => {
       return;
     }
 
-    showToast(`${returnType} Return/Reject processed successfully! Stock has been adjusted.`, 'success');
+    // The number is what the shop writes on the paper slip, so it has to be
+    // on screen the moment the return is saved, not only in the history list.
+    const returnNo = result.data?.return_code || result.data?.id || '';
+    showToast(
+      returnNo
+        ? `${returnType} Return saved. Number: ${returnNo}`
+        : `${returnType} Return/Reject processed successfully! Stock has been adjusted.`,
+      'success'
+    );
+    setLastSaved(returnNo ? { number: returnNo, type: returnType } : null);
     setProduct('');
     setQuantity(1);
     setReason('');
@@ -106,6 +122,16 @@ const Returns = () => {
     if (endDate && rDate > endDate) return false;
     return true;
   });
+
+  const partyGroups = useMemo(() => {
+    const groups = new Map();
+    filteredReturns.forEach((r) => {
+      const party = String(r.partyName || r.referenceId || '').trim() || 'No party';
+      if (!groups.has(party)) groups.set(party, []);
+      groups.get(party).push(r);
+    });
+    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filteredReturns]);
 
   const getProductName = (id) => {
     const item = inventory.find(i => i.id === id);
@@ -152,6 +178,24 @@ const Returns = () => {
             </button>
           </div>
 
+          {lastSaved && (
+            <div
+              className="glass"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: '1rem', padding: '0.75rem 1rem', marginBottom: '1rem',
+                border: '1px solid var(--success, #16a34a)', borderRadius: '10px',
+              }}
+            >
+              <span className="text-sm">
+                Saved. Return No:{' '}
+                <strong style={{ fontSize: '1.05rem', letterSpacing: '0.02em' }}>{lastSaved.number}</strong>
+              </span>
+              <button type="button" className="btn-icon" onClick={() => setLastSaved(null)} aria-label="Dismiss">
+                &times;
+              </button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="return-form">
             <div className="form-group mb-4">
               <label>Date</label>
@@ -232,6 +276,14 @@ const Returns = () => {
                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 bg-input border border-gray-700 rounded text-main" />
                <span className="text-muted">to</span>
                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 bg-input border border-gray-700 rounded text-main" />
+               <button
+                 type="button"
+                 className={groupByParty ? 'btn-primary flex-align-gap' : 'btn-outline flex-align-gap'}
+                 onClick={() => setGroupByParty(v => !v)}
+                 title="Break the list into one block per party"
+               >
+                 <Users size={18} /> {groupByParty ? 'Party-wise: On' : 'Party-wise'}
+               </button>
                <button className="btn-primary flex-align-gap" onClick={() => {
                  const printContents = document.getElementById('printable-all-returns-details').innerHTML;
                  const originalContents = document.body.innerHTML;
@@ -262,7 +314,21 @@ const Returns = () => {
                  </tr>
                </thead>
                <tbody>
-                 {filteredReturns.map(r => (
+                 {(groupByParty
+                   ? partyGroups.flatMap(([party, rows]) => [
+                       <tr key={`grp-${party}`} style={{ background: 'var(--bg-muted, rgba(127,127,127,0.10))' }}>
+                         <td colSpan={8} style={{ fontWeight: 700, padding: '0.5rem 0.75rem' }}>
+                           {party}
+                           <span className="text-muted" style={{ fontWeight: 400, marginLeft: '0.75rem' }}>
+                             {rows.length} return{rows.length === 1 ? '' : 's'} &middot; {rows.reduce((n, x) => n + Number(x.quantity || 0), 0)} pcs
+                           </span>
+                         </td>
+                       </tr>,
+                       ...rows,
+                     ])
+                   : filteredReturns
+                 ).map(r => (
+                   React.isValidElement(r) ? r : (
                    <tr key={r.id}>
                      <td>{r.id}</td>
                      <td>{r.date.split('T')[0]}</td>
@@ -288,8 +354,9 @@ const Returns = () => {
 </div>
                      </td>
                    </tr>
+                   )
                  ))}
-                 {filteredReturns.length === 0 && <tr><td colSpan="7" className="text-center text-muted">No returns found.</td></tr>}
+                 {filteredReturns.length === 0 && <tr><td colSpan="8" className="text-center text-muted">No returns found.</td></tr>}
                </tbody>
              </table>
           </div>

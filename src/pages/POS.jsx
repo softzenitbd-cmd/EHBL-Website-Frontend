@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
-import { Search, Plus, Minus, Trash2, Gift, Database, List, Printer, Eye, Download, FilePlus } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Gift, Database, List, Printer, Eye, Download, FilePlus, Users } from 'lucide-react';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintableInvoice from '../components/PrintableInvoice';
@@ -46,6 +46,9 @@ const POS = () => {
   // typed by hand is left alone.
   const [autoFilledFor, setAutoFilledFor] = useState(null);
 
+  // One block per customer in the sales list, so a party's bills sit together.
+  const [groupByParty, setGroupByParty] = useState(false);
+
   // Picking a name off the list fills in what the shop already knows about
   // them, so a regular does not have to have their phone retyped every visit.
   const handleCustomerNameChange = (name) => {
@@ -86,6 +89,16 @@ const POS = () => {
     if (endDate && sDate > endDate) return false;
     return true;
   });
+
+  const partyGroups = useMemo(() => {
+    const groups = new Map();
+    filteredSales.forEach((row) => {
+      const party = String(row.customerName || '').trim() || 'Walk-in';
+      if (!groups.has(party)) groups.set(party, []);
+      groups.get(party).push(row);
+    });
+    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filteredSales]);
 
   // Automatically focus barcode input on mount
   useEffect(() => {
@@ -167,7 +180,11 @@ const POS = () => {
     // Show the invoice the server actually stored, so the receipt carries the
     // real invoice number rather than a locally generated one.
     setCompletedSale(result.data);
-    showToast('Sale completed successfully!', 'success');
+    const invoiceNo = result.data?.invoice_number || result.data?.id || '';
+    showToast(
+      invoiceNo ? `Sale saved. Invoice: ${invoiceNo}` : 'Sale completed successfully!',
+      'success'
+    );
 
     clearCart();
     setCustomerInfo({ name: '', phone: '', location: '' });
@@ -455,6 +472,14 @@ const POS = () => {
               onChange={(e) => setEndDate(e.target.value)} 
               title="End Date"
             />
+            <button
+              type="button"
+              className={groupByParty ? 'btn-primary flex-align-gap' : 'btn-outline flex-align-gap'}
+              onClick={() => setGroupByParty(v => !v)}
+              title="Break the list into one block per customer"
+            >
+              <Users size={16} /> {groupByParty ? 'Party-wise: On' : 'Party-wise'}
+            </button>
             <button className="btn-primary flex-align-gap" onClick={() => {
                  const printContents = document.getElementById('printable-all-sales-details').innerHTML;
                  const originalContents = document.body.innerHTML;
@@ -484,7 +509,22 @@ const POS = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredSales.map(s => (
+              {(groupByParty
+                ? partyGroups.flatMap(([party, rows]) => [
+                    <tr key={`grp-${party}`} style={{ background: 'var(--bg-muted, rgba(127,127,127,0.10))' }}>
+                      <td colSpan={7} style={{ fontWeight: 700, padding: '0.5rem 0.75rem' }}>
+                        {party}
+                        <span className="text-muted" style={{ fontWeight: 400, marginLeft: '0.75rem' }}>
+                          {rows.length} invoice{rows.length === 1 ? '' : 's'} &middot; Total{' '}
+                          {rows.reduce((n, x) => n + Number(x.total || 0), 0).toLocaleString()}
+                        </span>
+                      </td>
+                    </tr>,
+                    ...rows,
+                  ])
+                : filteredSales
+              ).map(s => (
+                React.isValidElement(s) ? s : (
                 <tr key={s.id}>
                   <td>{s.date.split('T')[0]}</td>
                   <td>{s.id}</td>
@@ -505,6 +545,7 @@ const POS = () => {
 </div>
                   </td>
                 </tr>
+                )
               ))}
               {filteredSales.length === 0 && <tr><td colSpan="7" className="text-center text-muted">No sales history found for this date range.</td></tr>}
             </tbody>
