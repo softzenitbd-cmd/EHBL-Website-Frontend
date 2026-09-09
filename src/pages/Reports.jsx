@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BarChart, PieChart, TrendingUp, DollarSign, Users, Package, Calendar, Printer, Database, ShoppingCart, Download, Eye, Plus, X, Gift } from 'lucide-react';
+import { BarChart, PieChart, TrendingUp, DollarSign, Users, Package, Calendar, Printer, Database, ShoppingCart, Eye, Plus, X, Gift, PackageSearch } from 'lucide-react';
 import useStore from '../store/useStore';
-import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
+import { printElement } from '../utils/printElement';
+import './Reports.css';
+import './ProductProfit.css';
+
+const money = (value) => Number(value || 0).toLocaleString('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState('Sales');
@@ -149,11 +156,149 @@ const Reports = () => {
   const totalSalaryPaid = filteredPayrolls.reduce((acc, p) => acc + Number(p.netPay || 0), 0);
   const totalBonusPaid = filteredPayrolls.reduce((acc, p) => acc + Number(p.bonus || 0), 0);
 
+  // ---------------------------------------------------------------------
+  // Product-wise profit report
+  //
+  // Payment and due are recorded per invoice, never per line, so a product's
+  // share of them is allocated pro rata by what that line was worth against
+  // the whole invoice. Everything else here is read straight off the records.
+  // ---------------------------------------------------------------------
+  const [profitProductId, setProfitProductId] = useState('');
+  const profitProduct = inventory.find((i) => i.id === profitProductId);
+
+  // Not memoised: filteredSales is rebuilt on every render, so a useMemo here
+  // would recompute anyway while pretending not to. The work is a few passes
+  // over arrays already in memory.
+  const productReport = (() => {
+    if (!profitProduct) return null;
+
+    const pid = profitProduct.id;
+    const pname = String(profitProduct.name || '').toLowerCase();
+    const matchesLine = (it) =>
+      it.id === pid || String(it.name || '').toLowerCase() === pname;
+
+    // --- one row per invoice line of this product, inside the date filter ---
+    const rows = [];
+    filteredSales.forEach((sale) => {
+      const items = sale.items || [];
+      // The invoice's own line total, used to work out this product's share of
+      // whatever was paid against it.
+      const invoiceLineTotal = items.reduce(
+        (n, it) => n + Number(it.total_price ?? Number(it.price || 0) * Number(it.quantity || 0)),
+        0
+      );
+
+      items.filter(matchesLine).forEach((it) => {
+        const qty = Number(it.quantity || 0);
+        const value = Number(it.total_price ?? Number(it.price || 0) * qty);
+        const share = invoiceLineTotal > 0 ? value / invoiceLineTotal : 0;
+        const paid = Number(sale.paid_amount || 0) * share;
+        const due = Number(sale.due_amount || 0) * share;
+
+        rows.push({
+          invoiceId: sale.id,
+          date: String(sale.date || '').split('T')[0],
+          customerName: sale.customerName || sale.customer_name || 'Walk-in Customer',
+          customerId: sale.customerId || '',
+          phone: sale.customer_phone || sale.customerInfo?.phone || '',
+          qty,
+          rate: Number(it.price || 0),
+          value,
+          paid,
+          due,
+          isGift: !!it.isGift,
+        });
+      });
+    });
+
+    // --- customer returns of this product take sales back off ---
+    const returnRows = returns
+      .filter((r) => r.productId === pid && r.returnType === 'Customer' && isWithinFilter(r.date))
+      .map((r) => ({
+        id: r.id,
+        date: String(r.date || '').split('T')[0],
+        party: r.partyName || '-',
+        qty: Number(r.quantity || 0),
+        value: Number(r.rate || 0) * Number(r.quantity || 0),
+      }));
+
+    const soldQty = rows.reduce((n, r) => n + r.qty, 0);
+    const salesValue = rows.reduce((n, r) => n + r.value, 0);
+    const received = rows.reduce((n, r) => n + r.paid, 0);
+    const due = rows.reduce((n, r) => n + r.due, 0);
+
+    const returnedQty = returnRows.reduce((n, r) => n + r.qty, 0);
+    const returnedValue = returnRows.reduce((n, r) => n + r.value, 0);
+
+    const netQty = soldQty - returnedQty;
+    const netRevenue = salesValue - returnedValue;
+
+    // --- cost basis: what this product has actually been bought at ---
+    // Averaged over every purchase line on file rather than the period's, since
+    // goods sold this month were often bought last month. Falls back to the
+    // product's own purchase rate when it has never been purchased through the
+    // system (an opening-stock item).
+    let purchasedQty = 0;
+    let purchasedValue = 0;
+    purchases.forEach((p) => {
+      (p.items || []).forEach((it) => {
+        if (String(it.name || '').toLowerCase() !== pname) return;
+        const q = Number(it.quantity || 0);
+        purchasedQty += q;
+        purchasedValue += q * Number(it.price || 0);
+      });
+    });
+
+    const avgCost = purchasedQty > 0
+      ? purchasedValue / purchasedQty
+      : Number(profitProduct.purchasePrice || profitProduct.cost_price || 0);
+    const costBasis = purchasedQty > 0 ? 'Weighted average of purchases' : 'Product purchase rate';
+
+    const totalCost = avgCost * netQty;
+    const profit = netRevenue - totalCost;
+    const margin = netRevenue > 0 ? (profit / netRevenue) * 100 : 0;
+
+    // --- one block per customer ---
+    const byCustomer = new Map();
+    rows.forEach((r) => {
+      const key = r.customerName;
+      if (!byCustomer.has(key)) {
+        byCustomer.set(key, {
+          name: key, phone: r.phone, invoices: new Set(),
+          qty: 0, value: 0, paid: 0, due: 0,
+        });
+      }
+      const c = byCustomer.get(key);
+      c.invoices.add(r.invoiceId);
+      c.qty += r.qty;
+      c.value += r.value;
+      c.paid += r.paid;
+      c.due += r.due;
+      if (!c.phone && r.phone) c.phone = r.phone;
+    });
+
+    const customerRows = [...byCustomer.values()]
+      .map((c) => ({ ...c, invoiceCount: c.invoices.size }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      rows: rows.sort((a, b) => new Date(b.date) - new Date(a.date)),
+      returnRows,
+      customerRows,
+      soldQty, salesValue, received, due,
+      returnedQty, returnedValue,
+      netQty, netRevenue,
+      avgCost, costBasis, totalCost, profit, margin,
+      invoiceCount: new Set(rows.map((r) => r.invoiceId)).size,
+    };
+  })();
+
   const TABS = [
     { id: 'Sales', label: 'Sales', icon: BarChart },
     { id: 'Purchases', label: 'Purchases', icon: ShoppingCart },
     { id: 'Stock', label: 'Stock', icon: Package },
     { id: 'ProfitLoss', label: 'Profit & Loss', icon: TrendingUp },
+    { id: 'ProductProfit', label: 'Product Profit', icon: PackageSearch },
     { id: 'Due', label: 'Due Report', icon: DollarSign },
     { id: 'Salesman', label: 'Salesman', icon: Users },
     { id: 'Expense', label: 'Expense', icon: PieChart },
@@ -181,50 +326,62 @@ const Reports = () => {
   const totalGiftValue = giftItems.reduce((acc, g) => acc + Number(g.value || 0), 0);
 
   return (
-    <div className="reports-page animate-fade-in" id="reports-page-container">
-      <div className="page-header">
+    <div className="reports-page" id="reports-page-container">
+      <header className="rp-header rp-screen-only">
         <div>
-          <h1>Reports & Analytics</h1>
-          <p className="text-muted">Comprehensive business intelligence and reporting.</p>
+          <h1>Reports &amp; Analytics</h1>
+          <p>Sales, stock, dues and profit across whichever period you pick.</p>
         </div>
-        <div className="flex-align-gap">
-          <label className="text-muted text-sm">Timeframe:</label>
-          <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="p-2 bg-input border border-gray-700 rounded text-main">
-            <option value="Daily">Daily (Today)</option>
-            <option value="Weekly">Weekly (Last 7 Days)</option>
-            <option value="Monthly">Monthly (Current Month)</option>
-            <option value="Custom">Custom Range</option>
-          </select>
-          {dateFilter === 'Custom' && (
-            <div className="flex-align-gap">
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 bg-input border border-gray-700 rounded text-main" />
-              <span className="text-muted">to</span>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 bg-input border border-gray-700 rounded text-main" />
-            </div>
-          )}
-          {sales.length === 0 && (
-            <button className="btn-secondary flex-align-gap" onClick={() => { if (fetchAllData) fetchAllData(); else if (loadDummyData) loadDummyData(); }}>
-              <Database size={18} /> Sync Live Data
-            </button>
-          )}
-          <button className="btn-primary flex-align-gap" onClick={() => window.print()}>
-            <Printer size={18} /> Print Report
-          </button>
-          <button className="btn-outline flex-align-gap text-info" onClick={() => downloadAsPDF('reports-page-container', `Reports_${dateFilter}.pdf`)}>
-            <Download size={18} /> Download PDF
-          </button>
-        </div>
-      </div>
 
-      <div className="card glass mb-4" style={{ padding: '0.5rem' }}>
-        <div className="return-type-selector" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-          {TABS.map(tab => (
-            <button key={tab.id} className={`type-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)} style={{ padding: '0.5rem 1rem', flex: '1 1 auto', minWidth: '120px' }}>
-              <tab.icon size={16} className="inline-block mr-2" /> {tab.label}
+        <div className="rp-toolbar">
+          <div className="rp-filter">
+            <label htmlFor="rp-timeframe">Timeframe</label>
+            <select id="rp-timeframe" value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
+              <option value="Daily">Today</option>
+              <option value="Weekly">Last 7 days</option>
+              <option value="Monthly">This month</option>
+              <option value="Custom">Custom range</option>
+            </select>
+          </div>
+
+          {dateFilter === 'Custom' && (
+            <>
+              <div className="rp-filter">
+                <label htmlFor="rp-from">From</label>
+                <input id="rp-from" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className="rp-filter">
+                <label htmlFor="rp-to">To</label>
+                <input id="rp-to" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+            </>
+          )}
+
+          {sales.length === 0 && (
+            <button type="button" className="rp-btn" onClick={() => { if (fetchAllData) fetchAllData(); else if (loadDummyData) loadDummyData(); }}>
+              <Database size={16} /> Sync Live Data
             </button>
-          ))}
+          )}
+          <button type="button" className="rp-btn rp-btn--primary" onClick={() => window.print()}>
+            <Printer size={16} /> Print Report
+          </button>
         </div>
-      </div>
+      </header>
+
+      <nav className="rp-tabs rp-screen-only" role="tablist">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`rp-tab ${activeTab === tab.id ? 'is-active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <tab.icon size={15} /> {tab.label}
+          </button>
+        ))}
+      </nav>
 
       {/* 1. Sales Report */}
       {activeTab === 'Sales' && (
@@ -540,6 +697,322 @@ const Reports = () => {
       )}
 
       {/* 9. Gifts Report */}
+      {activeTab === 'ProductProfit' && (
+        <div className="pp-report">
+          <div className="pp-panel">
+            <div className="pp-panel__head">
+              <h2>Product-wise Profit Report</h2>
+              {productReport && (
+                <button type="button" className="pp-btn pp-btn--primary" onClick={() => printElement('printable-product-profit')}>
+                  <Printer size={16} /> Print
+                </button>
+              )}
+            </div>
+
+            <div className="pp-picker">
+              <div className="pp-field">
+                <label htmlFor="pp-product">Product</label>
+                <select id="pp-product" value={profitProductId} onChange={(e) => setProfitProductId(e.target.value)}>
+                  <option value="">Select a product...</option>
+                  {inventory.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}{item.variant ? ` (${item.variant})` : ''} &mdash; {item.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {profitProduct && (
+                <dl className="pp-meta">
+                  <div><dt>Code</dt><dd>{profitProduct.id}</dd></div>
+                  <div><dt>Category</dt><dd>{profitProduct.category || profitProduct.category_name || '-'}</dd></div>
+                  <div><dt>In Stock</dt><dd>{profitProduct.stock} {profitProduct.unit || 'Pcs'}</dd></div>
+                  <div><dt>Sale Rate</dt><dd>&#2547;{money(profitProduct.price)}</dd></div>
+                </dl>
+              )}
+            </div>
+          </div>
+
+          {!profitProduct && (
+            <div className="pp-panel pp-blank">
+              Choose a product above to see what it sold, what was collected against it, and what it earned.
+            </div>
+          )}
+
+          {productReport && (
+            <>
+              <div className="pp-cards">
+                <div className="pp-card">
+                  <span>Quantity Sold</span>
+                  <strong>{productReport.soldQty}</strong>
+                  <small>{productReport.invoiceCount} invoice{productReport.invoiceCount === 1 ? '' : 's'}</small>
+                </div>
+                <div className="pp-card">
+                  <span>Total Sell</span>
+                  <strong>&#2547;{money(productReport.salesValue)}</strong>
+                  <small>before returns</small>
+                </div>
+                <div className="pp-card is-good">
+                  <span>Payment Received</span>
+                  <strong>&#2547;{money(productReport.received)}</strong>
+                  <small>allocated share</small>
+                </div>
+                <div className="pp-card is-bad">
+                  <span>Due</span>
+                  <strong>&#2547;{money(productReport.due)}</strong>
+                  <small>allocated share</small>
+                </div>
+                <div className={`pp-card ${productReport.profit >= 0 ? 'is-good' : 'is-bad'}`}>
+                  <span>Gross Profit</span>
+                  <strong>&#2547;{money(productReport.profit)}</strong>
+                  <small>{productReport.margin.toFixed(1)}% margin</small>
+                </div>
+              </div>
+
+              <div className="pp-panel">
+                <div className="pp-panel__head"><h2>How the profit is worked out</h2></div>
+                <table className="pp-table pp-calc">
+                  <tbody>
+                    <tr>
+                      <td>Sales value ({productReport.soldQty} sold)</td>
+                      <td className="is-num">&#2547;{money(productReport.salesValue)}</td>
+                    </tr>
+                    <tr>
+                      <td>Less customer returns ({productReport.returnedQty} returned)</td>
+                      <td className="is-num">&minus; &#2547;{money(productReport.returnedValue)}</td>
+                    </tr>
+                    <tr className="is-subtotal">
+                      <td>Net revenue ({productReport.netQty} net)</td>
+                      <td className="is-num">&#2547;{money(productReport.netRevenue)}</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Cost of goods sold &mdash; {productReport.netQty} &times; &#2547;{money(productReport.avgCost)}
+                        <small className="pp-basis">{productReport.costBasis}</small>
+                      </td>
+                      <td className="is-num">&minus; &#2547;{money(productReport.totalCost)}</td>
+                    </tr>
+                    <tr className="is-total">
+                      <td>Gross profit</td>
+                      <td className="is-num">&#2547;{money(productReport.profit)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pp-panel">
+                <div className="pp-panel__head"><h2>Customers</h2></div>
+                <div className="pp-tablewrap">
+                  <table className="pp-table">
+                    <thead>
+                      <tr>
+                        <th className="is-center pp-sl">SL</th>
+                        <th>Customer</th>
+                        <th>Phone</th>
+                        <th className="is-num">Invoices</th>
+                        <th className="is-num">Qty</th>
+                        <th className="is-num">Sell</th>
+                        <th className="is-num">Received</th>
+                        <th className="is-num">Due</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productReport.customerRows.map((c, idx) => (
+                        <tr key={c.name}>
+                          <td className="is-center pp-sl">{idx + 1}</td>
+                          <td className="is-strong">{c.name}</td>
+                          <td>{c.phone || '-'}</td>
+                          <td className="is-num">{c.invoiceCount}</td>
+                          <td className="is-num">{c.qty}</td>
+                          <td className="is-num">&#2547;{money(c.value)}</td>
+                          <td className="is-num">&#2547;{money(c.paid)}</td>
+                          <td className="is-num is-strong">&#2547;{money(c.due)}</td>
+                        </tr>
+                      ))}
+                      {productReport.customerRows.length === 0 && (
+                        <tr><td colSpan="8" className="pp-empty">This product was not sold in the selected period.</td></tr>
+                      )}
+                    </tbody>
+                    {productReport.customerRows.length > 0 && (
+                      <tfoot>
+                        <tr>
+                          <td colSpan={4}>Total</td>
+                          <td className="is-num">{productReport.soldQty}</td>
+                          <td className="is-num">&#2547;{money(productReport.salesValue)}</td>
+                          <td className="is-num">&#2547;{money(productReport.received)}</td>
+                          <td className="is-num">&#2547;{money(productReport.due)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </div>
+
+              <div className="pp-panel">
+                <div className="pp-panel__head"><h2>Invoice lines</h2></div>
+                <div className="pp-tablewrap">
+                  <table className="pp-table">
+                    <thead>
+                      <tr>
+                        <th className="is-center pp-sl">SL</th>
+                        <th>Date</th>
+                        <th>Invoice No</th>
+                        <th>Customer</th>
+                        <th className="is-num">Qty</th>
+                        <th className="is-num">Rate</th>
+                        <th className="is-num">Sell</th>
+                        <th className="is-num">Received</th>
+                        <th className="is-num">Due</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productReport.rows.map((r, idx) => (
+                        <tr key={`${r.invoiceId}-${idx}`}>
+                          <td className="is-center pp-sl">{idx + 1}</td>
+                          <td>{r.date}</td>
+                          <td className="is-code">{r.invoiceId}</td>
+                          <td>{r.customerName}{r.isGift && <span className="pp-gift">Gift</span>}</td>
+                          <td className="is-num">{r.qty}</td>
+                          <td className="is-num">&#2547;{money(r.rate)}</td>
+                          <td className="is-num is-strong">&#2547;{money(r.value)}</td>
+                          <td className="is-num">&#2547;{money(r.paid)}</td>
+                          <td className="is-num">&#2547;{money(r.due)}</td>
+                        </tr>
+                      ))}
+                      {productReport.rows.length === 0 && (
+                        <tr><td colSpan="9" className="pp-empty">No sales of this product in the selected period.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {productReport.returnRows.length > 0 && (
+                <div className="pp-panel">
+                  <div className="pp-panel__head"><h2>Customer returns</h2></div>
+                  <div className="pp-tablewrap">
+                    <table className="pp-table">
+                      <thead>
+                        <tr>
+                          <th className="is-center pp-sl">SL</th>
+                          <th>Date</th>
+                          <th>Return No</th>
+                          <th>Party</th>
+                          <th className="is-num">Qty</th>
+                          <th className="is-num">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {productReport.returnRows.map((r, idx) => (
+                          <tr key={r.id}>
+                            <td className="is-center pp-sl">{idx + 1}</td>
+                            <td>{r.date}</td>
+                            <td className="is-code">{r.id}</td>
+                            <td>{r.party}</td>
+                            <td className="is-num">{r.qty}</td>
+                            <td className="is-num is-strong">&#2547;{money(r.value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <p className="pp-note">
+                Payment and due are recorded against the whole invoice, never a single line. The figures
+                above are this product&rsquo;s share of each invoice, split by what its line was worth
+                against that invoice&rsquo;s total.
+              </p>
+
+              {/* Printable version */}
+              <div style={{ display: 'none' }}>
+                <div id="printable-product-profit" style={{ padding: '1.5rem', background: '#fff', color: '#000' }}>
+                  <InvoiceHeader />
+                  <h3 style={{ textAlign: 'center', fontSize: '1.1rem', marginBottom: '0.25rem' }}>Product-wise Profit Report</h3>
+                  <p style={{ textAlign: 'center', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                    {profitProduct.name}{profitProduct.variant ? ` (${profitProduct.variant})` : ''} &middot; Code {profitProduct.id}
+                    <br />
+                    Period: {dateFilter}{dateFilter === 'Custom' ? ` (${startDate || 'Any'} to ${endDate || 'Any'})` : ''}
+                  </p>
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ccc', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Quantity Sold</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{productReport.soldQty}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Total Sell</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(productReport.salesValue)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Payment Received</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(productReport.received)}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Due</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(productReport.due)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Returned ({productReport.returnedQty})</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(productReport.returnedValue)}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Net Revenue</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(productReport.netRevenue)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Cost ({productReport.netQty} &times; &#2547;{money(productReport.avgCost)})</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(productReport.totalCost)}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', fontWeight: 'bold' }}>Gross Profit</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', fontWeight: 'bold' }}>
+                          &#2547;{money(productReport.profit)} ({productReport.margin.toFixed(1)}%)
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <h4 style={{ fontSize: '0.95rem', margin: '1rem 0 0.4rem 0' }}>Customers</h4>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ccc', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9' }}>
+                        <th style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'center' }}>SL</th>
+                        <th style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'left' }}>Customer</th>
+                        <th style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'left' }}>Phone</th>
+                        <th style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'center' }}>Qty</th>
+                        <th style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>Sell</th>
+                        <th style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>Received</th>
+                        <th style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>Due</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productReport.customerRows.map((c, idx) => (
+                        <tr key={c.name}>
+                          <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'center' }}>{idx + 1}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '0.35rem' }}>{c.name}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '0.35rem' }}>{c.phone || '-'}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'center' }}>{c.qty}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(c.value)}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(c.paid)}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(c.due)}</td>
+                        </tr>
+                      ))}
+                      <tr style={{ background: '#f1f5f9', fontWeight: 'bold' }}>
+                        <td colSpan="3" style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>Total</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'center' }}>{productReport.soldQty}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(productReport.salesValue)}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(productReport.received)}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(productReport.due)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#475569' }}>
+                    Payment and due are recorded against the whole invoice. The figures above are this
+                    product&rsquo;s share, split by what its line was worth against each invoice total.
+                  </p>
+                  <PrintFooter />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {activeTab === 'Gifts' && (
         <div className="card glass">
           <h3>Gifts Report ({dateFilter})</h3>
@@ -711,18 +1184,13 @@ const Reports = () => {
             </div>
 
             <div className="drawer-footer" style={{ justifyContent: 'center', gap: '1rem' }}>
-              <button className="btn-primary flex-align-gap" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', borderRadius: '99px' }} onClick={() => {
-                 const printContents = document.getElementById('printable-single-invoice').innerHTML;
-                 const originalContents = document.body.innerHTML;
-                 document.body.innerHTML = '<div id="print-wrapper">' + printContents + '</div>';
-                 window.print();
-                 document.body.innerHTML = originalContents;
-                 window.location.reload(); 
-              }}>
+              <button
+                type="button"
+                className="btn-primary flex-align-gap"
+                style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', borderRadius: '99px' }}
+                onClick={() => printElement('printable-single-invoice')}
+              >
                 <Printer size={20} /> Print Document
-              </button>
-              <button className="btn-outline flex-align-gap text-info" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', borderRadius: '99px' }} onClick={() => downloadAsPDF('printable-single-invoice', `Invoice_${selectedInvoice.id}.pdf`)}>
-                <Download size={20} /> Download PDF
               </button>
             </div>
           </div>

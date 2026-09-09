@@ -1,13 +1,11 @@
 import React from 'react';
 import useStore from '../store/useStore';
+import ehblLogo from '../assets/ehbl.jpeg';
 
-// Printed on every invoice. Falls back to the letterhead currently committed
-// here so the header still prints correctly before the profile loads, or if the
-// server is unreachable.
 const FALLBACK = {
-  shop_name: 'EHBL AND POWER TOOLS SUPPLIERS.',
-  tagline: 'Hardware: Hand Tools, Machine Tools, Sanitary, Building, Furniture items,\nIndian lock, China lock, Chemical Materials Manufacturer, Importer Suppliers.',
-  address: 'Corporate Office : House # 37. (1st Floor) Road # 1/A, Block # 3, Gulshan - 02, Baridhara R/A, Dhaka -1212.',
+  shop_name: 'EHBL AND POWER TOOLS SUPPLIERS',
+  tagline: 'Hardware: Hand Tools, Machine Tools, Sanitary, Building & Furniture fittings, Indian & China Locks, Chemical Materials Manufacturer, Importer & Suppliers.',
+  address: 'Corporate Office: House # 37, (1st Floor) Road # 1/A, Block # 3, Gulshan-02, Baridhara R/A, Dhaka-1212.',
   phone: '01744129480',
   whatsapp: '01744967226',
   email: 'ehbltoolsupplier@gmail.com',
@@ -17,29 +15,35 @@ const InvoiceHeader = () => {
   const shopProfile = useStore((state) => state.shopProfile);
   const shop = { ...FALLBACK, ...(shopProfile || {}) };
 
-  const taglineLines = String(shop.tagline || '').split('\n').filter(Boolean);
   const numbers = [shop.phone, shop.whatsapp ? `${shop.whatsapp} (WhatsApp)` : '']
     .filter(Boolean)
     .join(', ');
-  const contactLine = [numbers, shop.email ? `Mail : ${shop.email}` : ''].filter(Boolean).join(' ');
+  const contactLine = [numbers, shop.email ? `Email: ${shop.email}` : ''].filter(Boolean).join(' | ');
 
   return (
-    <div style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#000', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '5px' }}>
-        <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '900', fontFamily: 'serif', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{shop.shop_name}</h2>
+    <div style={{ textAlign: 'center', paddingTop: '2.75rem', marginBottom: '1.25rem', color: '#0f172a', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif" }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', marginBottom: '6px' }}>
+        <img 
+          src={ehblLogo} 
+          alt="EHBL Logo" 
+          style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
+        />
+        <div style={{ textAlign: 'left' }}>
+          <h1 style={{ margin: '0 0 2px 0', fontSize: '1.4rem', fontWeight: '900', fontFamily: 'serif', letterSpacing: '0.5px', color: '#0f172a', textTransform: 'uppercase' }}>
+            {shop.shop_name}
+          </h1>
+          <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '600', color: '#334155', maxWidth: '620px', lineHeight: 1.3 }}>
+            {shop.tagline}
+          </p>
+        </div>
       </div>
-      {taglineLines.map((line, idx) => (
-        <p key={idx} style={{ margin: '0.2rem 0', fontSize: '0.85rem', fontWeight: 'bold' }}>
-          {line}
-        </p>
-      ))}
-      <p style={{ margin: '0.2rem 0', fontSize: '0.75rem', marginTop: '5px' }}>
+      <p style={{ margin: '3px 0 2px 0', fontSize: '0.75rem', color: '#475569' }}>
         {shop.address}
       </p>
-      <p style={{ margin: '0.2rem 0', fontSize: '0.75rem' }}>
-        Phone : {contactLine}
+      <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '600', color: '#0f172a' }}>
+        Phone: {contactLine}
       </p>
-      <div style={{ borderBottom: '1px solid #000', margin: '10px 0 5px 0' }}></div>
+      <div style={{ borderBottom: '2px solid #0f172a', margin: '8px 0 4px 0' }}></div>
     </div>
   );
 };

@@ -7,6 +7,8 @@ import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintableInvoice from '../components/PrintableInvoice';
 import PrintFooter from '../components/PrintFooter';
+import { confirmDialog } from '../utils/swal';
+import { printElement } from '../utils/printElement';
 import './POS.css'; // Reusing POS styles for speed and consistency
 
 const BillInvoice = () => {
@@ -88,17 +90,25 @@ const BillInvoice = () => {
   const total = Math.max(0, subtotal - invoiceDiscount);
 
   const handleDeleteSale = async (sale) => {
-    const confirmed = confirm(
-      `Delete invoice ${sale.id}?\n\n` +
-      `Customer: ${sale.customerName || 'N/A'}\n` +
-      `Total: ${Number(sale.total || 0).toLocaleString()}\n\n` +
-      `The invoiced items will go back into stock` +
-      (Number(sale.due_amount || 0) > 0
-        ? ` and ${Number(sale.due_amount).toLocaleString()} will be removed from the customer's due.`
-        : '.') +
-      `\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
+    const isConfirmed = await confirmDialog({
+      title: `Delete Invoice ${sale.id}?`,
+      html: `
+        <div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
+          <div><strong>Customer:</strong> ${sale.customerName || 'N/A'}</div>
+          <div><strong>Total:</strong> ৳${Number(sale.total || 0).toLocaleString()}</div>
+          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
+            The invoiced items will return to stock${Number(sale.due_amount || 0) > 0 ? ` and ৳${Number(sale.due_amount).toLocaleString()} will be removed from customer due.` : '.'}
+          </div>
+          <div style="margin-top: 0.35rem; color: #ef4444; font-weight: 600; font-size: 0.85rem;">
+            This action cannot be undone.
+          </div>
+        </div>
+      `,
+      icon: 'warning',
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#ef4444'
+    });
+    if (!isConfirmed) return;
 
     const result = await deleteSale(sale.id);
     showToast(
@@ -464,19 +474,13 @@ const BillInvoice = () => {
               </div>
             </div>
 
-            <div className="drawer-footer" style={{ justifyContent: 'center', gap: '1rem' }}>
-              <button className="btn-primary flex-align-gap" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', borderRadius: '99px' }} onClick={() => {
-                 const printContents = document.getElementById('printable-invoice').innerHTML;
-                 const originalContents = document.body.innerHTML;
-                 document.body.innerHTML = '<div id="print-wrapper">' + printContents + '</div>';
-                 window.print();
-                 document.body.innerHTML = originalContents;
-                 window.location.reload(); 
-              }}>
+            <div className="drawer-footer" style={{ justifyContent: 'center' }}>
+              <button 
+                className="btn-primary flex-align-gap" 
+                style={{ padding: '0.75rem 2.5rem', fontSize: '0.95rem', borderRadius: '99px' }} 
+                onClick={() => printElement('printable-invoice')}
+              >
                 <Printer size={20} /> Print Invoice
-              </button>
-              <button className="btn-outline flex-align-gap text-info" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', borderRadius: '99px' }} onClick={() => downloadAsPDF('printable-invoice', `Invoice_${completedSale.invoiceId}.pdf`)}>
-                <Download size={20} /> Download PDF
               </button>
             </div>
           </div>
@@ -498,15 +502,12 @@ const BillInvoice = () => {
                 <PrintableInvoice sale={selectedInvoice} customers={customers} />
               </div>
             </div>
-            <div className="drawer-footer" style={{ justifyContent: 'center', gap: '1rem' }}>
-              <button className="btn-primary flex-align-gap" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', borderRadius: '99px' }} onClick={() => {
-                 const printContents = document.getElementById('printable-single-invoice-pos').innerHTML;
-                 const originalContents = document.body.innerHTML;
-                 document.body.innerHTML = '<div id="print-wrapper">' + printContents + '</div>';
-                 window.print();
-                 document.body.innerHTML = originalContents;
-                 window.location.reload(); 
-              }}>
+            <div className="drawer-footer" style={{ justifyContent: 'center' }}>
+              <button 
+                className="btn-primary flex-align-gap" 
+                style={{ padding: '0.75rem 2.5rem', fontSize: '0.95rem', borderRadius: '99px' }} 
+                onClick={() => printElement('printable-single-invoice-pos')}
+              >
                 <Printer size={20} /> Print Invoice
               </button>
             </div>

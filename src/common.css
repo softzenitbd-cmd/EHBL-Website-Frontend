@@ -439,3 +439,41 @@ body:not(.light-mode) .data-table th {
   .main-content { height: calc(100vh - 70px); }
   .content-area { padding: 1rem; }
 }
+
+/* ---------------------------------------------------------------------------
+ * Shared utilities that used to live in Returns.css. Reports, SMS, HR,
+ * Customers, Inventory and others rely on them, so they belong with the rest of
+ * the shared styles rather than inside one page's stylesheet.
+ * ------------------------------------------------------------------------- */
+
+.mb-4 {
+  margin-bottom: 1.5rem;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.center-content {
+  justify-content: center;
+}
+
+.return-type-selector {
+  display: flex;
+  background-color: var(--bg-input);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.type-btn {
+  flex: 1;
+  padding: 1rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.type-btn.active {
+  background-color: var(--primary);
+  color: white;
+}

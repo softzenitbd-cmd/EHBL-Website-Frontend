@@ -5,6 +5,7 @@ import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
+import { confirmDialog } from '../utils/swal';
 
 const SRSettlement = () => {
   const { staff, inventory, srSettlements, issueProductsToSR, settleSRAccount, updateSRIssuedItems, settleBulkSR, unsettleBulkSR, showToast, deleteSRSettlement } = useStore();
@@ -15,15 +16,26 @@ const SRSettlement = () => {
     );
     const due = Number(settlement.dueAmount || 0);
 
-    const confirmed = confirm(
-      `Delete SR account ${settlement.id}?\n\n` +
-      `Salesman: ${settlement.salesmanName}\n` +
-      `Status: ${settlement.status}\n\n` +
-      (stillOut > 0 ? `${stillOut} item(s) still with the SR will go back into stock.\n` : '') +
-      (due > 0 ? `${due.toLocaleString()} will be removed from the SR's due.\n` : '') +
-      `\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
+    const isConfirmed = await confirmDialog({
+      title: `Delete SR Account ${settlement.id}?`,
+      html: `
+        <div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
+          <div><strong>Salesman:</strong> ${settlement.salesmanName}</div>
+          <div><strong>Status:</strong> ${settlement.status}</div>
+          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
+            ${stillOut > 0 ? `<div>${stillOut} item(s) still with SR will return to stock.</div>` : ''}
+            ${due > 0 ? `<div>৳${due.toLocaleString()} will be removed from SR's due.</div>` : ''}
+          </div>
+          <div style="margin-top: 0.35rem; color: #ef4444; font-weight: 600; font-size: 0.85rem;">
+            This cannot be undone.
+          </div>
+        </div>
+      `,
+      icon: 'warning',
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#ef4444'
+    });
+    if (!isConfirmed) return;
 
     const result = await deleteSRSettlement(settlement.id);
     showToast(

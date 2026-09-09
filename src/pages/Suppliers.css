@@ -1,0 +1,378 @@
+/*
+ * Supplier due payment
+ *
+ * The pay-due dialog and its receipt, in the same flat treatment as the
+ * Purchase and Inventory screens. Scoped to .sup-modal-overlay, which is
+ * portalled to <body>, so the rest of the Suppliers page is untouched.
+ */
+
+.sup-modal-overlay {
+  --sup-bg: #ffffff;
+  --sup-bg-alt: #f8fafc;
+  --sup-bg-head: #f1f5f9;
+  --sup-border: #d8dee7;
+  --sup-border-soft: #e6eaf0;
+  --sup-text: #0f172a;
+  --sup-muted: #64748b;
+  --sup-accent: #b45309;
+  --sup-on-accent: #ffffff;
+  --sup-due: #b91c1c;
+  --sup-due-bg: #fef2f2;
+  --sup-radius: 6px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+body:not(.light-mode) .sup-modal-overlay {
+  --sup-bg: #111827;
+  --sup-bg-alt: #0d1526;
+  --sup-bg-head: #172032;
+  --sup-border: #263143;
+  --sup-border-soft: #1c2536;
+  --sup-text: #e8ecf3;
+  --sup-muted: #94a3b8;
+  --sup-accent: #f59e0b;
+  --sup-on-accent: #1f2937;
+  --sup-due: #f87171;
+  --sup-due-bg: #2d1414;
+}
+
+/* Colour is the only feedback here, as on the other rebuilt screens. */
+.sup-modal-overlay,
+.sup-modal-overlay * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.sup-modal-overlay button:hover {
+  transform: none !important;
+}
+
+.sup-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 720px;
+  max-height: 100%;
+  color: var(--sup-text);
+  background: var(--sup-bg);
+  border: 1px solid var(--sup-border);
+  border-radius: var(--sup-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.sup-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--sup-bg-head);
+  border-bottom: 1px solid var(--sup-border);
+  border-radius: var(--sup-radius) var(--sup-radius) 0 0;
+}
+
+.sup-modal-overlay .sup-modal__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--sup-text);
+}
+
+.sup-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  background: var(--sup-bg);
+}
+
+/* The receipt is a paper document, so it keeps a white sheet on a grey mount
+   whichever theme the app is in. */
+.sup-modal__body--paper {
+  padding: 1rem;
+  background: #e9edf3;
+}
+
+.sup-modal__body--paper > div {
+  background: #ffffff;
+  border: 1px solid #d8dee7;
+}
+
+.sup-modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--sup-bg-head);
+  border-top: 1px solid var(--sup-border);
+  border-radius: 0 0 var(--sup-radius) var(--sup-radius);
+}
+
+.sup-foot-note {
+  margin-right: auto;
+  font-size: 0.8rem;
+  color: var(--sup-muted);
+}
+
+.sup-foot-note strong {
+  font-size: 0.95rem;
+  color: var(--sup-due);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- due banner */
+
+.sup-duebar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--sup-due-bg);
+  border: 1px solid var(--sup-due);
+  border-left-width: 3px;
+  border-radius: var(--sup-radius);
+}
+
+.sup-duebar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sup-duebar > div + div {
+  padding-left: 1rem;
+  border-left: 1px solid var(--sup-border);
+}
+
+.sup-duebar span {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sup-muted);
+}
+
+.sup-duebar strong {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--sup-due);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ form */
+
+.sup-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem 1.25rem;
+}
+
+@media (min-width: 560px) {
+  .sup-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sup-grid > .sup-col-full {
+    grid-column: 1 / -1;
+  }
+}
+
+.sup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.sup-modal-overlay .sup-field > label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sup-text);
+}
+
+.sup-modal-overlay .sup-field :is(input, select) {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.875rem;
+  color: var(--sup-text);
+  background: var(--sup-bg);
+  border: 1px solid var(--sup-border);
+  border-radius: var(--sup-radius);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.sup-modal-overlay .sup-field :is(input, select):focus {
+  outline: 2px solid var(--sup-accent);
+  outline-offset: -1px;
+  border-color: var(--sup-accent);
+  box-shadow: none;
+  background: var(--sup-bg);
+}
+
+.sup-amountrow {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.sup-req {
+  color: var(--sup-due);
+}
+
+.sup-modal-overlay .sup-subhead {
+  margin: 1.5rem 0 0.5rem 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sup-muted);
+}
+
+.sup-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--sup-muted);
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.sup-modal-overlay .sup-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--sup-text);
+  background: var(--sup-bg);
+  border: 1px solid var(--sup-border);
+  border-radius: var(--sup-radius);
+  box-shadow: none;
+  text-shadow: none;
+  letter-spacing: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.sup-modal-overlay .sup-btn:hover:not(:disabled) {
+  background: var(--sup-bg-alt);
+  border-color: var(--sup-accent);
+}
+
+.sup-modal-overlay .sup-btn--primary {
+  color: var(--sup-on-accent);
+  background: var(--sup-accent);
+  border-color: var(--sup-accent);
+}
+
+.sup-modal-overlay .sup-btn--primary:hover:not(:disabled) {
+  filter: brightness(0.93);
+  background: var(--sup-accent);
+}
+
+.sup-modal-overlay .sup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sup-modal-overlay .sup-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--sup-muted);
+  background: var(--sup-bg);
+  border: 1px solid var(--sup-border);
+  border-radius: var(--sup-radius);
+}
+
+.sup-modal-overlay .sup-iconbtn:hover {
+  color: var(--sup-accent);
+  border-color: var(--sup-accent);
+  background: var(--sup-bg-alt);
+}
+
+/* ----------------------------------------------------------------- table */
+
+.sup-tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--sup-border);
+  border-radius: var(--sup-radius);
+}
+
+.sup-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.sup-table th,
+.sup-table td {
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--sup-border-soft);
+}
+
+.sup-table thead th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sup-muted);
+  background: var(--sup-bg-head);
+  border-bottom: 1px solid var(--sup-border);
+  white-space: nowrap;
+}
+
+.sup-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.sup-table tbody tr:nth-child(even) {
+  background: var(--sup-bg-alt);
+}
+
+.sup-table .is-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sup-table .is-center {
+  text-align: center;
+}
+
+.sup-table .is-strong {
+  font-weight: 700;
+}
+
+.sup-table .is-code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .sup-modal__foot {
+    flex-wrap: wrap;
+  }
+
+  .sup-foot-note {
+    width: 100%;
+    margin-bottom: 0.35rem;
+  }
+}

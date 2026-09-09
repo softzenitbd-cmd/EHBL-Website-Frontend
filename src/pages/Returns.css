@@ -1,49 +1,790 @@
-.form-card {
-  max-width: 600px;
-  margin: 0 auto;
+/*
+ * Returns & Rejects
+ *
+ * A flat, document-like UI: solid surfaces, square-ish corners, plain borders
+ * and no motion. The page is a data-entry and record-keeping screen used at a
+ * counter, so it favours legibility and predictable hit targets over the
+ * glass/gradient treatment the rest of the shell uses. Everything is scoped to
+ * .returns-page (and .rt-modal-overlay, which is portalled to <body>) so no
+ * other screen is affected.
+ */
+
+.returns-page,
+.rt-modal-overlay {
+  --rt-bg: #ffffff;
+  --rt-bg-alt: #f8fafc;
+  --rt-bg-head: #f1f5f9;
+  --rt-border: #d8dee7;
+  --rt-border-soft: #e6eaf0;
+  --rt-text: #0f172a;
+  --rt-muted: #64748b;
+  --rt-accent: #b45309;
+  --rt-accent-bg: #fff7ed;
+  --rt-on-accent: #ffffff;
+  --rt-in: #15803d;
+  --rt-in-bg: #f0fdf4;
+  --rt-out: #c2410c;
+  --rt-out-bg: #fff7ed;
+  --rt-danger: #dc2626;
+  --rt-radius: 6px;
 }
 
-.return-type-selector {
-  display: flex;
-  background-color: var(--bg-input);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--border-color);
+body:not(.light-mode) .returns-page,
+body:not(.light-mode) .rt-modal-overlay {
+  --rt-bg: #111827;
+  --rt-bg-alt: #0d1526;
+  --rt-bg-head: #172032;
+  --rt-border: #263143;
+  --rt-border-soft: #1c2536;
+  --rt-text: #e8ecf3;
+  --rt-muted: #94a3b8;
+  --rt-accent: #f59e0b;
+  --rt-accent-bg: #2a1f0c;
+  --rt-on-accent: #1f2937;
+  --rt-in: #4ade80;
+  --rt-in-bg: #0f2a1a;
+  --rt-out: #fb923c;
+  --rt-out-bg: #2d1a0d;
+  --rt-danger: #f87171;
 }
 
-.type-btn {
-  flex: 1;
-  padding: 1rem;
-  color: var(--text-muted);
-  font-weight: 500;
+/* No motion anywhere on this screen: no fades on mount, no lift on hover, no
+   sliding panels. Colour is the only feedback. */
+.returns-page,
+.returns-page *,
+.rt-modal-overlay,
+.rt-modal-overlay * {
+  animation: none !important;
+  transition: none !important;
 }
 
-.type-btn.active {
-  background-color: var(--primary);
-  color: white;
+.returns-page :is(button, .rt-panel, .rt-tab, .rt-type):hover {
+  transform: none !important;
 }
 
-.mb-4 {
-  margin-bottom: 1.5rem;
-}
-
-.w-full {
+.returns-page {
+  color: var(--rt-text);
   width: 100%;
 }
 
-.center-content {
+/* ---------------------------------------------------------------- header */
+
+.rt-header {
+  margin-bottom: 1.25rem;
+}
+
+/* The shell paints h1 with a clipped gradient; a report screen wants plain
+   ink. */
+.returns-page .rt-header h1 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: none;
+  -webkit-background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  color: var(--rt-text);
+}
+
+.rt-header p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--rt-muted);
+}
+
+/* ------------------------------------------------------------------ tabs */
+
+.rt-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--rt-border);
+  margin-bottom: 1.25rem;
+}
+
+.returns-page .rt-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--rt-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 0;
+}
+
+.returns-page .rt-tab:hover {
+  color: var(--rt-text);
+}
+
+.returns-page .rt-tab.is-active {
+  color: var(--rt-accent);
+  border-bottom-color: var(--rt-accent);
+}
+
+.rt-tab__count {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--rt-bg-head);
+  border: 1px solid var(--rt-border-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--rt-muted);
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.returns-page .rt-panel {
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+}
+
+.rt-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--rt-bg-head);
+  border-bottom: 1px solid var(--rt-border);
+}
+
+.returns-page .rt-panel__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--rt-text);
+}
+
+.rt-panel__head-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rt-panel__body {
+  padding: 1.25rem;
+}
+
+/* ----------------------------------------------------------------- alert */
+
+.rt-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--rt-in);
+  border-left-width: 3px;
+  border-radius: var(--rt-radius);
+  background: var(--rt-in-bg);
+  font-size: 0.875rem;
+}
+
+.rt-alert__label {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-weight: 700;
+  color: var(--rt-in);
+}
+
+.rt-alert__text strong {
+  font-family: 'Consolas', 'Courier New', monospace;
+  letter-spacing: 0.02em;
+}
+
+.returns-page .rt-alert__close {
+  padding: 0.15rem;
+  color: var(--rt-muted);
+  background: none;
+  border: none;
+  line-height: 0;
+}
+
+/* ------------------------------------------------------------------ form */
+
+.rt-fieldset {
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+  border: none;
+}
+
+.rt-fieldset > legend {
+  padding: 0;
+  margin-bottom: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rt-muted);
+}
+
+.rt-typeswitch {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.returns-page .rt-type {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 0.15rem 0.6rem;
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  color: var(--rt-text);
+}
+
+.returns-page .rt-type svg {
+  grid-row: span 2;
+  color: var(--rt-muted);
+}
+
+.returns-page .rt-type:hover {
+  border-color: var(--rt-accent);
+}
+
+.returns-page .rt-type.is-active {
+  border-color: var(--rt-accent);
+  background: var(--rt-accent-bg);
+}
+
+.returns-page .rt-type.is-active svg {
+  color: var(--rt-accent);
+}
+
+.rt-type__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.rt-type__note {
+  font-size: 0.775rem;
+  color: var(--rt-muted);
+}
+
+.rt-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem 1.25rem;
+}
+
+/* Stacked by default; the spans below widen it as room appears. */
+.rt-grid > .rt-field {
+  grid-column: span 12;
+}
+
+@media (min-width: 640px) {
+  .rt-grid > .rt-f-date { grid-column: span 4; }
+  .rt-grid > .rt-f-party { grid-column: span 8; }
+  .rt-grid > .rt-f-product { grid-column: span 12; }
+  .rt-grid > .rt-f-qty { grid-column: span 4; }
+  .rt-grid > .rt-f-rate { grid-column: span 4; }
+  .rt-grid > .rt-f-total { grid-column: span 4; }
+}
+
+@media (min-width: 1024px) {
+  .rt-grid > .rt-f-date { grid-column: span 2; }
+  .rt-grid > .rt-f-party { grid-column: span 4; }
+  .rt-grid > .rt-f-product { grid-column: span 6; }
+  .rt-grid > .rt-f-qty { grid-column: span 2; }
+  .rt-grid > .rt-f-rate { grid-column: span 3; }
+  .rt-grid > .rt-f-total { grid-column: span 7; }
+}
+
+.rt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.returns-page .rt-field > label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rt-text);
+}
+
+.returns-page .rt-field :is(input, select, textarea) {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.875rem;
+  color: var(--rt-text);
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.returns-page .rt-field :is(input, select, textarea):focus {
+  outline: 2px solid var(--rt-accent);
+  outline-offset: -1px;
+  border-color: var(--rt-accent);
+  box-shadow: none;
+  background: var(--rt-bg);
+}
+
+.returns-page .rt-field textarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.5;
+}
+
+.rt-hint {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--rt-muted);
+}
+
+.sr-only-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.rt-total__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rt-text);
+}
+
+.rt-total {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.5rem 0.65rem;
+  background: var(--rt-bg-alt);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--rt-text);
+  font-variant-numeric: tabular-nums;
+  /* Matches the height of the inputs sharing the row. */
+  min-height: 35px;
+}
+
+.rt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rt-border-soft);
+}
+
+.rt-actions__note {
+  font-size: 0.775rem;
+  color: var(--rt-muted);
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.returns-page .rt-btn,
+.rt-modal-overlay .rt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--rt-text);
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  box-shadow: none;
+  text-shadow: none;
+  letter-spacing: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.returns-page .rt-btn:hover,
+.rt-modal-overlay .rt-btn:hover {
+  background: var(--rt-bg-alt);
+  border-color: var(--rt-accent);
+}
+
+.returns-page .rt-btn--primary,
+.rt-modal-overlay .rt-btn--primary {
+  color: var(--rt-on-accent);
+  background: var(--rt-accent);
+  border-color: var(--rt-accent);
+}
+
+.returns-page .rt-btn--primary:hover,
+.rt-modal-overlay .rt-btn--primary:hover {
+  filter: brightness(0.93);
+  background: var(--rt-accent);
+}
+
+.returns-page .rt-btn--link {
+  padding: 0.5rem 0.35rem;
+  color: var(--rt-accent);
+  background: none;
+  border-color: transparent;
+  text-decoration: underline;
+}
+
+.returns-page .rt-btn--link:hover {
+  background: none;
+  border-color: transparent;
+}
+
+.returns-page .rt-iconbtn,
+.rt-modal-overlay .rt-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--rt-muted);
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+}
+
+.returns-page .rt-iconbtn:hover,
+.rt-modal-overlay .rt-iconbtn:hover {
+  color: var(--rt-accent);
+  border-color: var(--rt-accent);
+  background: var(--rt-bg-alt);
+}
+
+.returns-page .rt-iconbtn--danger:hover {
+  color: var(--rt-danger);
+  border-color: var(--rt-danger);
+}
+
+/* --------------------------------------------------------------- toolbar */
+
+.rt-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--rt-border);
+  background: var(--rt-bg);
+}
+
+.rt-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.returns-page .rt-filter label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rt-muted);
+}
+
+.returns-page .rt-filter input {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+  color: var(--rt-text);
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.returns-page .rt-filter input:focus {
+  outline: 2px solid var(--rt-accent);
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+/* Running figures for whatever the filter currently shows. */
+.rt-figures {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0 0 0 auto;
+  padding: 0;
+}
+
+.rt-figures > div {
+  text-align: right;
+}
+
+.rt-figures dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rt-muted);
+}
+
+.rt-figures dd {
+  margin: 0.1rem 0 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--rt-text);
+}
+
+/* ----------------------------------------------------------------- table */
+
+.rt-tablewrap {
+  overflow-x: auto;
+}
+
+.rt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.rt-table th,
+.rt-table td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--rt-border-soft);
+}
+
+.rt-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rt-muted);
+  background: var(--rt-bg-head);
+  border-bottom: 1px solid var(--rt-border);
+  white-space: nowrap;
+}
+
+.rt-table tbody tr:nth-child(even) {
+  background: var(--rt-bg-alt);
+}
+
+.rt-table tbody tr:hover {
+  background: var(--rt-accent-bg);
+}
+
+.rt-table .is-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-table .is-center {
+  text-align: center;
+}
+
+.rt-table .is-strong {
+  font-weight: 700;
+}
+
+.rt-table .is-code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.rt-table tfoot td {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  font-weight: 700;
+  background: var(--rt-bg-head);
+  border-top: 1px solid var(--rt-border);
+  border-bottom: none;
+}
+
+.rt-sl {
+  width: 44px;
+  color: var(--rt-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-group td {
+  padding: 0.45rem 0.75rem;
+  background: var(--rt-bg-head);
+  border-bottom: 1px solid var(--rt-border);
+}
+
+.rt-group strong {
+  font-size: 0.85rem;
+}
+
+.rt-group span {
+  margin-left: 0.75rem;
+  font-size: 0.775rem;
+  font-weight: 400;
+  color: var(--rt-muted);
+}
+
+/* The reason can run long. In the list it is held to a single line and trimmed
+   with an ellipsis - the full text is on the cell's tooltip and on the printed
+   memo, which is where it is actually read. */
+.rt-reason {
+  max-width: 240px;
+}
+
+.rt-reason > span {
+  display: block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rt-empty {
+  padding: 2.5rem 1rem !important;
+  text-align: center;
+  color: var(--rt-muted);
+}
+
+.rt-rowactions {
+  display: flex;
+  gap: 0.35rem;
   justify-content: center;
 }
 
-.return-form label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--text-muted);
-  font-weight: 500;
+/* ---------------------------------------------------------------- badges */
+
+.rt-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid;
+  border-radius: 3px;
 }
 
-.return-form select,
-.return-form input,
-.return-form textarea {
+.rt-badge--in {
+  color: var(--rt-in);
+  background: var(--rt-in-bg);
+  border-color: var(--rt-in);
+}
+
+.rt-badge--out {
+  color: var(--rt-out);
+  background: var(--rt-out-bg);
+  border-color: var(--rt-out);
+}
+
+/* ----------------------------------------------------------------- modal */
+
+.rt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.rt-modal {
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  max-width: 780px;
+  max-height: 100%;
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.rt-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--rt-bg-head);
+  border-bottom: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius) var(--rt-radius) 0 0;
+}
+
+.rt-modal-overlay .rt-modal__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--rt-text);
+}
+
+/* The memo inside is a paper document, so it keeps its own white sheet on a
+   grey mount no matter which theme the app is in. */
+.rt-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #e9edf3;
+}
+
+.rt-modal__body > div {
+  background: #ffffff;
+  border: 1px solid #d8dee7;
+}
+
+.rt-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--rt-bg-head);
+  border-top: 1px solid var(--rt-border);
+  border-radius: 0 0 var(--rt-radius) var(--rt-radius);
+}
+
+/* ------------------------------------------------------------- responsive */
+
+@media (max-width: 720px) {
+  .rt-panel__head {
+    align-items: flex-start;
+  }
+
+  .rt-figures {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .rt-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .returns-page .rt-actions .rt-btn {
+    width: 100%;
+  }
 }

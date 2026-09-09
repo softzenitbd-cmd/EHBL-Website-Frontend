@@ -1,184 +1,286 @@
 import React from 'react';
 import InvoiceHeader from './InvoiceHeader';
 import PrintFooter from './PrintFooter';
-import { pageRule, A5_CONTENT_CSS } from '../utils/printStyles';
 
 const PrintableInvoice = ({ sale, customers }) => {
   if (!sale) return null;
   
-  const dateStr = sale.date ? new Date(sale.date).toISOString().split('T')[0] : '';
+  const dateStr = sale.date 
+    ? new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
   const customerName = sale.customerName || sale.customerInfo?.name || 'Walk-in Customer';
+  const customerPhone = sale.customer_phone || sale.customerInfo?.phone || '';
+  const customerLocation = sale.customer_location || sale.customerInfo?.location || '';
+  const customerId = sale.customerId || sale.customer_id || '';
+  const invoiceNo = sale.invoice_number || sale.id || sale.invoiceId || '';
   
-  // Find customer in store to get their due
-  const customer = customers?.find(c => c.name === customerName || c.id === sale.customerId);
+  // Find customer in store to get overall due
+  const customer = customers?.find(c => c.name === customerName || c.id === customerId);
   
   const items = sale.items || sale.cartItems || [];
   const totalQty = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
   
-  const currentDue = sale.paymentType === 'Baki' ? Number(sale.total || 0) : 0;
-  const overallDue = Number(customer?.due || currentDue);
+  const subtotal = Number(sale.subtotal || sale.total || 0);
+  const total = Number(sale.total || 0);
+  const paidAmount = Number(sale.paid_amount || (sale.paymentType === 'Cash' ? sale.total : 0));
+  
+  const currentDue = sale.due_amount !== undefined 
+    ? Number(sale.due_amount) 
+    : ((sale.paymentType === 'Cash') ? 0 : total);
+
+  const overallDue = Number(customer?.due !== undefined ? customer.due : currentDue);
   const actualPreviousDue = Math.max(0, overallDue - currentDue);
 
+  const isPaid = currentDue <= 0 || sale.paymentType === 'Cash';
+  const isPartial = !isPaid && paidAmount > 0;
+
   return (
-    <div style={{ padding: '1.5rem', background: '#fff', color: '#000', fontFamily: 'Arial, sans-serif' }}>
+    <div className="printable-invoice-wrapper" style={{ padding: '1.75rem 1.25rem 1.5rem 1.25rem', background: '#fff', color: '#0f172a', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif", maxWidth: '680px', margin: '0 auto', boxSizing: 'border-box' }}>
       <style>
         {`
           @media print {
-            ${pageRule()}
-            ${A5_CONTENT_CSS}
+            @page {
+              size: A4 portrait;
+              margin: 8mm 10mm;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box !important;
+            }
+            body {
+              background: #fff !important;
+              color: #0f172a !important;
+            }
+            .printable-invoice-wrapper {
+              width: 100% !important;
+              max-width: 680px !important;
+              margin: 0 auto !important;
+              padding: 0 !important;
+              color: #0f172a !important;
+            }
           }
         `}
       </style>
+
+      {/* Standard Header with Logo */}
       <InvoiceHeader />
-      
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.9rem' }}>
-        {/* Left Column */}
-        <div style={{ width: '52%', paddingRight: '10px' }}>
-          <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', marginTop: '20px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Code:</strong> 
-            <span style={{ flex: 1 }}></span>
+
+      {/* Invoice Title & Status Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.4rem' }}>
+        <div>
+          <span style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: '#0f172a' }}>
+            INVOICE / BILL (চালান ও বিল)
+          </span>
+        </div>
+        <div>
+          <span style={{
+            display: 'inline-block',
+            padding: '3px 12px',
+            borderRadius: '4px',
+            fontSize: '0.78rem',
+            fontWeight: '700',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            border: isPaid ? '1px solid #16a34a' : isPartial ? '1px solid #0284c7' : '1px solid #ea580c',
+            color: isPaid ? '#16a34a' : isPartial ? '#0284c7' : '#ea580c',
+            backgroundColor: isPaid ? '#f0fdf4' : isPartial ? '#f0f9ff' : '#fff7ed'
+          }}>
+            Status: {isPaid ? 'PAID (পরিশোধিত)' : isPartial ? 'PARTIAL (আংশিক বাকি)' : 'DUE (বাকি)'}
+          </span>
+        </div>
+      </div>
+
+      {/* Customer Info & Invoice Meta Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+        {/* Customer Box */}
+        <div style={{ padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#fafafa' }}>
+          <div style={{ fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', color: '#475569', marginBottom: '4px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '2px' }}>
+            Bill To (গ্রাহকের তথ্য)
           </div>
-          <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Buyer's Name:</strong> 
-            <span style={{ flex: 1 }}>{customerName}</span>
-          </div>
-          <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Address:</strong> 
-            <span style={{ flex: 1 }}>{sale.customerInfo?.location || customer?.location || ''}</span>
-          </div>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Mobile:</strong> 
-            <span style={{ flex: 1 }}>{sale.customerInfo?.phone || customer?.phone || ''}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '85px 1fr', rowGap: '3px' }}>
+            <span style={{ color: '#64748b' }}>Customer:</span>
+            <strong style={{ color: '#0f172a', fontSize: '0.92rem' }}>{customerName}</strong>
+
+            {customerPhone && (
+              <>
+                <span style={{ color: '#64748b' }}>Phone:</span>
+                <span style={{ fontWeight: '600' }}>{customerPhone}</span>
+              </>
+            )}
+
+            {customerLocation && (
+              <>
+                <span style={{ color: '#64748b' }}>Address:</span>
+                <span>{customerLocation}</span>
+              </>
+            )}
+
+            {customerId && (
+              <>
+                <span style={{ color: '#64748b' }}>Customer ID:</span>
+                <span>{customerId}</span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Right Column */}
-        <div style={{ width: '46%', paddingLeft: '5px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '2px', marginLeft: '-20px' }}>BILL</div>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Date:</strong> 
-            <span style={{ flex: 1 }}>{dateStr}</span>
+        {/* Invoice Meta Box */}
+        <div style={{ padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#fafafa' }}>
+          <div style={{ fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', color: '#475569', marginBottom: '4px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '2px' }}>
+            Invoice Details (চালান বিবরণ)
           </div>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Challan No:</strong> 
-            <span style={{ flex: 1 }}>{sale.id || sale.invoiceId}</span>
-          </div>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Seller Reff:</strong> 
-            <span style={{ flex: 1 }}>{sale.salesman?.name || sale.salesmanName || ''}</span>
-          </div>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            <strong style={{ whiteSpace: 'nowrap' }}>Mobile:</strong> 
-            <span style={{ flex: 1 }}></span>
+          <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', rowGap: '3px' }}>
+            <span style={{ color: '#64748b' }}>Invoice No:</span>
+            <strong style={{ color: '#0f172a', fontSize: '0.92rem' }}>{invoiceNo}</strong>
+
+            <span style={{ color: '#64748b' }}>Date:</span>
+            <span>{dateStr}</span>
+
+            <span style={{ color: '#64748b' }}>Sales Rep:</span>
+            <span>{sale.salesman?.name || sale.salesmanName || 'Admin'}</span>
+
+            <span style={{ color: '#64748b' }}>Payment Mode:</span>
+            <span style={{ fontWeight: '600' }}>{sale.paymentType === 'Cash' ? 'Cash (নগদ)' : 'Due (বাকি)'}</span>
           </div>
         </div>
       </div>
 
-      <table style={{ width: '100%', fontSize: '0.9rem', marginBottom: '10px', color: '#000', borderCollapse: 'collapse' }}>
+      {/* Products Table */}
+      <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '0.75rem', borderCollapse: 'collapse', border: '1px solid #94a3b8' }}>
         <thead>
-          <tr style={{ backgroundColor: '#f3f4f6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '40px' }}>SL</th>
-            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left' }}>Item Name</th>
-            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '60px' }}>Size</th>
-            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '70px' }}>Quantity</th>
-            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '60px' }}>Unit</th>
-            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '80px' }}>Rate</th>
-            <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '100px' }}>Amount</th>
+          <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #64748b' }}>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 4px', textAlign: 'center', width: '35px' }}>SL</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'left' }}>Item Description (পণ্যের বিবরণ)</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '85px' }}>Code</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'right', width: '85px' }}>Unit Price</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '60px' }}>Qty</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right', width: '105px' }}>Total (৳)</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, idx) => {
-            const itemPrice = item.isGift ? 0 : (item.price - (item.itemDiscount || 0));
-            const itemTotal = itemPrice * item.quantity;
+            const itemPrice = Number(item.price || 0);
+            const itemQty = Number(item.quantity || 1);
+            const itemTotal = itemPrice * itemQty;
+            const code = item.product_code || item.id || '-';
+
             return (
-              <tr key={idx}>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{idx + 1}</td>
-                <td style={{ border: '1px solid #000', padding: '4px' }}>{item.name} {item.isGift && '(Gift)'}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>0</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{item.quantity}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center' }}>{item.unit || 'pcs'}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{itemPrice.toFixed(2)}</td>
-                <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right' }}>{itemTotal}</td>
+              <tr key={idx} style={{ backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff' }}>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 4px', textAlign: 'center' }}>{idx + 1}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px' }}>
+                  <strong>{item.name}</strong>
+                  {item.isGift && <span style={{ marginLeft: '6px', color: '#16a34a', fontSize: '0.75rem' }}>(Gift)</span>}
+                </td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontSize: '0.8rem', color: '#475569' }}>{code}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>৳{itemPrice.toLocaleString()}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontWeight: 'bold' }}>{itemQty} {item.unit || 'pcs'}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', fontWeight: 'bold' }}>৳{itemTotal.toLocaleString()}</td>
               </tr>
             );
           })}
-          <tr>
-            <td colSpan="2" style={{ border: '1px solid #000', padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>Totals:-</td>
-            <td style={{ border: '1px solid #000', padding: '4px' }}></td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>{totalQty}</td>
-            <td style={{ border: '1px solid #000', padding: '4px' }}></td>
-            <td style={{ border: '1px solid #000', padding: '4px' }}></td>
-            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>{sale.subtotal}</td>
+          {/* Subtotal Row */}
+          <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid #64748b' }}>
+            <td colSpan="4" style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>
+              Total Items: {items.length} &nbsp;|&nbsp; Total Quantity:
+            </td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center' }}>
+              {totalQty}
+            </td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>
+              ৳{subtotal.toLocaleString()}
+            </td>
           </tr>
         </tbody>
       </table>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginTop: '15px' }}>
-        <div style={{ width: '48%', display: 'flex', justifyContent: 'center' }}>
-          <table style={{ width: '80%', borderCollapse: 'collapse' }}>
+      {/* Account Balance & Financial Summary Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+        {/* Left: Customer Account Due Balance */}
+        <div style={{ border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: '#f1f5f9', padding: '5px 10px', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', color: '#334155', borderBottom: '1px solid #cbd5e1' }}>
+            Customer Due Summary (বকেয়া হিসাব)
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', margin: '4px 0' }}>
             <tbody>
               <tr>
-                <td style={{ padding: '2px 10px', textAlign: 'right' }}>Current Due:</td>
-                <td style={{ padding: '2px 0', width: '80px', textAlign: 'left' }}>{currentDue}</td>
+                <td style={{ padding: '4px 10px', color: '#475569' }}>Previous Due (পূর্বের বকেয়া):</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{actualPreviousDue.toLocaleString()}</td>
               </tr>
               <tr>
-                <td style={{ padding: '2px 10px', textAlign: 'right' }}>Previous Due:</td>
-                <td style={{ padding: '2px 0', width: '80px', textAlign: 'left' }}>{actualPreviousDue}</td>
+                <td style={{ padding: '4px 10px', color: '#475569' }}>Current Invoice Due (এই চালানে বাকি):</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{currentDue.toLocaleString()}</td>
               </tr>
-              <tr>
-                <td colSpan="2"><div style={{ borderBottom: '1px solid #000', margin: '2px 0' }}></div></td>
-              </tr>
-              <tr>
-                <td style={{ padding: '2px 10px', textAlign: 'right' }}>Over all Due:</td>
-                <td style={{ padding: '2px 0', width: '80px', textAlign: 'left' }}>{overallDue}</td>
+              <tr style={{ borderTop: '1px solid #cbd5e1', backgroundColor: '#fef2f2' }}>
+                <td style={{ padding: '6px 10px', fontWeight: '800', color: '#b91c1c' }}>Total Net Due (সর্বমোট বাকি):</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: '#b91c1c', fontSize: '1rem' }}>৳{overallDue.toLocaleString()}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        
-        <div style={{ width: '46%', display: 'flex', justifyContent: 'flex-end' }}>
-          <table style={{ width: '90%', borderCollapse: 'collapse' }}>
+
+        {/* Right: Invoice Calculation */}
+        <div style={{ border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: '#f1f5f9', padding: '5px 10px', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', color: '#334155', borderBottom: '1px solid #cbd5e1' }}>
+            Invoice Settlement (চালান বিবরণী)
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', margin: '4px 0' }}>
             <tbody>
               <tr>
-                <td style={{ padding: '1px 10px', textAlign: 'right' }}>Total</td>
-                <td style={{ padding: '1px 0', width: '80px', textAlign: 'right' }}>{sale.subtotal}</td>
+                <td style={{ padding: '4px 10px', color: '#475569' }}>Subtotal:</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{subtotal.toLocaleString()}</td>
+              </tr>
+              {Number(sale.invoiceDiscount || 0) > 0 && (
+                <tr>
+                  <td style={{ padding: '4px 10px', color: '#475569' }}>Discount:</td>
+                  <td style={{ padding: '4px 10px', textAlign: 'right', color: '#16a34a' }}>-৳{Number(sale.invoiceDiscount).toLocaleString()}</td>
+                </tr>
+              )}
+              <tr style={{ borderTop: '1px solid #cbd5e1', backgroundColor: '#f8fafc' }}>
+                <td style={{ padding: '4px 10px', fontWeight: '700' }}>Total Invoice Bill:</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '700', fontSize: '0.95rem' }}>৳{total.toLocaleString()}</td>
               </tr>
               <tr>
-                <td style={{ padding: '1px 10px', textAlign: 'right' }}>Total Discount</td>
-                <td style={{ padding: '1px 0', width: '80px', textAlign: 'right' }}>{sale.invoiceDiscount || 0}</td>
+                <td style={{ padding: '4px 10px', color: '#15803d', fontWeight: '600' }}>Paid Amount (পরিশোধ):</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', color: '#15803d', fontWeight: '700' }}>৳{paidAmount.toLocaleString()}</td>
               </tr>
-              <tr>
-                <td style={{ padding: '1px 10px', textAlign: 'right' }}>Carrying/Loading</td>
-                <td style={{ padding: '1px 0', width: '80px', textAlign: 'right' }}>0</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1px 10px', textAlign: 'right' }}>Net Sales</td>
-                <td style={{ padding: '1px 0', width: '80px', textAlign: 'right' }}>{sale.total}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1px 10px', textAlign: 'right' }}>Paid</td>
-                <td style={{ padding: '1px 0', width: '80px', textAlign: 'right' }}>{sale.paymentType === 'Cash' ? sale.total : 0}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1px 10px', textAlign: 'right' }}>Due</td>
-                <td style={{ padding: '1px 0', width: '80px', textAlign: 'right' }}>{currentDue}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '4px 10px', textAlign: 'right' }}>Total Tk:</td>
-                <td style={{ padding: '4px 0', textAlign: 'left', whiteSpace: 'nowrap' }}>
-                  {sale.total} Taka Only
-                </td>
+              <tr style={{ borderTop: '1px dashed #cbd5e1', backgroundColor: '#fff7ed' }}>
+                <td style={{ padding: '5px 10px', fontWeight: '700', color: '#c2410c' }}>Current Due (এই বিলে বাকি):</td>
+                <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: '800', color: '#c2410c', fontSize: '0.95rem' }}>৳{currentDue.toLocaleString()}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <div style={{ pageBreakInside: 'avoid' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4rem', marginBottom: '2rem', fontSize: '0.9rem' }}>
-          <div style={{ borderTop: '1px solid #000', width: '25%', textAlign: 'center' }}>Customer signature</div>
-          <div style={{ borderTop: '1px solid #000', width: '25%', textAlign: 'center' }}>Delivery By</div>
-          <div style={{ borderTop: '1px solid #000', width: '25%', textAlign: 'center' }}>Store Incharge</div>
+      {/* Amount in words banner */}
+      <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
+        <strong style={{ color: '#475569' }}>In Words (কথায়): </strong>
+        <span style={{ fontWeight: '700', color: '#0f172a' }}>৳{total.toLocaleString()} Taka Only</span>
+      </div>
+
+      {/* Signatures Section */}
+      <div style={{ pageBreakInside: 'avoid', marginTop: '5.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', textAlign: 'center', fontSize: '0.82rem' }}>
+          <div>
+            <div style={{ borderTop: '1px solid #0f172a', margin: '0 10px', paddingTop: '6px', fontWeight: '600' }}>
+              Customer's Signature
+            </div>
+            <div style={{ color: '#64748b', fontSize: '0.75rem' }}>গ্রাহকের স্বাক্ষর</div>
+          </div>
+          <div>
+            <div style={{ borderTop: '1px solid #0f172a', margin: '0 10px', paddingTop: '4px', fontWeight: '600' }}>
+              Delivered By
+            </div>
+            <div style={{ color: '#64748b', fontSize: '0.75rem' }}>সরবরাহকারীর স্বাক্ষর</div>
+          </div>
+          <div>
+            <div style={{ borderTop: '1px solid #0f172a', margin: '0 10px', paddingTop: '4px', fontWeight: '600' }}>
+              Authorized Signature
+            </div>
+            <div style={{ color: '#64748b', fontSize: '0.75rem' }}>কর্তৃপক্ষের স্বাক্ষর</div>
+          </div>
         </div>
 
         <PrintFooter />

@@ -17,7 +17,9 @@ export const ENDPOINTS = {
   PRODUCTS: '/inventory/products/',
   PRODUCT_DETAILS: (id) => `/inventory/products/${id}/`,
   CATEGORIES: '/inventory/categories/',
+  CATEGORY_DETAILS: (id) => `/inventory/categories/${id}/`,
   UNITS: '/inventory/units/',
+  UNIT_DETAILS: (id) => `/inventory/units/${id}/`,
   STOCK_LOGS: '/inventory/stock-logs/',
   STOCK_LOG_SUMMARY: '/inventory/stock-logs/summary/',
   BARCODE_SEARCH: '/inventory/products/barcode-search/',
@@ -25,6 +27,8 @@ export const ENDPOINTS = {
   // Sales / POS
   SALES: '/sales/invoices/',
   SALE_DETAILS: (id) => `/sales/invoices/${id}/`,
+  SALE_LOCK: (id) => `/sales/invoices/${id}/lock/`,
+  SALE_PAY: (id) => `/sales/invoices/${id}/pay/`,
   DRAFTS: '/sales/drafts/',
   DRAFT_DETAILS: (id) => `/sales/drafts/${id}/`,
   

@@ -1,0 +1,375 @@
+/*
+ * Reports & Analytics
+ *
+ * The same flat, document-like treatment as the rebuilt Returns, Inventory and
+ * Purchase screens. The ten report tabs share the app's generic .card /
+ * .data-table markup, so rather than rewrite every one of them this stylesheet
+ * overrides those shared classes *inside* .reports-page only. Nothing outside
+ * this page is affected.
+ */
+
+.reports-page {
+  --rp-bg: #ffffff;
+  --rp-bg-alt: #f8fafc;
+  --rp-bg-head: #f1f5f9;
+  --rp-border: #d8dee7;
+  --rp-border-soft: #e6eaf0;
+  --rp-text: #0f172a;
+  --rp-muted: #64748b;
+  --rp-accent: #b45309;
+  --rp-accent-bg: #fff7ed;
+  --rp-on-accent: #ffffff;
+  --rp-radius: 6px;
+
+  color: var(--rp-text);
+  width: 100%;
+}
+
+body:not(.light-mode) .reports-page {
+  --rp-bg: #111827;
+  --rp-bg-alt: #0d1526;
+  --rp-bg-head: #172032;
+  --rp-border: #263143;
+  --rp-border-soft: #1c2536;
+  --rp-text: #e8ecf3;
+  --rp-muted: #94a3b8;
+  --rp-accent: #f59e0b;
+  --rp-accent-bg: #2a1f0c;
+  --rp-on-accent: #1f2937;
+}
+
+/* Colour is the only feedback here, as on the other rebuilt screens. */
+.reports-page,
+.reports-page * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.reports-page :is(button, .card):hover {
+  transform: none !important;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.rp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* The shell paints h1 with a clipped gradient; a report screen wants plain
+   ink. */
+.reports-page .rp-header h1 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: none;
+  -webkit-background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  color: var(--rp-text);
+}
+
+.rp-header p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--rp-muted);
+}
+
+.rp-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.rp-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.reports-page .rp-filter label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rp-muted);
+}
+
+.reports-page .rp-filter :is(select, input) {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--rp-text);
+  background: var(--rp-bg);
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.reports-page .rp-filter :is(select, input):focus {
+  outline: 2px solid var(--rp-accent);
+  outline-offset: -1px;
+  border-color: var(--rp-accent);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ tabs */
+
+.rp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  border-bottom: 1px solid var(--rp-border);
+  margin-bottom: 1.25rem;
+}
+
+.reports-page .rp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--rp-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 0;
+  white-space: nowrap;
+}
+
+.reports-page .rp-tab:hover {
+  color: var(--rp-text);
+}
+
+.reports-page .rp-tab.is-active {
+  color: var(--rp-accent);
+  border-bottom-color: var(--rp-accent);
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.reports-page .rp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--rp-text);
+  background: var(--rp-bg);
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+  box-shadow: none;
+  text-shadow: none;
+  letter-spacing: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.reports-page .rp-btn:hover {
+  background: var(--rp-bg-alt);
+  border-color: var(--rp-accent);
+}
+
+.reports-page .rp-btn--primary {
+  color: var(--rp-on-accent);
+  background: var(--rp-accent);
+  border-color: var(--rp-accent);
+}
+
+.reports-page .rp-btn--primary:hover {
+  filter: brightness(0.93);
+  background: var(--rp-accent);
+}
+
+/* ============================================================== overrides
+ * The tab bodies use the app's shared glass classes. Flatten them here so the
+ * whole page reads as one document without touching ten blocks of markup.
+ * ========================================================================= */
+
+.reports-page .card {
+  background: var(--rp-bg);
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 1rem;
+}
+
+.reports-page .card::before {
+  display: none;
+}
+
+.reports-page .card:hover {
+  background: var(--rp-bg);
+  box-shadow: none;
+  border-color: var(--rp-border);
+}
+
+.reports-page .card h2,
+.reports-page .card h3,
+.reports-page .card h4 {
+  color: var(--rp-text);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+/* The little figure boxes above each table. */
+.reports-page .card .card.bg-input {
+  padding: 0.8rem 0.9rem;
+  background: var(--rp-bg-alt);
+  border: 1px solid var(--rp-border);
+  border-left-width: 3px;
+  border-radius: var(--rp-radius);
+}
+
+.reports-page .table-responsive {
+  overflow-x: auto;
+  background: transparent;
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.reports-page .data-table {
+  font-size: 0.85rem;
+}
+
+.reports-page .data-table th,
+.reports-page .data-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--rp-border-soft);
+}
+
+.reports-page .data-table th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--rp-muted);
+  background: var(--rp-bg-head);
+  border-bottom: 1px solid var(--rp-border);
+  white-space: nowrap;
+}
+
+/* common.css darkens table heads with `body:not(.light-mode) .data-table th`,
+   which outranks the rule above. Match its shape so the flat head wins in dark
+   mode too. */
+body:not(.light-mode) .reports-page .data-table th {
+  background: var(--rp-bg-head);
+}
+
+.reports-page .data-table tbody tr:nth-child(even) {
+  background: var(--rp-bg-alt);
+}
+
+.reports-page .data-table tbody tr:hover {
+  background: var(--rp-accent-bg);
+  box-shadow: none;
+}
+
+/* The shared table nudges cells sideways on hover; a report should sit still. */
+.reports-page .data-table tbody tr:hover td {
+  padding-left: 0.75rem;
+}
+
+.reports-page .data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.reports-page .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--rp-muted);
+  background: var(--rp-bg);
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+}
+
+.reports-page .btn-icon:hover {
+  color: var(--rp-accent);
+  border-color: var(--rp-accent);
+  background: var(--rp-bg-alt);
+}
+
+.reports-page .badge,
+.reports-page .stock-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 3px;
+  backdrop-filter: none;
+}
+
+.reports-page :is(.btn-primary, .btn-outline, .btn-secondary) {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--rp-text);
+  background: var(--rp-bg);
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+  box-shadow: none;
+  text-shadow: none;
+  letter-spacing: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.reports-page .btn-primary {
+  color: var(--rp-on-accent);
+  background: var(--rp-accent);
+  border-color: var(--rp-accent);
+}
+
+/* ----------------------------------------------------------------- print */
+
+/* "Print Report" prints the page itself, so the controls have to drop out and
+   the report has to sit on white. */
+@media print {
+  .rp-screen-only {
+    display: none !important;
+  }
+
+  .reports-page {
+    --rp-bg: #ffffff;
+    --rp-bg-alt: #ffffff;
+    --rp-bg-head: #f1f5f9;
+    --rp-border: #999999;
+    --rp-border-soft: #cccccc;
+    --rp-text: #000000;
+    --rp-muted: #333333;
+  }
+
+  .reports-page .card {
+    border: none;
+    padding: 0;
+  }
+
+  .reports-page .table-responsive {
+    overflow: visible;
+    border: none;
+  }
+
+  .reports-page .data-table th,
+  .reports-page .data-table td {
+    border: 1px solid #999999;
+  }
+}

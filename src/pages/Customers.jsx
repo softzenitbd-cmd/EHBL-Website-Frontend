@@ -6,6 +6,7 @@ import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
+import { confirmDialog } from '../utils/swal';
 
 const Customers = () => {
   const { customers, suppliers, settleCustomerDue, settleSupplierDue, updateCustomer, updateSupplier, showToast, fetchLedgerStatement } = useStore();
@@ -137,6 +138,32 @@ const Customers = () => {
     }
 
     const target = settleModal.target;
+
+    const isConfirmed = await confirmDialog({
+      title: `Confirm Settlement for ${target.name}?`,
+      html: `
+        <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
+          <div><strong>${activeTab}:</strong> ${target.name} (${target.id})</div>
+          <div><strong>Current Due:</strong> ৳${Number(target.due || 0).toLocaleString()}</div>
+          <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; color: #15803d; font-weight: bold;">
+            Settlement Amount: ৳${amount.toLocaleString()}
+          </div>
+          ${activeTab === 'Customer' ? `
+            <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; color: #0369a1; font-size: 0.82rem;">
+              ℹ️ <strong>Auto-Allocation (FIFO):</strong> This payment will automatically be allocated to the customer's oldest unpaid invoices, updating their status to Paid/Partial.
+            </div>
+          ` : ''}
+          <div style="margin-top: 0.5rem; color: #64748b; font-size: 0.85rem;">
+            Remaining Due after settlement: ৳${Math.max(0, Number(target.due || 0) - amount).toLocaleString()}
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      confirmButtonText: 'Yes, Confirm Settlement',
+      confirmButtonColor: '#10b981'
+    });
+    if (!isConfirmed) return;
+
     const result = activeTab === 'Customer'
       ? await settleCustomerDue(target.id, amount, settleModal.date)
       : await settleSupplierDue(target.id, amount, settleModal.date);
@@ -146,7 +173,7 @@ const Customers = () => {
       return;
     }
 
-    showToast(`Successfully settled ৳${amount} for ${activeTab}: ${target.name}`, 'success');
+    showToast(`Successfully settled ৳${amount.toLocaleString()} for ${activeTab}: ${target.name}`, 'success');
     setSettleModal({ show: false, target: null, amount: '', date: '' });
   };
 
@@ -339,6 +366,11 @@ const Customers = () => {
                       required 
                     />
                   </div>
+                  {activeTab === 'Customer' && (
+                    <div style={{ padding: '0.65rem 0.85rem', background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', borderRadius: 'var(--radius-md)', fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                      <strong style={{ color: 'var(--secondary-hover)' }}>ℹ️ Auto-Allocation (FIFO):</strong> This payment will automatically be allocated to the customer's oldest unpaid invoices, marking them <strong>Paid</strong> or <strong>Partial</strong>.
+                    </div>
+                  )}
                 </div>
               </form>
             </div>

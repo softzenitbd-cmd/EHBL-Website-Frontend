@@ -129,8 +129,8 @@ const Layout = () => {
       name: 'Sales & Billing', 
       icon: <ShoppingCart size={20} />,
       subItems: [
-        { path: '/pos?action=add', search: '?action=add', name: 'POS (Sale)' },
-        { path: '/pos', search: '', name: 'POS Sales List' },
+        { path: '/pos?action=add', search: '?action=add', name: 'Invoice' },
+        { path: '/pos', search: '', name: 'Invoice List' },
         { path: '/returns?action=add', search: '?action=add', name: 'Return' },
         { path: '/returns', search: '', name: 'Return List' },
         { path: '/sr-settlements', search: '', name: 'Order Process' },

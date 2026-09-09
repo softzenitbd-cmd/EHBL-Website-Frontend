@@ -339,6 +339,59 @@ const useStore = create(
         }
       },
 
+      /**
+       * Renaming cascades on the server: products holding the cached category
+       * name (or the unit string) are updated in the same transaction, so we
+       * re-sync everything rather than patching the one row locally.
+       */
+      updateCategory: async (id, name) => {
+        try {
+          await apiClient.patch(ENDPOINTS.CATEGORY_DETAILS(id), { name });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to rename the category.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      deleteCategory: async (id) => {
+        try {
+          await apiClient.delete(ENDPOINTS.CATEGORY_DETAILS(id));
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the category.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      updateUnit: async (id, name) => {
+        try {
+          await apiClient.patch(ENDPOINTS.UNIT_DETAILS(id), { name });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to rename the unit.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      deleteUnit: async (id) => {
+        try {
+          await apiClient.delete(ENDPOINTS.UNIT_DETAILS(id));
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the unit.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
       addInventoryItem: async (item) => {
         try {
           const res = await apiClient.post(ENDPOINTS.PRODUCTS, item);
@@ -465,16 +518,23 @@ const useStore = create(
         }
       },
 
-      settleSupplierDue: async (supplierId, amount, dateStr) => {
+      /**
+       * Pay down a supplier's balance. The server drops the payment onto the
+       * supplier's outstanding purchase vouchers oldest first and hands back
+       * the receipt, including which vouchers it covered.
+       */
+      settleSupplierDue: async (supplierId, amount, dateStr, extra = {}) => {
         try {
-          await apiClient.post(ENDPOINTS.SETTLE_DUE, {
+          const res = await apiClient.post(ENDPOINTS.SETTLE_DUE, {
             targetId: supplierId,
             type: 'Supplier',
             amount: parseFloat(amount),
             date: dateStr || undefined,
+            paymentMethod: extra.paymentMethod || undefined,
+            notes: extra.notes || undefined,
           });
           await get().fetchAllData();
-          return { success: true };
+          return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to record the payment.');
           set({ lastError: message });
@@ -535,6 +595,42 @@ const useStore = create(
         }
       },
 
+      updateSale: async (invoiceId, updates) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.SALE_DETAILS(invoiceId), updates);
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update the invoice.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      lockSale: async (invoiceId) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SALE_LOCK(invoiceId));
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to lock the invoice.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      paySaleInvoice: async (invoiceId, payload) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SALE_PAY(invoiceId), payload);
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to process invoice payment.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
       processPurchase: async (purchasePayload) => {
         try {
           const res = await apiClient.post(ENDPOINTS.PURCHASES, purchasePayload);
@@ -559,12 +655,15 @@ const useStore = create(
         }
       },
 
-      processReturn: async ({ returnType, productId, quantity, reason, referenceId, partyName, date }) => {
+      processReturn: async ({ returnType, productId, quantity, rate, reason, referenceId, partyName, date }) => {
         try {
           const res = await apiClient.post(ENDPOINTS.RETURNS, {
             returnType,
             productId,
             quantity: parseInt(quantity, 10) || 1,
+            // Left blank the server falls back to the product's own price, so
+            // an empty box is sent as empty rather than as a zero rate.
+            rate: rate === '' || rate === undefined || rate === null ? '' : Number(rate),
             reason,
             partyName: partyName || '',
             referenceId: referenceId || '',

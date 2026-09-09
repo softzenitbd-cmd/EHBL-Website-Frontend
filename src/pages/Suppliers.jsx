@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Printer, Eye, Download, Plus, Phone, Edit, X } from 'lucide-react';
+import { Search, Printer, Eye, Download, Plus, Phone, Edit, X, Wallet } from 'lucide-react';
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
+import PrintablePayment from '../components/PrintablePayment';
+import { printElement } from '../utils/printElement';
+import './Suppliers.css';
 
 const Suppliers = () => {
-  const { suppliers, addSupplier, updateSupplier, purchases, settlements, showToast } = useStore();
+  const {
+    suppliers, addSupplier, updateSupplier, purchases, settlements,
+    settleSupplierDue, showToast,
+  } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPerson, setSelectedPerson] = useState(null);
   
@@ -17,6 +23,94 @@ const Suppliers = () => {
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState({ id: '', name: '', company: '', phone: '', location: '', due: '', notes: '' });
+
+  // Paying a supplier's balance. The receipt is held separately so it stays on
+  // screen after the payment form closes.
+  const [payTarget, setPayTarget] = useState(null);
+  const [payForm, setPayForm] = useState({ date: '', amount: '', method: 'Cash', note: '' });
+  const [isPaying, setIsPaying] = useState(false);
+  const [receipt, setReceipt] = useState(null);
+
+  const money = (value) => Number(value || 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  /** A supplier's unpaid purchase vouchers, oldest first - the order the
+   *  server settles them in. */
+  const outstandingPurchases = (person) => {
+    if (!person) return [];
+    return (purchases || [])
+      .filter(p => (
+        (p.supplierId === person.id || (p.supplierName || '').toLowerCase() === (person.name || '').toLowerCase())
+        && Number(p.dueAmount ?? p.due ?? 0) > 0
+      ))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  };
+
+  /** Mirrors the server's oldest-first allocation so the form can show what
+   *  the payment is about to clear before it is taken. */
+  const previewAllocation = (person, amount) => {
+    let rem = Number(amount) || 0;
+    const rows = [];
+    for (const pur of outstandingPurchases(person)) {
+      if (rem <= 0) break;
+      const due = Number(pur.dueAmount ?? pur.due ?? 0);
+      const applied = Math.min(rem, due);
+      rows.push({ id: pur.id, date: (pur.date || '').split('T')[0], total: Number(pur.total || 0), applied, remaining: due - applied });
+      rem -= applied;
+    }
+    return { rows, unapplied: rem };
+  };
+
+  const supplierPayments = (person) => (settlements || [])
+    .filter(x => x.type === 'Supplier' && (x.targetId === person?.id || x.partyName === person?.name))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const openPayModal = (person) => {
+    setPayTarget(person);
+    setPayForm({
+      date: new Date().toISOString().split('T')[0],
+      amount: '',
+      method: 'Cash',
+      note: '',
+    });
+  };
+
+  const handlePayDue = async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(payForm.amount);
+    const currentDue = Number(payTarget?.due || 0);
+
+    if (!(amount > 0)) {
+      showToast('Enter an amount greater than zero.', 'error');
+      return;
+    }
+    if (amount > currentDue) {
+      showToast(`Payment cannot exceed the outstanding due of ${money(currentDue)}.`, 'error');
+      return;
+    }
+
+    setIsPaying(true);
+    const result = await settleSupplierDue(payTarget.id, amount, payForm.date, {
+      paymentMethod: payForm.method,
+      notes: payForm.note.trim(),
+    });
+    setIsPaying(false);
+
+    if (!result.success) {
+      showToast(`Payment was not recorded: ${result.error}`, 'error');
+      return;
+    }
+
+    showToast(`Payment ${result.data?.id || ''} recorded for ${payTarget.name}.`, 'success');
+    setReceipt({
+      settlement: result.data,
+      allocations: result.data?.allocations || [],
+      party: payTarget,
+    });
+    setPayTarget(null);
+  };
 
   const getSupplierTransactions = (supplierId) => {
     if (!supplierId) return [];
@@ -150,6 +244,7 @@ const Suppliers = () => {
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: '48px', textAlign: 'center' }}>SL</th>
                 <th>ID</th>
                 <th>Name</th>
                 <th>Phone</th>
@@ -161,14 +256,15 @@ const Suppliers = () => {
             </thead>
             <tbody>
               {filteredList.length === 0 ? (
-                <tr><td colSpan="7" className="text-center text-muted">No suppliers found.</td></tr>
+                <tr><td colSpan="8" className="text-center text-muted">No suppliers found.</td></tr>
               ) : (
-                filteredList.map((person) => {
+                filteredList.map((person, index) => {
                   const pt = getSupplierTransactions(person.id);
                   const pTotalPurchased = pt.filter(t => t.type === 'Purchase').reduce((sum, t) => sum + Number(t.amount || 0), 0);
                   const pTotalPaid = pt.filter(t => t.type === 'Payment').reduce((sum, t) => sum + Number(t.amount || 0), 0);
                   return (
                     <tr key={person.id}>
+                      <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{index + 1}</td>
                       <td>{person.id}</td>
                       <td>{person.name}</td>
                       <td className="flex-align-gap"><Phone size={14} className="text-muted" /> {person.phone || 'N/A'}</td>
@@ -182,6 +278,15 @@ const Suppliers = () => {
                           </button>
                           <button className="btn-icon" title="View & Print" onClick={() => setSelectedPerson(person)}>
                             <Eye size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title={person.due > 0 ? 'Pay due' : 'Nothing outstanding'}
+                            disabled={!(person.due > 0)}
+                            onClick={(e) => { e.stopPropagation(); openPayModal(person); }}
+                          >
+                            <Wallet size={16} color={person.due > 0 ? 'var(--success)' : undefined} />
                           </button>
                         </div>
                       </td>
@@ -371,6 +476,234 @@ const Suppliers = () => {
               <button type="button" className="btn-outline" onClick={() => setShowEditModal(false)}>Cancel</button>
               <button type="submit" form="edit-supplier-form" className="btn-primary flex-align-gap">
                 <Edit size={18} /> Update
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Pay Supplier Due */}
+      {payTarget && createPortal(
+        <div className="sup-modal-overlay" onClick={() => setPayTarget(null)}>
+          <div className="sup-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Pay supplier due">
+            <div className="sup-modal__head">
+              <h2>Pay Due &middot; {payTarget.name}</h2>
+              <button type="button" className="sup-iconbtn" onClick={() => setPayTarget(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="sup-modal__body">
+              <div className="sup-duebar">
+                <div>
+                  <span>Outstanding Due</span>
+                  <strong>&#2547;{money(payTarget.due)}</strong>
+                </div>
+                <div>
+                  <span>Unpaid Vouchers</span>
+                  <strong>{outstandingPurchases(payTarget).length}</strong>
+                </div>
+              </div>
+
+              <form id="pay-due-form" onSubmit={handlePayDue}>
+                <div className="sup-grid">
+                  <div className="sup-field">
+                    <label htmlFor="pay-date">Date</label>
+                    <input
+                      id="pay-date"
+                      type="date"
+                      value={payForm.date}
+                      onChange={(e) => setPayForm({ ...payForm, date: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="sup-field">
+                    <label htmlFor="pay-amount">Amount <span className="sup-req">*</span></label>
+                    <div className="sup-amountrow">
+                      <input
+                        id="pay-amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={payForm.amount}
+                        onChange={(e) => setPayForm({ ...payForm, amount: e.target.value })}
+                        required
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        className="sup-btn"
+                        onClick={() => setPayForm({ ...payForm, amount: String(Number(payTarget.due || 0)) })}
+                      >
+                        Full
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="sup-field">
+                    <label htmlFor="pay-method">Method</label>
+                    <select
+                      id="pay-method"
+                      value={payForm.method}
+                      onChange={(e) => setPayForm({ ...payForm, method: e.target.value })}
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="bKash">bKash</option>
+                      <option value="Nagad">Nagad</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Cheque">Cheque</option>
+                    </select>
+                  </div>
+
+                  <div className="sup-field sup-col-full">
+                    <label htmlFor="pay-note">Note</label>
+                    <input
+                      id="pay-note"
+                      type="text"
+                      placeholder="e.g. cheque no. 220144, paid by hand"
+                      value={payForm.note}
+                      onChange={(e) => setPayForm({ ...payForm, note: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </form>
+
+              {/* What this payment will clear, in the order the server does it */}
+              <h3 className="sup-subhead">This payment will settle</h3>
+              {(() => {
+                const preview = previewAllocation(payTarget, payForm.amount);
+                if (!(Number(payForm.amount) > 0)) {
+                  return <p className="sup-hint">Enter an amount to see which purchase vouchers it clears.</p>;
+                }
+                if (preview.rows.length === 0) {
+                  return (
+                    <p className="sup-hint">
+                      No unpaid purchase vouchers on file &mdash; the payment will just reduce the
+                      supplier&rsquo;s opening balance.
+                    </p>
+                  );
+                }
+                return (
+                  <>
+                    <div className="sup-tablewrap">
+                      <table className="sup-table">
+                        <thead>
+                          <tr>
+                            <th>Purchase No</th>
+                            <th>Date</th>
+                            <th className="is-num">Bill</th>
+                            <th className="is-num">Applied</th>
+                            <th className="is-num">Still Due</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.rows.map(r => (
+                            <tr key={r.id}>
+                              <td className="is-code">{r.id}</td>
+                              <td>{r.date}</td>
+                              <td className="is-num">&#2547;{money(r.total)}</td>
+                              <td className="is-num is-strong">&#2547;{money(r.applied)}</td>
+                              <td className="is-num">&#2547;{money(r.remaining)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {preview.unapplied > 0 && (
+                      <p className="sup-hint">
+                        &#2547;{money(preview.unapplied)} of this payment goes against the opening
+                        balance rather than a voucher.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+
+              {supplierPayments(payTarget).length > 0 && (
+                <>
+                  <h3 className="sup-subhead">Earlier payments</h3>
+                  <div className="sup-tablewrap">
+                    <table className="sup-table">
+                      <thead>
+                        <tr>
+                          <th>Receipt No</th>
+                          <th>Date</th>
+                          <th>Method</th>
+                          <th className="is-num">Amount</th>
+                          <th className="is-center">&nbsp;</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supplierPayments(payTarget).slice(0, 5).map(x => (
+                          <tr key={x.id}>
+                            <td className="is-code">{x.id}</td>
+                            <td>{String(x.date).slice(0, 10)}</td>
+                            <td>{x.paymentMethod || x.payment_method || 'Cash'}</td>
+                            <td className="is-num is-strong">&#2547;{money(x.amount)}</td>
+                            <td className="is-center">
+                              <button
+                                type="button"
+                                className="sup-iconbtn"
+                                title="Reprint receipt"
+                                onClick={() => { setReceipt({ settlement: x, allocations: [], party: payTarget }); setPayTarget(null); }}
+                              >
+                                <Printer size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="sup-modal__foot">
+              <span className="sup-foot-note">
+                Due after payment:{' '}
+                <strong>
+                  &#2547;{money(Math.max(0, Number(payTarget.due || 0) - (parseFloat(payForm.amount) || 0)))}
+                </strong>
+              </span>
+              <button type="button" className="sup-btn" onClick={() => setPayTarget(null)}>Cancel</button>
+              <button type="submit" form="pay-due-form" className="sup-btn sup-btn--primary" disabled={isPaying}>
+                <Wallet size={16} /> {isPaying ? 'Saving...' : 'Record Payment'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Payment receipt */}
+      {receipt && createPortal(
+        <div className="sup-modal-overlay" onClick={() => setReceipt(null)}>
+          <div className="sup-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Payment receipt">
+            <div className="sup-modal__head">
+              <h2>Payment Voucher &middot; {receipt.settlement?.id}</h2>
+              <button type="button" className="sup-iconbtn" onClick={() => setReceipt(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="sup-modal__body sup-modal__body--paper">
+              <div id="printable-supplier-payment">
+                <PrintablePayment
+                  settlement={receipt.settlement}
+                  party={receipt.party}
+                  allocations={receipt.allocations}
+                />
+              </div>
+            </div>
+
+            <div className="sup-modal__foot">
+              <button type="button" className="sup-btn" onClick={() => setReceipt(null)}>Close</button>
+              <button type="button" className="sup-btn sup-btn--primary" onClick={() => printElement('printable-supplier-payment')}>
+                <Printer size={16} /> Print Voucher
               </button>
             </div>
           </div>

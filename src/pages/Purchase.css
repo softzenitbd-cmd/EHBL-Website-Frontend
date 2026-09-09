@@ -1,108 +1,1001 @@
-.quick-entry-container {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  padding: 1.5rem;
-  border: 1px solid var(--border-color);
+/*
+ * Purchase
+ *
+ * Same flat, document-like treatment as the Returns and Inventory screens:
+ * solid surfaces, plain borders, no motion. Scoped to .purchase-page and
+ * .pur-modal-overlay (portalled to <body>) so no other screen is affected.
+ */
+
+.purchase-page,
+.pur-modal-overlay {
+  --pur-bg: #ffffff;
+  --pur-bg-alt: #f8fafc;
+  --pur-bg-head: #f1f5f9;
+  --pur-border: #d8dee7;
+  --pur-border-soft: #e6eaf0;
+  --pur-text: #0f172a;
+  --pur-muted: #64748b;
+  --pur-accent: #b45309;
+  --pur-accent-bg: #fff7ed;
+  --pur-on-accent: #ffffff;
+  --pur-paid: #15803d;
+  --pur-paid-bg: #f0fdf4;
+  --pur-partial: #0369a1;
+  --pur-partial-bg: #f0f9ff;
+  --pur-due: #c2410c;
+  --pur-due-bg: #fff7ed;
+  --pur-danger: #dc2626;
+  --pur-radius: 6px;
 }
 
-.qe-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
+body:not(.light-mode) .purchase-page,
+body:not(.light-mode) .pur-modal-overlay {
+  --pur-bg: #111827;
+  --pur-bg-alt: #0d1526;
+  --pur-bg-head: #172032;
+  --pur-border: #263143;
+  --pur-border-soft: #1c2536;
+  --pur-text: #e8ecf3;
+  --pur-muted: #94a3b8;
+  --pur-accent: #f59e0b;
+  --pur-accent-bg: #2a1f0c;
+  --pur-on-accent: #1f2937;
+  --pur-paid: #4ade80;
+  --pur-paid-bg: #0f2a1a;
+  --pur-partial: #7dd3fc;
+  --pur-partial-bg: #0c2233;
+  --pur-due: #fb923c;
+  --pur-due-bg: #2d1a0d;
+  --pur-danger: #f87171;
+}
+
+/* No motion on this screen: colour is the only feedback. */
+.purchase-page,
+.purchase-page *,
+.pur-modal-overlay,
+.pur-modal-overlay * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.purchase-page :is(button, .pur-panel, .pur-tab):hover {
+  transform: none !important;
+}
+
+.purchase-page {
+  color: var(--pur-text);
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.pur-header {
+  margin-bottom: 1.25rem;
+}
+
+/* The shell paints h1 with a clipped gradient; a voucher screen wants plain
+   ink. */
+.purchase-page .pur-header h1 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: none;
+  -webkit-background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  color: var(--pur-text);
+}
+
+.pur-header p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--pur-muted);
+}
+
+/* ------------------------------------------------------------------ tabs */
+
+.pur-tabs {
   display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--pur-border);
+  margin-bottom: 1.25rem;
+}
+
+.purchase-page .pur-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--pur-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 0;
+}
+
+.purchase-page .pur-tab:hover {
+  color: var(--pur-text);
+}
+
+.purchase-page .pur-tab.is-active {
+  color: var(--pur-accent);
+  border-bottom-color: var(--pur-accent);
+}
+
+.pur-tab__count {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--pur-bg-head);
+  border: 1px solid var(--pur-border-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pur-muted);
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.purchase-page .pur-panel {
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+}
+
+.pur-panel__head {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 1rem;
   flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--pur-bg-head);
+  border-bottom: 1px solid var(--pur-border);
 }
 
-.qe-input-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
+.purchase-page .pur-panel__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--pur-text);
+}
+
+.pur-panel__head-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+
+/* ----------------------------------------------------------------- alert */
+
+.pur-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 1rem;
-  align-items: end;
-  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.05), rgba(var(--secondary-rgb), 0.05));
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--primary);
-  margin-bottom: 1.5rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--pur-paid);
+  border-left-width: 3px;
+  border-radius: var(--pur-radius);
+  background: var(--pur-paid-bg);
+  font-size: 0.875rem;
 }
 
-.qe-field {
+.pur-alert__label {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-weight: 700;
+  color: var(--pur-paid);
+}
+
+.pur-alert strong {
+  font-family: 'Consolas', 'Courier New', monospace;
+  letter-spacing: 0.02em;
+}
+
+.purchase-page .pur-alert__close {
+  padding: 0.15rem;
+  color: var(--pur-muted);
+  background: none;
+  border: none;
+  line-height: 0;
+}
+
+/* ------------------------------------------------------------------ form */
+
+.pur-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem 1.25rem;
+}
+
+.pur-grid > .pur-field {
+  grid-column: span 12;
+}
+
+@media (min-width: 640px) {
+  .pur-grid > .pur-col-6 { grid-column: span 6; }
+  .pur-grid > .pur-col-4 { grid-column: span 4; }
+  .pur-grid > .pur-col-12 { grid-column: span 12; }
+}
+
+
+.pur-field {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  min-width: 0;
 }
 
-.qe-field label {
+.purchase-page .pur-field > label,
+.pur-modal-overlay .pur-field > label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
+  color: var(--pur-text);
 }
 
-.qe-field select,
-.qe-field input {
-  padding: 0.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background: var(--bg-input);
-  color: var(--text-main);
-  font-size: 0.95rem;
+.purchase-page .pur-field :is(input, select, textarea),
+.pur-modal-overlay .pur-field :is(input, select, textarea) {
   width: 100%;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.875rem;
+  color: var(--pur-text);
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
-.qe-field input:focus,
-.qe-field select:focus {
-  border-color: var(--primary);
+.purchase-page .pur-field :is(input, select, textarea):focus,
+.pur-modal-overlay .pur-field :is(input, select, textarea):focus {
+  outline: 2px solid var(--pur-accent);
+  outline-offset: -1px;
+  border-color: var(--pur-accent);
+  box-shadow: none;
+  background: var(--pur-bg);
 }
 
-.qe-table-container {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--bg-card);
+.purchase-page .pur-field textarea,
+.pur-modal-overlay .pur-field textarea {
+  resize: vertical;
+  min-height: 56px;
+  line-height: 1.5;
 }
 
-.qe-table {
-  width: 100%;
-  border-collapse: collapse;
+.pur-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--pur-muted);
 }
 
-.qe-table th {
-  background: var(--bg-input);
-  padding: 0.8rem 1rem;
-  text-align: left;
+
+/* --------------------------------------------------------------- buttons */
+
+.purchase-page .pur-btn,
+.pur-modal-overlay .pur-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-muted);
+  white-space: nowrap;
+  color: var(--pur-text);
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  box-shadow: none;
+  text-shadow: none;
+  letter-spacing: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.purchase-page .pur-btn:hover:not(:disabled),
+.pur-modal-overlay .pur-btn:hover:not(:disabled) {
+  background: var(--pur-bg-alt);
+  border-color: var(--pur-accent);
+}
+
+.purchase-page .pur-btn--primary,
+.pur-modal-overlay .pur-btn--primary {
+  color: var(--pur-on-accent);
+  background: var(--pur-accent);
+  border-color: var(--pur-accent);
+}
+
+.purchase-page .pur-btn--primary:hover:not(:disabled),
+.pur-modal-overlay .pur-btn--primary:hover:not(:disabled) {
+  filter: brightness(0.93);
+  background: var(--pur-accent);
+}
+
+.purchase-page .pur-btn:disabled,
+.pur-modal-overlay .pur-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.purchase-page .pur-btn--link {
+  padding: 0.5rem 0.35rem;
+  color: var(--pur-accent);
+  background: none;
+  border-color: transparent;
+  text-decoration: underline;
+}
+
+.purchase-page .pur-btn--link:hover {
+  background: none;
+  border-color: transparent;
+}
+
+.purchase-page .pur-iconbtn,
+.pur-modal-overlay .pur-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--pur-muted);
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+}
+
+.purchase-page .pur-iconbtn:hover,
+.pur-modal-overlay .pur-iconbtn:hover {
+  color: var(--pur-accent);
+  border-color: var(--pur-accent);
+  background: var(--pur-bg-alt);
+}
+
+.purchase-page .pur-iconbtn--danger:hover,
+.pur-modal-overlay .pur-iconbtn--danger:hover {
+  color: var(--pur-danger);
+  border-color: var(--pur-danger);
+}
+
+/* --------------------------------------------------------------- toolbar */
+
+.pur-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--pur-border);
+  background: var(--pur-bg);
+}
+
+.pur-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.purchase-page .pur-filter label {
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border-color);
+  letter-spacing: 0.06em;
+  color: var(--pur-muted);
 }
 
-.qe-table td {
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid var(--border-color);
+.purchase-page .pur-filter input {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+  color: var(--pur-text);
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
-.qe-table tr:last-child td {
+.purchase-page .pur-filter input:focus {
+  outline: 2px solid var(--pur-accent);
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+.pur-figures {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0 0 0 auto;
+  padding: 0;
+}
+
+.pur-figures > div {
+  text-align: right;
+}
+
+.pur-figures dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pur-muted);
+}
+
+.pur-figures dd {
+  margin: 0.1rem 0 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--pur-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------------- table */
+
+.pur-tablewrap {
+  overflow-x: auto;
+}
+
+.pur-section__body .pur-tablewrap {
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+}
+
+.pur-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.pur-table th,
+.pur-table td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--pur-border-soft);
+}
+
+.pur-table thead th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pur-muted);
+  background: var(--pur-bg-head);
+  border-bottom: 1px solid var(--pur-border);
+  white-space: nowrap;
+}
+
+.pur-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.qe-footer {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
-  flex-wrap: wrap;
-  gap: 1rem;
+.pur-table tbody tr:nth-child(even) {
+  background: var(--pur-bg-alt);
 }
 
-.qe-total {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--danger);
+.pur-table tbody tr:hover {
+  background: var(--pur-accent-bg);
 }
+
+.pur-table .is-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pur-table .is-center {
+  text-align: center;
+}
+
+.pur-table .is-strong {
+  font-weight: 600;
+}
+
+.pur-table .is-code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.pur-table tfoot td {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  font-weight: 700;
+  background: var(--pur-bg-head);
+  border-top: 1px solid var(--pur-border);
+  border-bottom: none;
+}
+
+.pur-group td {
+  padding: 0.45rem 0.75rem;
+  background: var(--pur-bg-head);
+  border-bottom: 1px solid var(--pur-border);
+}
+
+.pur-group span {
+  margin-left: 0.75rem;
+  font-size: 0.775rem;
+  font-weight: 400;
+  color: var(--pur-muted);
+}
+
+.pur-empty {
+  padding: 2.25rem 1rem !important;
+  text-align: center;
+  color: var(--pur-muted);
+}
+
+.pur-rowactions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+/* ---------------------------------------------------------------- badges */
+
+.pur-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid;
+  border-radius: 3px;
+}
+
+.pur-badge--paid {
+  color: var(--pur-paid);
+  background: var(--pur-paid-bg);
+  border-color: var(--pur-paid);
+}
+
+.pur-badge--partial {
+  color: var(--pur-partial);
+  background: var(--pur-partial-bg);
+  border-color: var(--pur-partial);
+}
+
+.pur-badge--due {
+  color: var(--pur-due);
+  background: var(--pur-due-bg);
+  border-color: var(--pur-due);
+}
+
+/* ----------------------------------------------------------------- modal */
+
+.pur-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.pur-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 780px;
+  max-height: 100%;
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.pur-modal--narrow {
+  max-width: 620px;
+}
+
+.pur-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--pur-bg-head);
+  border-bottom: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius) var(--pur-radius) 0 0;
+}
+
+.pur-modal-overlay .pur-modal__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--pur-text);
+}
+
+.pur-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  background: var(--pur-bg);
+}
+
+/* The voucher inside is a paper document, so it keeps its own white sheet on a
+   grey mount no matter which theme the app is in. */
+.pur-modal__body:has(#printable-single-invoice-pur) {
+  padding: 1rem;
+  background: #e9edf3;
+}
+
+.pur-modal__body > #printable-single-invoice-pur {
+  background: #ffffff;
+  border: 1px solid #d8dee7;
+}
+
+.pur-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--pur-bg-head);
+  border-top: 1px solid var(--pur-border);
+  border-radius: 0 0 var(--pur-radius) var(--pur-radius);
+}
+
+/* ------------------------------------------------------------- responsive */
+
+@media (max-width: 720px) {
+  .pur-figures {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+}
+
+/* ===========================================================================
+ * New-entry form: a two-column sheet - numbered sections down the left, a
+ * summary that follows the page down the right - so the shop can see what the
+ * voucher will come to without scrolling back up.
+ * ========================================================================= */
+
+.pur-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1080px) {
+  .pur-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+.pur-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------- form sections */
+
+.pur-section {
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  overflow: hidden;
+}
+
+.pur-section__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.75rem 1rem;
+  background: var(--pur-bg-head);
+  border-bottom: 1px solid var(--pur-border);
+}
+
+.purchase-page .pur-section__head h2 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--pur-text);
+}
+
+.pur-section__head p {
+  margin: 0.1rem 0 0 0;
+  font-size: 0.775rem;
+  line-height: 1.4;
+  color: var(--pur-muted);
+}
+
+/* The step number keeps the three parts of the sheet in order at a glance. */
+.pur-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--pur-on-accent);
+  background: var(--pur-accent);
+  border-radius: 50%;
+}
+
+.pur-section__badge {
+  margin-left: auto;
+  align-self: center;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pur-muted);
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pur-section__body {
+  padding: 1rem;
+}
+
+.pur-req {
+  color: var(--pur-due);
+}
+
+.pur-optional {
+  margin-left: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pur-muted);
+}
+
+/* ------------------------------------------------------------- item row */
+
+.pur-entryrow {
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+  background: var(--pur-bg-alt);
+  border: 1px dashed var(--pur-border);
+  border-radius: var(--pur-radius);
+}
+
+/* The running line total is read-only, so it is styled as a value rather than
+   a box the user might try to type into. */
+.pur-linetotal {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 35px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--pur-text);
+  background: var(--pur-bg-head);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  font-variant-numeric: tabular-nums;
+}
+
+.pur-f-add {
+  justify-content: flex-end;
+}
+
+.purchase-page .pur-f-add .pur-btn {
+  width: 100%;
+  min-height: 35px;
+}
+
+.pur-sl {
+  width: 34px;
+  color: var(--pur-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A two-line empty state reads as an instruction rather than an error. */
+.pur-empty strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--pur-text);
+}
+
+.pur-empty span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+}
+
+/* ---------------------------------------------------------- summary rail */
+
+.pur-side {
+  min-width: 0;
+}
+
+@media (min-width: 1080px) {
+  .pur-side {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+.pur-summary {
+  background: var(--pur-bg);
+  border: 1px solid var(--pur-border);
+  border-radius: var(--pur-radius);
+  overflow: hidden;
+}
+
+.pur-summary__head {
+  padding: 0.6rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pur-muted);
+  background: var(--pur-bg-head);
+  border-bottom: 1px solid var(--pur-border);
+}
+
+.pur-summary__list {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--pur-border-soft);
+}
+
+.pur-summary__list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+}
+
+.pur-summary__list dt {
+  font-size: 0.78rem;
+  color: var(--pur-muted);
+  white-space: nowrap;
+}
+
+.pur-summary__list dd {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pur-summary__list dd.is-empty {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--pur-muted);
+}
+
+.pur-summary__money {
+  padding: 0.75rem 1rem;
+}
+
+.pur-summary__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.28rem 0;
+  font-size: 0.85rem;
+  color: var(--pur-muted);
+}
+
+.pur-summary__row strong {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pur-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pur-summary__row.is-paid strong {
+  color: var(--pur-paid);
+}
+
+.pur-summary__row.is-due {
+  margin-top: 0.28rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--pur-border-soft);
+}
+
+.pur-summary__row.is-due strong {
+  font-size: 1.15rem;
+  color: var(--pur-due);
+}
+
+/* Says what is still missing instead of leaving a dead button unexplained. */
+.pur-blockers {
+  margin: 0 1rem 0.75rem 1rem;
+  padding: 0.5rem 0.6rem 0.5rem 1.6rem;
+  list-style: disc;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--pur-due);
+  background: var(--pur-due-bg);
+  border: 1px solid var(--pur-due);
+  border-radius: var(--pur-radius);
+}
+
+.purchase-page .pur-btn--block {
+  display: flex;
+  width: calc(100% - 2rem);
+  margin: 0 1rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+}
+
+.pur-summary__note {
+  margin: 0.6rem 1rem 1rem 1rem;
+  font-size: 0.73rem;
+  line-height: 1.45;
+  color: var(--pur-muted);
+}
+
+/* The form column is far narrower than the window once the summary rail is
+   beside it, so these two rows size off their own container rather than the
+   viewport. */
+.pur-section__body {
+  container-type: inline-size;
+}
+
+/* Voucher: as many equal columns as fit, so the row stays balanced whether or
+   not the Partial "Paid Amount" box is showing. */
+.pur-grid--voucher {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.pur-grid--voucher > .pur-field {
+  grid-column: auto;
+}
+
+/* Items: one flowing row once there is room for it. */
+.pur-grid--items {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem 1rem;
+}
+
+.pur-grid--items > .pur-field {
+  grid-column: auto;
+}
+
+@container (min-width: 520px) {
+  .pur-grid--items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pur-grid--items > .pur-f-product {
+    grid-column: span 2;
+  }
+}
+
+@container (min-width: 690px) {
+  .pur-grid--items {
+    grid-template-columns: 2fr 1fr 0.8fr 1fr 1fr auto;
+    align-items: end;
+    gap: 0.85rem 0.75rem;
+  }
+  .pur-grid--items > .pur-f-product {
+    grid-column: auto;
+  }
+}
+
+/* Browsers without container queries keep the stacked rows above, which is
+   readable at any width - only the one-line layout is lost. */
