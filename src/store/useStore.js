@@ -410,10 +410,17 @@ const useStore = create(
       updateInventoryItem: async (id, updates) => {
         try {
           const res = await apiClient.patch(ENDPOINTS.PRODUCT_DETAILS(id), updates);
+          // The row is matched on the code it *had*: the shop can change a
+          // product's code, and the response carries the new one.
           set((state) => ({
             inventory: state.inventory.map((item) => (item.id === id ? { ...item, ...res } : item)),
             lastError: null,
           }));
+          if (res?.id && res.id !== id) {
+            // Returns, sales and reports read the code off the product, so
+            // everything that referenced the old one has to be re-read.
+            await get().fetchAllData();
+          }
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to update product.');

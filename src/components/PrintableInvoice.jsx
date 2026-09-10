@@ -1,8 +1,14 @@
 import React from 'react';
+import useStore from '../store/useStore';
 import InvoiceHeader from './InvoiceHeader';
 import PrintFooter from './PrintFooter';
+import ehblLogo from '../assets/ehbl.jpeg';
 
 const PrintableInvoice = ({ sale, customers }) => {
+  // Hooks first: the early return below must not change how many run.
+  const staff = useStore((state) => state.staff) || [];
+  const shopProfile = useStore((state) => state.shopProfile);
+
   if (!sale) return null;
   
   const dateStr = sale.date 
@@ -17,6 +23,18 @@ const PrintableInvoice = ({ sale, customers }) => {
   
   // Find customer in store to get overall due
   const customer = customers?.find(c => c.name === customerName || c.id === customerId);
+
+  // The sheet names the salesman with a mobile number, so the customer can ring
+  // whoever served them. Resolve the staff record from whichever of id/name
+  // the sale carries; "Admin" has no record and simply shows the name.
+  const repId = sale.salesman?.id || sale.salesmanId || sale.salesman_id || '';
+  const repName = sale.salesman?.name || sale.salesmanName || sale.salesman_name || 'Admin';
+  const rep = staff.find(st => st.id === repId || st.staff_code === repId)
+    || staff.find(st => (st.name || '').toLowerCase() === String(repName).toLowerCase());
+  // "Admin" is the counter itself, so the shop's number stands in for a rep
+  // who has no staff record or no phone on file.
+  const shopPhone = shopProfile?.phone || '01744129480';
+  const repPhone = sale.salesman?.phone || rep?.phone || shopPhone;
   
   const items = sale.items || sale.cartItems || [];
   const totalQty = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
@@ -36,7 +54,12 @@ const PrintableInvoice = ({ sale, customers }) => {
   const isPartial = !isPaid && paidAmount > 0;
 
   return (
-    <div className="printable-invoice-wrapper" style={{ padding: '1.75rem 1.25rem 1.5rem 1.25rem', background: '#fff', color: '#0f172a', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif", maxWidth: '680px', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div className="printable-invoice-wrapper" style={{ position: 'relative', padding: '1.75rem 1.25rem 1.5rem 1.25rem', background: '#fff', color: '#0f172a', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif", maxWidth: '680px', margin: '0 auto', boxSizing: 'border-box' }}>
+      {/* Watermark: the logo, faint, dead centre of the sheet, under everything. */}
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 0 }}>
+        <img src={ehblLogo} alt="" style={{ width: '62%', maxWidth: '420px', opacity: 0.08, objectFit: 'contain' }} />
+      </div>
+      <div style={{ position: 'relative', zIndex: 1 }}>
       <style>
         {`
           @media print {
@@ -100,6 +123,13 @@ const PrintableInvoice = ({ sale, customers }) => {
             Bill To (গ্রাহকের তথ্য)
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '85px 1fr', rowGap: '3px' }}>
+            {customerId && (
+              <>
+                <span style={{ color: '#64748b' }}>Customer ID:</span>
+                <span style={{ fontWeight: '600' }}>{customerId}</span>
+              </>
+            )}
+
             <span style={{ color: '#64748b' }}>Customer:</span>
             <strong style={{ color: '#0f172a', fontSize: '0.92rem' }}>{customerName}</strong>
 
@@ -117,12 +147,6 @@ const PrintableInvoice = ({ sale, customers }) => {
               </>
             )}
 
-            {customerId && (
-              <>
-                <span style={{ color: '#64748b' }}>Customer ID:</span>
-                <span>{customerId}</span>
-              </>
-            )}
           </div>
         </div>
 
@@ -139,7 +163,10 @@ const PrintableInvoice = ({ sale, customers }) => {
             <span>{dateStr}</span>
 
             <span style={{ color: '#64748b' }}>Sales Rep:</span>
-            <span>{sale.salesman?.name || sale.salesmanName || 'Admin'}</span>
+            <span style={{ fontWeight: '600' }}>{repName}</span>
+
+            <span style={{ color: '#64748b' }}>Rep Mobile:</span>
+            <span style={{ fontWeight: '600' }}>{repPhone}</span>
 
             <span style={{ color: '#64748b' }}>Payment Mode:</span>
             <span style={{ fontWeight: '600' }}>{sale.paymentType === 'Cash' ? 'Cash (নগদ)' : 'Due (বাকি)'}</span>
@@ -284,6 +311,7 @@ const PrintableInvoice = ({ sale, customers }) => {
         </div>
 
         <PrintFooter />
+      </div>
       </div>
 
     </div>
