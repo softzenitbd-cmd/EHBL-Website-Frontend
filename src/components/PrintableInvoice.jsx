@@ -55,9 +55,13 @@ const PrintableInvoice = ({ sale, customers }) => {
 
   return (
     <div className="printable-invoice-wrapper" style={{ position: 'relative', padding: '1.75rem 1.25rem 1.5rem 1.25rem', background: '#fff', color: '#0f172a', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif", maxWidth: '680px', margin: '0 auto', boxSizing: 'border-box' }}>
-      {/* Watermark: the logo, faint, dead centre of the sheet, under everything. */}
-      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 0 }}>
-        <img src={ehblLogo} alt="" style={{ width: '62%', maxWidth: '420px', opacity: 0.08, objectFit: 'contain' }} />
+      {/* Watermark: the logo, faint, dead centre of the sheet.
+          It sits ABOVE the content, not under it - the item table and the
+          summary boxes have solid backgrounds that would hide anything behind
+          them. `multiply` drops the logo's white ground so only the mark
+          itself tints the paper, and the text underneath stays legible. */}
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 2 }}>
+        <img src={ehblLogo} alt="" className="invoice-watermark" style={{ width: '78%', maxWidth: '520px', opacity: 0.12, objectFit: 'contain', mixBlendMode: 'multiply' }} />
       </div>
       <div style={{ position: 'relative', zIndex: 1 }}>
       <style>
@@ -82,6 +86,9 @@ const PrintableInvoice = ({ sale, customers }) => {
               margin: 0 auto !important;
               padding: 0 !important;
               color: #0f172a !important;
+            }
+            .invoice-watermark {
+              opacity: 0.15 !important;
             }
           }
         `}
