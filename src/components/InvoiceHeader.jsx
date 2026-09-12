@@ -26,21 +26,21 @@ const InvoiceHeader = () => {
         <img 
           src={ehblLogo} 
           alt="EHBL Logo" 
-          style={{ height: '75px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
+          style={{ height: '82px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
         />
         <div style={{ textAlign: 'left' }}>
-          <h1 style={{ margin: '0 0 2px 0', fontSize: '1.55rem', fontWeight: '950', WebkitTextStroke: '0.4px #000000', letterSpacing: '0.5px', color: '#000000', textTransform: 'uppercase', lineHeight: 1.15 }}>
+          <h1 style={{ margin: '0 0 3px 0', fontSize: '1.75rem', fontWeight: '950', WebkitTextStroke: '0.45px #000000', letterSpacing: '0.5px', color: '#000000', textTransform: 'uppercase', lineHeight: 1.15 }}>
             {shop.shop_name}
           </h1>
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '700', color: '#000000', maxWidth: '620px', lineHeight: 1.35 }}>
+          <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: '700', color: '#000000', maxWidth: '640px', lineHeight: 1.35 }}>
             Hardware: Hand Tools, Power Tools, Sanitary, Building, Furniture items, Indian lock &amp; China lock Suppliers.
           </p>
         </div>
       </div>
-      <p style={{ margin: '4px 0 2px 0', fontSize: '0.78rem', fontWeight: '600', color: '#000000' }}>
+      <p style={{ margin: '5px 0 2px 0', fontSize: '0.88rem', fontWeight: '700', color: '#000000' }}>
         {shop.address}
       </p>
-      <p style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', lineHeight: 1.3 }}>
+      <p style={{ margin: '4px 0 2px 0', fontSize: '1.08rem', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', lineHeight: 1.3 }}>
         Phone: {contactLine}
       </p>
       <div style={{ borderBottom: '2.5px solid #000000', margin: '8px 0 4px 0' }}></div>
