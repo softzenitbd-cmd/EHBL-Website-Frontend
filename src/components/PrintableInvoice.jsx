@@ -125,8 +125,10 @@ const PrintableInvoice = ({ sale, customers }) => {
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.25rem', marginBottom: '1.1rem', fontSize: '0.85rem' }}>
         {/* Customer Info */}
         <div>
-          <div style={{ fontWeight: '800', fontSize: '0.84rem', textTransform: 'uppercase', color: '#000000', marginBottom: '5px', paddingBottom: '2px', borderBottom: '1px solid #000000' }}>
-            Bill To (গ্রাহকের তথ্য)
+          <div style={{ marginBottom: '5px' }}>
+            <span style={{ display: 'inline-block', fontWeight: '800', fontSize: '0.84rem', textTransform: 'uppercase', color: '#000000', paddingBottom: '2px', borderBottom: '1px solid #000000' }}>
+              Bill To (গ্রাহকের তথ্য)
+            </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '88px 1fr', rowGap: '3px', color: '#000000', paddingTop: '2px' }}>
             <span style={{ color: '#000000', fontWeight: '700' }}>Customer:</span>
@@ -157,8 +159,10 @@ const PrintableInvoice = ({ sale, customers }) => {
 
         {/* Invoice Meta */}
         <div>
-          <div style={{ fontWeight: '800', fontSize: '0.84rem', textTransform: 'uppercase', color: '#000000', marginBottom: '5px', paddingBottom: '2px', borderBottom: '1px solid #000000' }}>
-            Invoice Details (চালান বিবরণ)
+          <div style={{ marginBottom: '5px' }}>
+            <span style={{ display: 'inline-block', fontWeight: '800', fontSize: '0.84rem', textTransform: 'uppercase', color: '#000000', paddingBottom: '2px', borderBottom: '1px solid #000000' }}>
+              Invoice Details (চালান বিবরণ)
+            </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', rowGap: '3px', color: '#000000', paddingTop: '2px' }}>
             <span style={{ color: '#000000', fontWeight: '700' }}>Date:</span>
