@@ -146,6 +146,13 @@ const PrintableInvoice = ({ sale, customers }) => {
             </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '88px 1fr', rowGap: '3px', color: '#000000', paddingTop: '2px' }}>
+            {customerId && (
+              <>
+                <span style={{ color: '#000000', fontWeight: '700' }}>Customer ID:</span>
+                <span style={{ color: '#000000', fontWeight: '800' }}>{customerId}</span>
+              </>
+            )}
+
             <span style={{ color: '#000000', fontWeight: '700' }}>Customer:</span>
             <strong style={{ color: '#000000', fontSize: '0.92rem', fontWeight: '800' }}>{customerName}</strong>
 
@@ -160,13 +167,6 @@ const PrintableInvoice = ({ sale, customers }) => {
               <>
                 <span style={{ color: '#000000', fontWeight: '700' }}>Phone:</span>
                 <span style={{ color: '#000000', fontWeight: '700' }}>{customerPhone}</span>
-              </>
-            )}
-
-            {customerId && (
-              <>
-                <span style={{ color: '#000000', fontWeight: '700' }}>Customer ID:</span>
-                <span style={{ color: '#000000', fontWeight: '700' }}>{customerId}</span>
               </>
             )}
           </div>
