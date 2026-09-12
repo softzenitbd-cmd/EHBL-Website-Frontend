@@ -209,9 +209,9 @@ const PrintableInvoice = ({ sale, customers }) => {
       </div>
 
       {/* Products Table */}
-      <table style={{ width: '100%', fontSize: isCompact ? '0.74rem' : isLarge ? '0.78rem' : '0.85rem', marginBottom: isCompact ? '0.4rem' : isLarge ? '0.65rem' : '0.85rem', borderCollapse: 'collapse', border: '1px solid rgba(0, 0, 0, 0.22)', color: '#000000' }}>
+      <table style={{ width: '100%', fontSize: isCompact ? '0.74rem' : isLarge ? '0.78rem' : '0.85rem', marginBottom: isCompact ? '0.4rem' : isLarge ? '0.65rem' : '0.85rem', borderCollapse: 'collapse', border: '1px solid #000000', color: '#000000' }}>
         <thead>
-          <tr style={{ backgroundColor: '#27272a', borderBottom: '1.5px solid rgba(0, 0, 0, 0.22)', color: '#ffffff' }}>
+          <tr style={{ backgroundColor: '#27272a', borderBottom: '1px solid #000000', color: '#ffffff' }}>
             <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: '32px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>SL</th>
             <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '68px' : '75px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Code</th>
             <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 6px' : isLarge ? '5px 6px' : '8px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Item Description (পণ্যের বিবরণ)</th>
@@ -232,28 +232,28 @@ const PrintableInvoice = ({ sale, customers }) => {
 
             return (
               <tr key={idx} style={{ backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff', color: '#000000' }}>
-                <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: cellPad, textAlign: 'center', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.72rem' : 'inherit' }}>{idx + 1}</td>
-                <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: cellPad, textAlign: 'center', fontSize: isCompact ? '0.7rem' : '0.82rem', color: '#000000', fontWeight: '700' }}>{code}</td>
-                <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: isCompact ? (isVeryCompact ? '2px 5px' : '2.5px 6px') : '5px 8px', color: '#000000', lineHeight: 1.25 }}>
+                <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.72rem' : 'inherit' }}>{idx + 1}</td>
+                <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', fontSize: isCompact ? '0.7rem' : '0.82rem', color: '#000000', fontWeight: '700' }}>{code}</td>
+                <td style={{ border: '1px solid #000000', padding: isCompact ? (isVeryCompact ? '2px 5px' : '2.5px 6px') : '5px 8px', color: '#000000', lineHeight: 1.25 }}>
                   <strong style={{ color: '#000000', fontWeight: '700', fontSize: isCompact ? '0.74rem' : 'inherit' }}>{item.name}</strong>
                   {item.isGift && <span style={{ marginLeft: '6px', color: '#16a34a', fontSize: '0.72rem', fontWeight: 'bold' }}>(Gift)</span>}
                 </td>
-                <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: cellPad, textAlign: 'center', fontSize: isCompact ? '0.7rem' : '0.82rem', color: '#000000', fontWeight: '600' }}>{size}</td>
-                <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: isCompact ? '2.5px 4px' : '5px 6px', textAlign: 'right', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.73rem' : 'inherit' }}>৳{itemPrice.toLocaleString()}</td>
-                <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: cellPad, textAlign: 'center', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.73rem' : 'inherit' }}>{itemQty} {item.unit || 'pcs'}</td>
-                <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: isCompact ? '2.5px 5px' : '5px 8px', textAlign: 'right', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.75rem' : 'inherit' }}>৳{itemTotal.toLocaleString()}</td>
+                <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', fontSize: isCompact ? '0.7rem' : '0.82rem', color: '#000000', fontWeight: '600' }}>{size}</td>
+                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 4px' : '5px 6px', textAlign: 'right', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.73rem' : 'inherit' }}>৳{itemPrice.toLocaleString()}</td>
+                <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.73rem' : 'inherit' }}>{itemQty} {item.unit || 'pcs'}</td>
+                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 5px' : '5px 8px', textAlign: 'right', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.75rem' : 'inherit' }}>৳{itemTotal.toLocaleString()}</td>
               </tr>
             );
           })}
           {/* Subtotal Row */}
-          <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', borderTop: '1.5px solid rgba(0, 0, 0, 0.22)', color: '#000000' }}>
-            <td colSpan="5" style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: isCompact ? '3px 6px' : '6px 8px', textAlign: 'right', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.74rem' : 'inherit' }}>
+          <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', borderTop: '1px solid #000000', color: '#000000' }}>
+            <td colSpan="5" style={{ border: '1px solid #000000', padding: isCompact ? '3px 6px' : '6px 8px', textAlign: 'right', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.74rem' : 'inherit' }}>
               Total Items: {items.length} &nbsp;|&nbsp; Total Quantity:
             </td>
-            <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: isCompact ? '3px 3px' : '6px 4px', textAlign: 'center', color: '#000000', fontWeight: '900', fontSize: isCompact ? '0.76rem' : 'inherit' }}>
+            <td style={{ border: '1px solid #000000', padding: isCompact ? '3px 3px' : '6px 4px', textAlign: 'center', color: '#000000', fontWeight: '900', fontSize: isCompact ? '0.76rem' : 'inherit' }}>
               {totalQty}
             </td>
-            <td style={{ border: '1px solid rgba(0, 0, 0, 0.22)', padding: isCompact ? '3px 6px' : '6px 8px', textAlign: 'right', color: '#000000', fontWeight: '900', fontSize: isCompact ? '0.78rem' : 'inherit' }}>
+            <td style={{ border: '1px solid #000000', padding: isCompact ? '3px 6px' : '6px 8px', textAlign: 'right', color: '#000000', fontWeight: '900', fontSize: isCompact ? '0.78rem' : 'inherit' }}>
               ৳{subtotal.toLocaleString()}
             </td>
           </tr>
