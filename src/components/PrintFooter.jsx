@@ -8,15 +8,15 @@ const FALLBACK = {
   footer_phone: ':০১৮৬৭ - ১২৬৬৭৫',
 };
 
-const PrintFooter = () => {
+const PrintFooter = ({ compact = false }) => {
   const shopProfile = useStore((state) => state.shopProfile);
   const shop = { ...FALLBACK, ...(shopProfile || {}) };
 
   return (
-    <div className="common-print-footer" style={{ color: '#000000', marginTop: '14px' }}>
-      <p style={{ color: '#000000', margin: '0 0 3px 0', fontSize: '0.78rem', lineHeight: 1.35, fontWeight: '600' }}>{shop.footer_disclaimer_1}</p>
-      <p style={{ color: '#000000', margin: '0 0 3px 0', fontSize: '0.78rem', lineHeight: 1.35, fontWeight: '600' }}>{shop.footer_disclaimer_2}</p>
-      <p className="footer-phone" style={{ color: '#000000', fontWeight: '800', fontSize: '0.84rem', marginTop: '4px' }}>{shop.footer_phone}</p>
+    <div className="common-print-footer" style={{ color: '#000000', marginTop: compact ? '6px' : '10px' }}>
+      <p style={{ color: '#000000', margin: '0 0 2px 0', fontSize: compact ? '0.72rem' : '0.76rem', lineHeight: 1.3, fontWeight: '600' }}>{shop.footer_disclaimer_1}</p>
+      <p style={{ color: '#000000', margin: '0 0 2px 0', fontSize: compact ? '0.72rem' : '0.76rem', lineHeight: 1.3, fontWeight: '600' }}>{shop.footer_disclaimer_2}</p>
+      <p className="footer-phone" style={{ color: '#000000', fontWeight: '800', fontSize: compact ? '0.78rem' : '0.82rem', marginTop: '2px', marginBottom: 0 }}>{shop.footer_phone}</p>
     </div>
   );
 };
