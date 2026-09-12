@@ -519,7 +519,7 @@ const Inventory = () => {
           <div className="inv-field">
             <label htmlFor="inv-comp">Company</label>
             <select id="inv-comp" value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)}>
-              <option value="All">All companies ({inventory.length})</option>
+              <option value="All">All companies</option>
               {allCompanies.map((comp, idx) => (
                 <option key={idx} value={comp}>{comp} ({countProductsInCompany(comp)})</option>
               ))}
