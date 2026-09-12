@@ -253,7 +253,8 @@ const POS = () => {
     updateCartItem(item.id, { isGift: !item.isGift });
   };
 
-  // No discount calculation on invoice
+  const [invoiceDiscount, setInvoiceDiscount] = useState(0);
+
   // Qty and rate are typed straight into the cart now and may be blank for a
   // moment mid-edit, so both are read through Number() here.
   const subtotal = cart.reduce((acc, item) => {
@@ -261,7 +262,7 @@ const POS = () => {
     return acc + (effectivePrice * (Number(item.quantity) || 0));
   }, 0);
 
-  const total = subtotal;
+  const total = Math.max(0, subtotal - (parseFloat(invoiceDiscount) || 0));
 
   const handleDeleteSale = async (sale) => {
     const isConfirmed = await confirmDialog({
@@ -309,7 +310,7 @@ const POS = () => {
       })),
       paymentType: 'Baki', // Strictly Due
       customerInfo,
-      invoiceDiscount: 0,  // No discount
+      invoiceDiscount: parseFloat(invoiceDiscount) || 0,
       salesman: salesmanObj
     };
 
@@ -333,11 +334,14 @@ const POS = () => {
     setCustomerInfo({ name: '', phone: '', location: '' });
     setCustomerSearchTerm('');
     setSelectedCustomerObj(null);
+    setInvoiceDiscount(0);
   };
 
   // -------------------------------------------------------------
   // Invoice Edit Handlers
   // -------------------------------------------------------------
+  const [editDiscount, setEditDiscount] = useState(0);
+
   const handleStartEdit = (invoice) => {
     if (invoice.status === 'Locked' || invoice.isLocked) {
       showToast('This invoice is permanently locked and cannot be edited.', 'error');
@@ -349,6 +353,7 @@ const POS = () => {
       customerPhone: invoice.customer_phone || invoice.customerInfo?.phone || '',
       customerLocation: invoice.customer_location || invoice.customerInfo?.location || '',
     });
+    setEditDiscount(Number(invoice.invoiceDiscount || invoice.discount || 0));
     setEditItems((invoice.items || []).map(item => ({
       item_id: item.id,
       product_code: item.product_code || item.id,
@@ -383,7 +388,7 @@ const POS = () => {
   };
 
   const editSubtotal = editItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-  const editTotal = editSubtotal;
+  const editTotal = Math.max(0, editSubtotal - (parseFloat(editDiscount) || 0));
 
   const handleSaveEditedInvoice = async (e) => {
     if (e) e.preventDefault();
@@ -407,7 +412,7 @@ const POS = () => {
       customer_phone: editingInvoice.customerPhone,
       customer_location: editingInvoice.customerLocation,
       paymentType: 'Baki',
-      invoiceDiscount: 0
+      invoiceDiscount: parseFloat(editDiscount) || 0
     };
 
     const targetId = editingInvoice.invoice_number || editingInvoice.id;
@@ -422,6 +427,7 @@ const POS = () => {
     showToast(`Invoice ${targetId} updated successfully!`, 'success');
     setEditingInvoice(null);
     setEditItems([]);
+    setEditDiscount(0);
   };
 
   const handleLockInvoice = async () => {
@@ -922,11 +928,37 @@ const POS = () => {
             </div>
           </div>
 
-          {/* Summary Section - Discount removed */}
+          {/* Summary Section */}
           <div className="checkout-section summary-section">
             <div className="summary-row">
               <span>Subtotal</span>
               <span>৳{subtotal.toLocaleString()}</span>
+            </div>
+            <div className="summary-row" style={{ alignItems: 'center' }}>
+              <span>Discount</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', maxWidth: '140px' }}>
+                <span style={{ fontWeight: '700', color: 'var(--pos-text)' }}>৳</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={invoiceDiscount === 0 ? '' : invoiceDiscount}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setInvoiceDiscount(val === '' ? 0 : Math.max(0, parseFloat(val) || 0));
+                  }}
+                  style={{
+                    padding: '0.3rem 0.5rem',
+                    textAlign: 'right',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    borderRadius: 'var(--pos-radius, 4px)',
+                    border: '1px solid var(--pos-border, #cbd5e1)',
+                    width: '100%'
+                  }}
+                />
+              </div>
             </div>
             <div className="summary-row total-row">
               <span>Total Payable (Due)</span>
@@ -1297,10 +1329,32 @@ const POS = () => {
                 </table>
               </div>
 
-              <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'var(--bg-muted, rgba(127,127,127,0.08))', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'var(--bg-muted, rgba(127,127,127,0.08))', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                   <span className="text-muted text-sm">Payment Status:</span>
                   <div className="font-bold text-warning">Only Due (Baki)</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span className="text-muted text-sm" style={{ fontWeight: '600' }}>Discount (৳):</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="0"
+                    value={editDiscount === 0 ? '' : editDiscount}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditDiscount(val === '' ? 0 : Math.max(0, parseFloat(val) || 0));
+                    }}
+                    style={{
+                      width: '100px',
+                      padding: '0.35rem 0.6rem',
+                      textAlign: 'right',
+                      fontWeight: '700',
+                      borderRadius: 'var(--radius-md, 4px)',
+                      border: '1px solid var(--border-color, #cbd5e1)'
+                    }}
+                  />
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <span className="text-muted text-sm">Updated Total Payable:</span>

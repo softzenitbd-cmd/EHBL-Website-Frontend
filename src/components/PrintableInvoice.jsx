@@ -99,7 +99,7 @@ const PrintableInvoice = ({ sale, customers }) => {
       <InvoiceHeader />
 
       {/* Invoice Title & Status Bar */}
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1.5px solid #000000', paddingBottom: '0.4rem' }}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.2rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '900', letterSpacing: '2px', textTransform: 'uppercase', color: '#000000', textAlign: 'center' }}>
           BILL
         </h2>
@@ -179,14 +179,14 @@ const PrintableInvoice = ({ sale, customers }) => {
       {/* Products Table */}
       <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '0.85rem', borderCollapse: 'collapse', border: '1.5px solid #000000', color: '#000000' }}>
         <thead>
-          <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #000000', color: '#000000' }}>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '32px', color: '#000000', fontWeight: '800' }}>SL</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '75px', color: '#000000', fontWeight: '800' }}>Code</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', color: '#000000', fontWeight: '800' }}>Item Description (পণ্যের বিবরণ)</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '65px', color: '#000000', fontWeight: '800' }}>Size</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 6px', textAlign: 'right', width: '75px', color: '#000000', fontWeight: '800' }}>Unit Price</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '55px', color: '#000000', fontWeight: '800' }}>Qty</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'right', width: '95px', color: '#000000', fontWeight: '800' }}>Total (৳)</th>
+          <tr style={{ backgroundColor: '#000000', borderBottom: '2px solid #000000', color: '#ffffff' }}>
+            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '32px', color: '#ffffff', fontWeight: '800' }}>SL</th>
+            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '75px', color: '#ffffff', fontWeight: '800' }}>Code</th>
+            <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '800' }}>Item Description (পণ্যের বিবরণ)</th>
+            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '65px', color: '#ffffff', fontWeight: '800' }}>Size</th>
+            <th style={{ border: '1px solid #000000', padding: '6px 6px', textAlign: 'right', width: '75px', color: '#ffffff', fontWeight: '800' }}>Unit Price</th>
+            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '55px', color: '#ffffff', fontWeight: '800' }}>Qty</th>
+            <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'right', width: '95px', color: '#ffffff', fontWeight: '800' }}>Total (৳)</th>
           </tr>
         </thead>
         <tbody>
@@ -271,7 +271,7 @@ const PrintableInvoice = ({ sale, customers }) => {
                 <td style={{ padding: '4px 0', color: '#15803d', fontWeight: '800' }}>Paid Amount (পরিশোধ):</td>
                 <td style={{ padding: '4px 0', textAlign: 'right', color: '#15803d', fontWeight: '900' }}>৳{paidAmount.toLocaleString()}</td>
               </tr>
-              <tr style={{ borderTop: '1px dashed #000000' }}>
+              <tr style={{ borderTop: '1px solid #000000' }}>
                 <td style={{ padding: '5px 0', fontWeight: '800', color: '#c2410c' }}>Current Due (এই বিলে বাকি):</td>
                 <td style={{ padding: '5px 0', textAlign: 'right', fontWeight: '900', color: '#c2410c', fontSize: '0.95rem' }}>৳{currentDue.toLocaleString()}</td>
               </tr>
