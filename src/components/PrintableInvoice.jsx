@@ -99,10 +99,25 @@ const PrintableInvoice = ({ sale, customers }) => {
       <InvoiceHeader />
 
       {/* Invoice Title & Status Bar */}
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.2rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '900', letterSpacing: '2px', textTransform: 'uppercase', color: '#000000', textAlign: 'center' }}>
-          BILL
-        </h2>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '0.85rem', paddingBottom: '0.2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '25px', height: '1.5px', backgroundColor: '#000000' }}></div>
+          <span style={{
+            display: 'inline-block',
+            padding: '2px 18px',
+            fontSize: '1.15rem',
+            fontWeight: '900',
+            letterSpacing: '4px',
+            textTransform: 'uppercase',
+            color: '#000000',
+            border: '2px solid #000000',
+            borderRadius: '20px',
+            backgroundColor: '#ffffff'
+          }}>
+            BILL
+          </span>
+          <div style={{ width: '25px', height: '1.5px', backgroundColor: '#000000' }}></div>
+        </div>
         <div style={{ position: 'absolute', right: 0 }}>
           <span style={{
             display: 'inline-block',
