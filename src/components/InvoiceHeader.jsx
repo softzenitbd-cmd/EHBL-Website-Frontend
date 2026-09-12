@@ -4,7 +4,7 @@ import ehblLogo from '../assets/ehbl.jpeg';
 
 const FALLBACK = {
   shop_name: 'EHBL AND POWER TOOLS SUPPLIERS',
-  tagline: 'Hardware: Hand Tools, Machine Tools, Sanitary, Building & Furniture fittings, Indian & China Locks, Chemical Materials Manufacturer, Importer & Suppliers.',
+  tagline: 'Hardware: Hand Tools, Power Tools, Sanitary, Building, Furniture items, Indian lock & China lock Suppliers.',
   address: 'Corporate Office: House # 37, (1st Floor) Road # 1/A, Block # 3, Gulshan-02, Baridhara R/A, Dhaka-1212.',
   phone: '01744129480',
   whatsapp: '01744967226',
@@ -33,7 +33,7 @@ const InvoiceHeader = () => {
             {shop.shop_name}
           </h1>
           <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '700', color: '#000000', maxWidth: '620px', lineHeight: 1.35 }}>
-            {shop.tagline}
+            Hardware: Hand Tools, Power Tools, Sanitary, Building, Furniture items, Indian lock &amp; China lock Suppliers.
           </p>
         </div>
       </div>
