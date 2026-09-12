@@ -12,10 +12,9 @@ const PrintFooter = ({ compact = false }) => {
   const shopProfile = useStore((state) => state.shopProfile);
   const shop = { ...FALLBACK, ...(shopProfile || {}) };
 
-  let phoneDisplay = shop.footer_phone || 'মোবাইল নম্বর: ০১৮৬৭ - ১২৬৬৭৫';
-  if (!phoneDisplay.includes('মোবাইল')) {
-    phoneDisplay = `মোবাইল নম্বর: ${phoneDisplay.replace(/^[:\s]+/, '')}`;
-  }
+  const rawPhone = String(shop.footer_phone || '০১৮৬৭ - ১২৬৬৭৫');
+  const cleanPhone = rawPhone.replace(/^[:\s]+/, '').replace(/^মোবাইল\s*(নম্বর|নং)?\s*[:\s]*/, '');
+  const phoneDisplay = `মোবাইল নম্বর: ${cleanPhone}`;
 
   return (
     <div className="common-print-footer" style={{ color: '#000000', marginTop: compact ? '6px' : '10px' }}>

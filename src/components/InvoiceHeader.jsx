@@ -4,7 +4,7 @@ import ehblLogo from '../assets/ehbl.jpeg';
 
 const FALLBACK = {
   shop_name: 'EHBL AND POWER TOOLS SUPPLIERS',
-  tagline: 'Hardware: Hand Tools, Power Tools, Sanitary, Building, Furniture items, Indian lock & China lock Suppliers.',
+  tagline: 'Hardware: Hand Tools, Machine Tools, Sanitary, Building, Furniture items, Indian lock, China lock, Chemical Materials Manufacturer, Importer & Suppliers.',
   address: 'Corporate Office: House # 37, (1st Floor) Road # 1/A, Block # 3, Gulshan-02, Baridhara R/A, Dhaka-1212.',
   site_office: 'Site Office: Jhenaidah',
   phone: '01744129480',
@@ -21,6 +21,28 @@ const InvoiceHeader = ({ compact = false }) => {
     .join(', ');
   const contactLine = [numbers, shop.email ? `Email: ${shop.email}` : ''].filter(Boolean).join(' | ');
 
+  const renderTagline = () => {
+    let raw = (shop.tagline || FALLBACK.tagline)
+      .replace(/,([^\s])/g, ', $1')
+      .replace(/:([^\s])/g, ': $1')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const match = raw.match(/^(.*?Furniture items,?\s*)(.*)$/i);
+    if (match) {
+      const line1 = match[1].replace(/,\s*$/, ',').trim();
+      const line2 = match[2].replace(/^,\s*/, '').trim();
+      return (
+        <>
+          <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{line1}</span>
+          <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{line2}</span>
+        </>
+      );
+    }
+
+    return <span>{raw}</span>;
+  };
+
   return (
     <div style={{ textAlign: 'center', paddingTop: compact ? '0.2rem' : '0.75rem', marginBottom: compact ? '0.45rem' : '0.95rem', color: '#000000', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif" }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: compact ? '0.85rem' : '1.25rem', marginBottom: compact ? '3px' : '6px' }}>
@@ -29,19 +51,19 @@ const InvoiceHeader = ({ compact = false }) => {
           alt="EHBL Logo" 
           style={{ height: compact ? '54px' : '76px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
         />
-        <div style={{ textAlign: 'left' }}>
+        <div style={{ textAlign: 'left', width: 'auto' }}>
           <h1 style={{ margin: '0 0 2px 0', fontSize: compact ? '1.35rem' : '1.65rem', fontWeight: '950', WebkitTextStroke: '0.4px #000000', letterSpacing: '0.5px', color: '#000000', textTransform: 'uppercase', lineHeight: 1.15 }}>
             {shop.shop_name}
           </h1>
-          <p style={{ margin: 0, fontSize: compact ? '0.88rem' : '1.02rem', fontWeight: '750', color: '#000000', maxWidth: '640px', lineHeight: 1.3 }}>
-            {shop.tagline || 'Hardware: Hand Tools, Power Tools, Sanitary, Building, Furniture items, Indian lock & China lock Suppliers.'}
-          </p>
+          <div style={{ margin: 0, fontSize: compact ? '0.84rem' : '0.95rem', fontWeight: '750', color: '#000000', lineHeight: 1.35, textAlign: 'left' }}>
+            {renderTagline()}
+          </div>
         </div>
       </div>
-      <p style={{ margin: compact ? '2px 0 1px 0' : '4px 0 2px 0', fontSize: compact ? '0.84rem' : '0.94rem', fontWeight: '750', color: '#000000', lineHeight: 1.25 }}>
+      <p style={{ margin: compact ? '2px 0 1px 0' : '4px 0 2px 0', fontSize: compact ? '0.78rem' : '0.86rem', fontWeight: '700', color: '#000000', lineHeight: 1.25 }}>
         {shop.address}
       </p>
-      <p style={{ margin: compact ? '2px 0 1px 0' : '3px 0 2px 0', fontSize: compact ? '0.74rem' : '0.82rem', fontWeight: '800', color: '#000000', letterSpacing: '0.2px', lineHeight: 1.25 }}>
+      <p style={{ margin: compact ? '2px 0 1px 0' : '3px 0 2px 0', fontSize: compact ? '0.86rem' : '0.96rem', fontWeight: '850', color: '#000000', letterSpacing: '0.2px', lineHeight: 1.25 }}>
         <span>{shop.site_office || 'Site Office: Jhenaidah'}</span>
         <span style={{ margin: '0 6px', fontWeight: '400' }}>|</span>
         <span>Phone: {contactLine}</span>
