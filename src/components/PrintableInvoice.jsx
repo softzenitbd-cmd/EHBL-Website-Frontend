@@ -309,22 +309,22 @@ const PrintableInvoice = ({ sale, customers }) => {
       <div style={{ pageBreakInside: 'avoid', marginTop: '5.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', textAlign: 'center', fontSize: '0.82rem', color: '#000000' }}>
           <div>
-            <div style={{ borderTop: '1.5px solid #000000', margin: '0 10px', paddingTop: '6px', fontWeight: '800', color: '#000000' }}>
+            <div style={{ borderTop: '1.5px solid #000000', width: '130px', margin: '0 auto', paddingTop: '6px', fontWeight: '800', color: '#000000' }}>
               Customer's Signature
             </div>
-            <div style={{ color: '#000000', fontSize: '0.78rem', fontWeight: '600' }}>গ্রাহকের স্বাক্ষর</div>
+            <div style={{ color: '#000000', fontSize: '0.78rem', fontWeight: '600', marginTop: '2px' }}>গ্রাহকের স্বাক্ষর</div>
           </div>
           <div>
-            <div style={{ borderTop: '1.5px solid #000000', margin: '0 10px', paddingTop: '6px', fontWeight: '800', color: '#000000' }}>
+            <div style={{ borderTop: '1.5px solid #000000', width: '130px', margin: '0 auto', paddingTop: '6px', fontWeight: '800', color: '#000000' }}>
               Delivered By
             </div>
-            <div style={{ color: '#000000', fontSize: '0.78rem', fontWeight: '600' }}>সরবরাহকারীর স্বাক্ষর</div>
+            <div style={{ color: '#000000', fontSize: '0.78rem', fontWeight: '600', marginTop: '2px' }}>সরবরাহকারীর স্বাক্ষর</div>
           </div>
           <div>
-            <div style={{ borderTop: '1.5px solid #000000', margin: '0 10px', paddingTop: '6px', fontWeight: '800', color: '#000000' }}>
+            <div style={{ borderTop: '1.5px solid #000000', width: '130px', margin: '0 auto', paddingTop: '6px', fontWeight: '800', color: '#000000' }}>
               Authorized Signature
             </div>
-            <div style={{ color: '#000000', fontSize: '0.78rem', fontWeight: '600' }}>কর্তৃপক্ষের স্বাক্ষর</div>
+            <div style={{ color: '#000000', fontSize: '0.78rem', fontWeight: '600', marginTop: '2px' }}>কর্তৃপক্ষের স্বাক্ষর</div>
           </div>
         </div>
 
