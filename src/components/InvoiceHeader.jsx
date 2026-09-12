@@ -40,7 +40,7 @@ const InvoiceHeader = () => {
       <p style={{ margin: '4px 0 2px 0', fontSize: '0.78rem', fontWeight: '600', color: '#000000' }}>
         {shop.address}
       </p>
-      <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '800', color: '#000000' }}>
+      <p style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', lineHeight: 1.3 }}>
         Phone: {contactLine}
       </p>
       <div style={{ borderBottom: '2.5px solid #000000', margin: '8px 0 4px 0' }}></div>
