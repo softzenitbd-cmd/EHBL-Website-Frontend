@@ -179,14 +179,14 @@ const PrintableInvoice = ({ sale, customers }) => {
       {/* Products Table */}
       <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '0.85rem', borderCollapse: 'collapse', border: '1.5px solid #000000', color: '#000000' }}>
         <thead>
-          <tr style={{ backgroundColor: '#000000', borderBottom: '2px solid #000000', color: '#ffffff' }}>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '32px', color: '#ffffff', fontWeight: '800' }}>SL</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '75px', color: '#ffffff', fontWeight: '800' }}>Code</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '800' }}>Item Description (পণ্যের বিবরণ)</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '65px', color: '#ffffff', fontWeight: '800' }}>Size</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 6px', textAlign: 'right', width: '75px', color: '#ffffff', fontWeight: '800' }}>Unit Price</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', width: '55px', color: '#ffffff', fontWeight: '800' }}>Qty</th>
-            <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'right', width: '95px', color: '#ffffff', fontWeight: '800' }}>Total (৳)</th>
+          <tr style={{ backgroundColor: '#27272a', borderBottom: '2px solid #000000', color: '#ffffff' }}>
+            <th style={{ border: '1px solid #3f3f46', padding: '6px 4px', textAlign: 'center', width: '32px', color: '#ffffff', fontWeight: '700' }}>SL</th>
+            <th style={{ border: '1px solid #3f3f46', padding: '6px 4px', textAlign: 'center', width: '75px', color: '#ffffff', fontWeight: '700' }}>Code</th>
+            <th style={{ border: '1px solid #3f3f46', padding: '6px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '700' }}>Item Description (পণ্যের বিবরণ)</th>
+            <th style={{ border: '1px solid #3f3f46', padding: '6px 4px', textAlign: 'center', width: '65px', color: '#ffffff', fontWeight: '700' }}>Size</th>
+            <th style={{ border: '1px solid #3f3f46', padding: '6px 6px', textAlign: 'right', width: '75px', color: '#ffffff', fontWeight: '700' }}>Unit Price</th>
+            <th style={{ border: '1px solid #3f3f46', padding: '6px 4px', textAlign: 'center', width: '55px', color: '#ffffff', fontWeight: '700' }}>Qty</th>
+            <th style={{ border: '1px solid #3f3f46', padding: '6px 8px', textAlign: 'right', width: '95px', color: '#ffffff', fontWeight: '700' }}>Total (৳)</th>
           </tr>
         </thead>
         <tbody>
