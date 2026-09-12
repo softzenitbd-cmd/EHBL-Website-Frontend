@@ -11,29 +11,29 @@ import { printElement } from '../utils/printElement';
 import './POS.css';
 
 const POS = () => {
-  const { 
-    cart, 
-    inventory, 
-    staff, 
-    user, 
-    customers, 
+  const {
+    cart,
+    inventory,
+    staff,
+    user,
+    customers,
     fetchAllData,
-    addToCart, 
-    removeFromCart, 
-    updateCartItem, 
-    clearCart, 
-    loadDummyData, 
-    processSale, 
-    updateSale, 
+    addToCart,
+    removeFromCart,
+    updateCartItem,
+    clearCart,
+    loadDummyData,
+    processSale,
+    updateSale,
     lockSale,
     paySaleInvoice,
-    sales, 
-    showToast, 
-    deleteSale 
+    sales,
+    showToast,
+    deleteSale
   } = useStore();
-  
+
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
-  
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -115,9 +115,9 @@ const POS = () => {
     }
 
     // Direct exact or partial search
-    const product = inventory.find(p => 
-      String(p.id || '').toLowerCase() === term.toLowerCase() || 
-      String(p.product_code || '').toLowerCase() === term.toLowerCase() || 
+    const product = inventory.find(p =>
+      String(p.id || '').toLowerCase() === term.toLowerCase() ||
+      String(p.product_code || '').toLowerCase() === term.toLowerCase() ||
       String(p.name || '').toLowerCase() === term.toLowerCase()
     ) || searchResults[0];
 
@@ -188,10 +188,23 @@ const POS = () => {
 
   // Payment is strictly Due (Baki)
   const paymentType = 'Baki';
-  const [selectedSalesman, setSelectedSalesman] = useState(user?.id || 'Admin');
+  // The salesman is whoever is logged in - not a choice. A staff login is
+  // matched to its Staff record through the username the account was created
+  // with; anything else (the admin account) is recorded as "Admin" under the
+  // user's own name and phone.
+  const currentSalesman = (() => {
+    const uname = String(user?.username || '').toLowerCase();
+    const linked = uname ? staff.find(st => String(st.username || '').toLowerCase() === uname) : null;
+    if (linked) {
+      return { id: linked.id, name: linked.name, phone: linked.phone || user?.phone || '' };
+    }
+    const display = [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
+      || user?.username || 'Admin';
+    return { id: 'Admin', name: display, phone: user?.phone || '' };
+  })();
   const [completedSale, setCompletedSale] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Edit Invoice State
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [editItems, setEditItems] = useState([]);
@@ -241,9 +254,11 @@ const POS = () => {
   };
 
   // No discount calculation on invoice
+  // Qty and rate are typed straight into the cart now and may be blank for a
+  // moment mid-edit, so both are read through Number() here.
   const subtotal = cart.reduce((acc, item) => {
-    const effectivePrice = item.isGift ? 0 : item.price;
-    return acc + (effectivePrice * item.quantity);
+    const effectivePrice = item.isGift ? 0 : (Number(item.price) || 0);
+    return acc + (effectivePrice * (Number(item.quantity) || 0));
   }, 0);
 
   const total = subtotal;
@@ -282,10 +297,14 @@ const POS = () => {
       return;
     }
 
-    const salesmanObj = staff.find(s => s.id === selectedSalesman) || { id: 'Admin', name: 'Admin' };
+    const salesmanObj = currentSalesman;
     const saleData = {
+      // The typed-in rate is what the line sells at; a blank box that was
+      // never blurred still has to leave as a number.
       cartItems: cart.map(item => ({
         ...item,
+        price: Number(item.price) || 0,
+        quantity: Math.max(1, Number(item.quantity) || 1),
         itemDiscount: 0
       })),
       paymentType: 'Baki', // Strictly Due
@@ -462,8 +481,8 @@ const POS = () => {
 
   const handleOpenPayment = (invoice) => {
     const invTotal = Number(invoice.total || 0);
-    const invDue = invoice.due_amount !== undefined 
-      ? Number(invoice.due_amount) 
+    const invDue = invoice.due_amount !== undefined
+      ? Number(invoice.due_amount)
       : (invoice.paymentType === 'Cash' ? 0 : invTotal);
 
     setPaymentModal({
@@ -488,8 +507,8 @@ const POS = () => {
 
     const inv = paymentModal.invoice;
     const invTotal = Number(inv.total || 0);
-    const currentDue = inv.due_amount !== undefined 
-      ? Number(inv.due_amount) 
+    const currentDue = inv.due_amount !== undefined
+      ? Number(inv.due_amount)
       : (inv.paymentType === 'Cash' ? 0 : invTotal);
 
     if (amount > currentDue) {
@@ -537,42 +556,47 @@ const POS = () => {
   };
 
   return (
-    <div className="pos-page animate-fade-in">
-      {/* Top Segmented Navigation */}
-      <div className="card" style={{ padding: '0.5rem', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem auto' }}>
-        <div className="segmented-control">
-          <button 
-            type="button"
-            className={activeTab === 'New' ? 'active' : ''}
-            onClick={() => setActiveTab('New')}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-          >
-            <Plus size={16} /> Invoice
-          </button>
-          <button 
-            type="button"
-            className={activeTab === 'History' ? 'active' : ''}
-            onClick={() => setActiveTab('History')}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-          >
-            <List size={16} /> Invoice List
-          </button>
-        </div>
-      </div>
+    <div className="pos-page">
+      <header className="pos-pagehead">
+        <h1>Invoice</h1>
+        <p>Ring up a sale, collect against an invoice, or reprint one.</p>
+      </header>
+
+      <nav className="pos-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'New'}
+          className={`pos-tab ${activeTab === 'New' ? 'is-active' : ''}`}
+          onClick={() => setActiveTab('New')}
+        >
+          <Plus size={15} /> New Invoice
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'History'}
+          className={`pos-tab ${activeTab === 'History' ? 'is-active' : ''}`}
+          onClick={() => setActiveTab('History')}
+        >
+          <List size={15} /> Invoice List
+          <span className="pos-tab__count">{sales.length}</span>
+        </button>
+      </nav>
 
       {/* NEW INVOICE TAB */}
       {activeTab === 'New' && (
-      <div className="pos-container animate-fade-in">
-        <div className="pos-left glass">
+      <div className="pos-container">
+        <div className="pos-left">
           <div className="pos-header">
-            <h2>Invoice</h2>
+            <h2>Items</h2>
             <div className="pos-search-wrapper" ref={searchContainerRef}>
               <form onSubmit={handleBarcodeSubmit} className="barcode-form">
                 <Search size={18} className="text-muted" />
-                <input 
+                <input
                   id="barcode-input"
-                  type="text" 
-                  placeholder="Type to search product by name, barcode, code..." 
+                  type="text"
+                  placeholder="Type to search product by name, barcode, code..."
                   value={barcodeInput}
                   onChange={(e) => {
                     setBarcodeInput(e.target.value);
@@ -586,9 +610,9 @@ const POS = () => {
                   autoComplete="off"
                 />
                 {barcodeInput && (
-                  <button 
-                    type="button" 
-                    className="btn-icon text-muted" 
+                  <button
+                    type="button"
+                    className="btn-icon text-muted"
                     style={{ padding: '0.2rem' }}
                     onClick={() => {
                       setBarcodeInput('');
@@ -612,7 +636,7 @@ const POS = () => {
                     </div>
                   ) : (
                     searchResults.map((product, idx) => (
-                      <div 
+                      <div
                         key={product.id || idx}
                         className={`search-dropdown-item ${activeSearchIndex === idx ? 'selected' : ''}`}
                         onMouseEnter={() => setActiveSearchIndex(idx)}
@@ -648,12 +672,12 @@ const POS = () => {
               </button>
             ) : (
               inventory.slice(0, 5).map(item => (
-                <button 
-                  key={item.id} 
-                  className="btn-icon" 
-                  style={{ 
-                    border: '1px solid var(--border-color)', 
-                    padding: '0.5rem 1rem', 
+                <button
+                  key={item.id}
+                  className="btn-icon"
+                  style={{
+                    border: '1px solid var(--border-color)',
+                    padding: '0.5rem 1rem',
                     borderRadius: 'var(--radius-full)',
                     fontSize: '0.85rem',
                     backgroundColor: 'var(--bg-input)'
@@ -670,74 +694,141 @@ const POS = () => {
             {cart.length === 0 ? (
               <div className="empty-cart text-muted">Cart is empty. Scan or select an item to begin.</div>
             ) : (
-              cart.map(item => (
-                <div className="cart-item glass" key={item.id}>
-                  <div className="item-info">
-                    <h4>{item.name}</h4>
-                    <span className="text-muted">ID: {item.id} | Buy: ৳{item.purchasePrice || 0} | Sell: ৳{item.price} x {item.quantity}</span>
-                  </div>
-                  <div className="item-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div className="quantity-control" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--bg-input)', padding: '0.25rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}>
-                      <button 
-                        className="btn-icon" 
-                        style={{ padding: '0.2rem' }}
-                        onClick={() => updateCartItem(item.id, { quantity: Math.max(1, item.quantity - 1) })}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span style={{ minWidth: '24px', textAlign: 'center', fontSize: '0.9rem', fontWeight: '600' }}>{item.quantity}</span>
-                      <button 
-                        className="btn-icon" 
-                        style={{ padding: '0.2rem' }}
-                        onClick={() => updateCartItem(item.id, { quantity: item.quantity + 1 })}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-
-                    <button 
-                      className={`btn-icon ${item.isGift ? '' : 'text-muted'}`} 
-                      style={item.isGift ? { backgroundColor: 'rgba(139, 92, 246, 0.15)', color: 'var(--primary)', borderRadius: '50%', padding: '0.4rem' } : { padding: '0.4rem' }}
-                      title="Mark as Gift" 
-                      onClick={() => toggleGift(item)}
-                    >
-                      <Gift size={18} strokeWidth={item.isGift ? 2.5 : 1.5} />
-                    </button>
-
-                    <div className="item-price" style={{ minWidth: '80px', textAlign: 'right', fontWeight: 'bold' }}>
-                      ৳{item.isGift ? 0 : (item.price * item.quantity).toLocaleString()}
-                    </div>
-
-                    <button className="btn-icon text-danger" onClick={() => removeFromCart(item.id)}>
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+              <>
+                <div className="cart-head">
+                  <span>Item</span>
+                  <span className="is-center">Qty</span>
+                  <span className="is-right">Rate</span>
+                  <span className="is-right">Total</span>
+                  <span />
                 </div>
-              ))
+                {cart.map(item => {
+                  const qty = Number(item.quantity) || 0;
+                  const rate = Number(item.price) || 0;
+                  return (
+                    <div className={`cart-item ${item.isGift ? 'is-gift' : ''}`} key={item.id}>
+                      <div className="item-info">
+                        <h4>{item.name}</h4>
+                        <span className="item-meta">
+                          Code {item.id}
+                          {item.variant ? ` · ${item.variant}` : ''}
+                          {' · '}Buy ৳{Number(item.purchasePrice || 0).toLocaleString()}
+                          {item.isGift ? ' · Gift' : ''}
+                        </span>
+                      </div>
+
+                      {/* Quantity: typed straight in, or nudged with the buttons. */}
+                      <div className="qty-control">
+                        <button
+                          type="button"
+                          className="qty-btn"
+                          onClick={() => updateCartItem(item.id, { quantity: Math.max(1, qty - 1) })}
+                          aria-label="Decrease quantity"
+                        >
+                          <Minus size={13} />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          className="qty-input"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            // Let the box go empty while retyping; it is put back
+                            // to a real quantity on blur.
+                            const v = e.target.value;
+                            updateCartItem(item.id, { quantity: v === '' ? '' : Math.max(1, parseInt(v, 10) || 1) });
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '' || !(parseInt(e.target.value, 10) > 0)) {
+                              updateCartItem(item.id, { quantity: 1 });
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
+                        />
+                        <button
+                          type="button"
+                          className="qty-btn"
+                          onClick={() => updateCartItem(item.id, { quantity: qty + 1 })}
+                          aria-label="Increase quantity"
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+
+                      {/* Rate: the unit price this line is being sold at, so a
+                          negotiated price can be typed in without touching the
+                          product's list price. */}
+                      <div className="rate-control">
+                        <span className="rate-prefix">৳</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="rate-input"
+                          value={item.price}
+                          disabled={item.isGift}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            updateCartItem(item.id, { price: v === '' ? '' : Math.max(0, parseFloat(v) || 0) });
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') updateCartItem(item.id, { price: 0 });
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          title="Unit price for this invoice"
+                        />
+                      </div>
+
+                      <div className="item-price">
+                        ৳{item.isGift ? '0' : (rate * qty).toLocaleString()}
+                      </div>
+
+                      <div className="item-btns">
+                        <button
+                          type="button"
+                          className={`line-btn ${item.isGift ? 'is-on' : ''}`}
+                          title={item.isGift ? 'Gift: not charged' : 'Mark as gift'}
+                          onClick={() => toggleGift(item)}
+                        >
+                          <Gift size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="line-btn line-btn--danger"
+                          title="Remove"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
             )}
           </div>
         </div>
 
         {/* Checkout Details Side */}
-        <div className="pos-right glass">
+        <div className="pos-right">
           <h3>Invoice Details</h3>
-          
+
           <div className="checkout-section">
             <label>Customer Details <span className="text-danger">*</span></label>
             <div className="pos-customer-wrapper" ref={customerContainerRef}>
               <div className="customer-search-input-box mb-2">
-                <input 
-                  type="text" 
-                  placeholder="Search customer by name, phone, code..." 
+                <input
+                  type="text"
+                  placeholder="Search customer by name, phone, code..."
                   value={customerSearchTerm}
                   onChange={e => handleCustomerSearchInputChange(e.target.value)}
                   onFocus={() => setShowCustomerDropdown(true)}
                   autoComplete="off"
                 />
                 {customerSearchTerm && (
-                  <button 
-                    type="button" 
-                    className="customer-search-clear-btn" 
+                  <button
+                    type="button"
+                    className="customer-search-clear-btn"
                     onClick={() => {
                       setCustomerSearchTerm('');
                       setSelectedCustomerObj(null);
@@ -760,8 +851,8 @@ const POS = () => {
                     </div>
                   ) : (
                     filteredCustomers.map(c => (
-                      <div 
-                        key={c.id || c.customer_code} 
+                      <div
+                        key={c.id || c.customer_code}
                         className="customer-dropdown-item"
                         onClick={() => handleSelectCustomer(c)}
                       >
@@ -799,16 +890,16 @@ const POS = () => {
               </div>
             )}
 
-            <input 
-              type="text" 
-              placeholder="Phone Number" 
+            <input
+              type="text"
+              placeholder="Phone Number"
               value={customerInfo.phone}
               onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})}
               className="mb-2"
             />
-            <input 
-              type="text" 
-              placeholder="Location/Address" 
+            <input
+              type="text"
+              placeholder="Location/Address"
               value={customerInfo.location}
               onChange={e => setCustomerInfo({...customerInfo, location: e.target.value})}
             />
@@ -816,14 +907,10 @@ const POS = () => {
 
           <div className="checkout-section">
             <label>Salesman</label>
-            <select 
-              className="w-full mb-2" 
-              value={selectedSalesman} 
-              onChange={e => setSelectedSalesman(e.target.value)}
-            >
-              {user?.role === 'Admin' && <option value="Admin">Admin</option>}
-              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <div className="pos-salesman" title="Set from the account you are logged in with">
+              <strong>{currentSalesman.name}</strong>
+              <span>{currentSalesman.phone || (currentSalesman.id === 'Admin' ? 'Admin account' : currentSalesman.id)}</span>
+            </div>
           </div>
 
           {/* Payment Type is strictly Due */}
@@ -864,7 +951,7 @@ const POS = () => {
                   <Plus size={24} style={{ transform: 'rotate(45deg)' }} />
                 </button>
               </div>
-              
+
               <div className="drawer-body" style={{ padding: '0' }}>
                 <div id="printable-invoice">
                   <PrintableInvoice sale={completedSale} customers={customers} />
@@ -872,9 +959,9 @@ const POS = () => {
               </div>
 
               <div className="drawer-footer" style={{ justifyContent: 'center' }}>
-                <button 
-                  className="btn-primary flex-align-gap" 
-                  style={{ padding: '0.75rem 2.5rem', fontSize: '0.95rem', borderRadius: '99px' }} 
+                <button
+                  className="btn-primary flex-align-gap"
+                  style={{ padding: '0.75rem 2.5rem', fontSize: '0.95rem', borderRadius: '99px' }}
                   onClick={() => printElement('printable-invoice')}
                 >
                   <Printer size={20} /> Print Invoice
@@ -889,23 +976,18 @@ const POS = () => {
 
       {/* INVOICE LIST TAB */}
       {activeTab === 'History' && (
-      <div className="card glass animate-slide-up">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+      <div className="card pos-history">
+        <div className="pos-history__head">
           <h2>Invoice List</h2>
-          <div className="flex-align-gap">
-            <input 
-              type="date" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)} 
-              title="Start Date"
-            />
-            <span>to</span>
-            <input 
-              type="date" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)} 
-              title="End Date"
-            />
+          <div className="pos-history__tools">
+            <div className="pos-filter">
+              <label htmlFor="pos-from">From</label>
+              <input id="pos-from" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="pos-filter">
+              <label htmlFor="pos-to">To</label>
+              <input id="pos-to" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
             <button
               type="button"
               className={groupByParty ? 'btn-primary flex-align-gap' : 'btn-outline flex-align-gap'}
@@ -914,8 +996,8 @@ const POS = () => {
             >
               <Users size={16} /> {groupByParty ? 'Party-wise: On' : 'Party-wise'}
             </button>
-            <button 
-              className="btn-primary flex-align-gap" 
+            <button
+              className="btn-primary flex-align-gap"
               onClick={() => printElement('printable-all-sales-details')}
             >
               <Printer size={16} /> Print invoice list
@@ -997,9 +1079,9 @@ const POS = () => {
                         <div className="flex-align-gap" style={{justifyContent:'center'}}>
                           {/* Pay Due Button for any invoice with remaining due */}
                           {invDue > 0 && (
-                            <button 
-                              className="btn-icon text-success" 
-                              title="Collect Payment / Pay Due" 
+                            <button
+                              className="btn-icon text-success"
+                              title="Collect Payment / Pay Due"
                               onClick={() => handleOpenPayment(s)}
                               style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)' }}
                             >
@@ -1010,10 +1092,10 @@ const POS = () => {
                             <Eye size={16} />
                           </button>
                           {(s.status === 'Locked' || s.isLocked) ? (
-                            <button 
-                              className="btn-icon text-muted" 
-                              title="This invoice is permanently locked and cannot be edited" 
-                              disabled 
+                            <button
+                              className="btn-icon text-muted"
+                              title="This invoice is permanently locked and cannot be edited"
+                              disabled
                               style={{ opacity: 0.35, cursor: 'not-allowed' }}
                             >
                               <Lock size={16} />
@@ -1038,14 +1120,14 @@ const POS = () => {
             </tbody>
           </table>
         </div>
-        
+
         <div style={{ display: 'none' }}>
           <div id="printable-all-sales-details" style={{ background: '#fff', color: '#000' }}>
             <div style={{ padding: '1.5rem 1.5rem 2.5rem 1.5rem', maxWidth: '720px', margin: '0 auto', boxSizing: 'border-box' }}>
               <InvoiceHeader />
               <h3 style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.5rem', color: '#0f172a', textTransform: 'uppercase' }}>Detailed Invoice List</h3>
               {(startDate || endDate) && <p style={{textAlign: 'center', marginBottom: '1rem', fontSize: '0.85rem', color: '#475569'}}>Date Filter: {startDate || 'Any'} to {endDate || 'Any'}</p>}
-              
+
               <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse', border: '1px solid #94a3b8' }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #64748b' }}>
@@ -1119,8 +1201,8 @@ const POS = () => {
               <div style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
                 <div>
                   <label className="text-muted text-sm block mb-1">Customer Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="w-full"
                     value={editingInvoice.customerName}
                     onChange={(e) => setEditingInvoice({ ...editingInvoice, customerName: e.target.value })}
@@ -1128,8 +1210,8 @@ const POS = () => {
                 </div>
                 <div>
                   <label className="text-muted text-sm block mb-1">Customer Phone</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="w-full"
                     value={editingInvoice.customerPhone || ''}
                     onChange={(e) => setEditingInvoice({ ...editingInvoice, customerPhone: e.target.value })}
@@ -1171,24 +1253,24 @@ const POS = () => {
                         <td style={{ textAlign: 'right' }}>৳{item.price.toLocaleString()}</td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'var(--bg-input)', padding: '0.2rem 0.4rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}>
-                            <button 
+                            <button
                               type="button"
-                              className="btn-icon" 
+                              className="btn-icon"
                               style={{ padding: '0.2rem', width: '24px', height: '24px' }}
                               onClick={() => updateEditItemQty(idx, item.quantity - 1)}
                             >
                               <Minus size={14} />
                             </button>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               min="1"
                               value={item.quantity}
                               onChange={(e) => updateEditItemQty(idx, e.target.value)}
                               style={{ width: '55px', textAlign: 'center', padding: '0.15rem 0.25rem', border: 'none', background: 'transparent', fontWeight: 'bold', fontSize: '0.95rem' }}
                             />
-                            <button 
+                            <button
                               type="button"
-                              className="btn-icon" 
+                              className="btn-icon"
                               style={{ padding: '0.2rem', width: '24px', height: '24px' }}
                               onClick={() => updateEditItemQty(idx, item.quantity + 1)}
                             >
@@ -1200,9 +1282,9 @@ const POS = () => {
                           ৳{(item.quantity * item.price).toLocaleString()}
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <button 
+                          <button
                             type="button"
-                            className="btn-icon text-danger" 
+                            className="btn-icon text-danger"
                             title="Remove product"
                             onClick={() => removeEditItem(idx)}
                           >
@@ -1230,9 +1312,9 @@ const POS = () => {
             </div>
 
             <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button 
-                type="button" 
-                className="btn-outline text-danger flex-align-gap" 
+              <button
+                type="button"
+                className="btn-outline text-danger flex-align-gap"
                 onClick={handleLockInvoice}
                 disabled={isUpdating}
                 style={{ borderColor: 'var(--danger)', color: 'var(--danger)', fontWeight: 600 }}
@@ -1245,9 +1327,9 @@ const POS = () => {
                 <button type="button" className="btn-outline" onClick={() => setEditingInvoice(null)} disabled={isUpdating}>
                   Cancel
                 </button>
-                <button 
-                  type="button" 
-                  className="btn-primary flex-align-gap" 
+                <button
+                  type="button"
+                  className="btn-primary flex-align-gap"
                   onClick={handleSaveEditedInvoice}
                   disabled={isUpdating || editItems.length === 0}
                 >
@@ -1270,7 +1352,7 @@ const POS = () => {
                 <Plus size={24} style={{ transform: 'rotate(45deg)' }} />
               </button>
             </div>
-            
+
             <div className="drawer-body" style={{ padding: '0' }}>
               <div id="printable-single-invoice-pos">
                 <PrintableInvoice sale={selectedInvoice} customers={customers} />
@@ -1278,9 +1360,9 @@ const POS = () => {
             </div>
 
             <div className="drawer-footer" style={{ justifyContent: 'center' }}>
-              <button 
-                className="btn-primary flex-align-gap" 
-                style={{ padding: '0.75rem 2.5rem', fontSize: '0.95rem', borderRadius: '99px' }} 
+              <button
+                className="btn-primary flex-align-gap"
+                style={{ padding: '0.75rem 2.5rem', fontSize: '0.95rem', borderRadius: '99px' }}
                 onClick={() => printElement('printable-single-invoice-pos')}
               >
                 <Printer size={20} /> Print Invoice
@@ -1304,8 +1386,8 @@ const POS = () => {
                   Invoice: <strong>{paymentModal.invoice.id || paymentModal.invoice.invoice_number}</strong>
                 </span>
               </div>
-              <button 
-                className="drawer-close-btn" 
+              <button
+                className="drawer-close-btn"
                 onClick={() => setPaymentModal({ show: false, invoice: null, amount: '', method: 'Cash', date: '', notes: '' })}
               >
                 <X size={20} />
@@ -1338,8 +1420,8 @@ const POS = () => {
                     <span>Remaining Due:</span>
                     <span className="text-danger" style={{ fontSize: '1.15rem' }}>
                       ৳{Number(
-                        paymentModal.invoice.due_amount !== undefined 
-                          ? paymentModal.invoice.due_amount 
+                        paymentModal.invoice.due_amount !== undefined
+                          ? paymentModal.invoice.due_amount
                           : (paymentModal.invoice.paymentType === 'Cash' ? 0 : paymentModal.invoice.total)
                       ).toLocaleString()}
                     </span>
@@ -1350,8 +1432,8 @@ const POS = () => {
                 <div>
                   <label className="text-muted text-sm block mb-1">Payment Amount (BDT) *</label>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="any"
                       min="1"
                       className="w-full font-bold"
@@ -1361,13 +1443,13 @@ const POS = () => {
                       onChange={(e) => setPaymentModal({ ...paymentModal, amount: e.target.value })}
                       required
                     />
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="btn-outline text-sm"
                       style={{ whiteSpace: 'nowrap' }}
                       onClick={() => {
-                        const remaining = paymentModal.invoice.due_amount !== undefined 
-                          ? paymentModal.invoice.due_amount 
+                        const remaining = paymentModal.invoice.due_amount !== undefined
+                          ? paymentModal.invoice.due_amount
                           : (paymentModal.invoice.paymentType === 'Cash' ? 0 : paymentModal.invoice.total);
                         setPaymentModal({ ...paymentModal, amount: String(remaining) });
                       }}
@@ -1381,7 +1463,7 @@ const POS = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
                     <label className="text-muted text-sm block mb-1">Payment Method</label>
-                    <select 
+                    <select
                       className="w-full"
                       value={paymentModal.method}
                       onChange={(e) => setPaymentModal({ ...paymentModal, method: e.target.value })}
@@ -1396,7 +1478,7 @@ const POS = () => {
                   </div>
                   <div>
                     <label className="text-muted text-sm block mb-1">Payment Date</label>
-                    <input 
+                    <input
                       type="date"
                       className="w-full"
                       value={paymentModal.date}
@@ -1408,7 +1490,7 @@ const POS = () => {
                 {/* Notes */}
                 <div>
                   <label className="text-muted text-sm block mb-1">Notes / Transaction Ref (Optional)</label>
-                  <input 
+                  <input
                     type="text"
                     className="w-full"
                     placeholder="e.g. TrxID / Received by"
@@ -1419,16 +1501,16 @@ const POS = () => {
               </div>
 
               <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                <button 
-                  type="button" 
-                  className="btn-outline" 
+                <button
+                  type="button"
+                  className="btn-outline"
                   onClick={() => setPaymentModal({ show: false, invoice: null, amount: '', method: 'Cash', date: '', notes: '' })}
                   disabled={isProcessingPayment}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="btn-primary flex-align-gap"
                   style={{ background: '#10b981', borderColor: '#10b981' }}
                   disabled={isProcessingPayment || !paymentModal.amount || parseFloat(paymentModal.amount) <= 0}

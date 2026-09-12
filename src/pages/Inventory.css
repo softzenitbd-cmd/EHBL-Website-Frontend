@@ -522,6 +522,12 @@ body:not(.light-mode) .inv-modal-overlay {
   border-radius: 3px;
 }
 
+.inv-tag--comp {
+  color: var(--inv-accent);
+  background: var(--inv-accent-bg);
+  border-color: var(--inv-accent);
+}
+
 .inv-stock {
   display: inline-block;
   min-width: 34px;

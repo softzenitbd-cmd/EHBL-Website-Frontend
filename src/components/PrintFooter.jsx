@@ -13,10 +13,10 @@ const PrintFooter = () => {
   const shop = { ...FALLBACK, ...(shopProfile || {}) };
 
   return (
-    <div className="common-print-footer">
-      <p>{shop.footer_disclaimer_1}</p>
-      <p>{shop.footer_disclaimer_2}</p>
-      <p className="footer-phone">{shop.footer_phone}</p>
+    <div className="common-print-footer" style={{ color: '#000000', marginTop: '14px' }}>
+      <p style={{ color: '#000000', margin: '0 0 3px 0', fontSize: '0.78rem', lineHeight: 1.35, fontWeight: '600' }}>{shop.footer_disclaimer_1}</p>
+      <p style={{ color: '#000000', margin: '0 0 3px 0', fontSize: '0.78rem', lineHeight: 1.35, fontWeight: '600' }}>{shop.footer_disclaimer_2}</p>
+      <p className="footer-phone" style={{ color: '#000000', fontWeight: '800', fontSize: '0.84rem', marginTop: '4px' }}>{shop.footer_phone}</p>
     </div>
   );
 };

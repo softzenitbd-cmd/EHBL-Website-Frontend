@@ -208,6 +208,7 @@ const useStore = create(
       // ---------------------------------------------------------------
       inventory: [],
       categories: [],
+      companies: [],
       units: [],
       expenseCategories: [],
       shopProfile: null, // letterhead shown on printed invoices
@@ -234,6 +235,7 @@ const useStore = create(
           const results = await Promise.allSettled([
             apiClient.get(ENDPOINTS.PRODUCTS),
             apiClient.get(ENDPOINTS.CATEGORIES),
+            apiClient.get(ENDPOINTS.COMPANIES),
             apiClient.get(ENDPOINTS.UNITS),
             apiClient.get(ENDPOINTS.CUSTOMERS),
             apiClient.get(ENDPOINTS.SUPPLIERS),
@@ -254,7 +256,7 @@ const useStore = create(
           ]);
 
           const keys = [
-            'inventory', 'categories', 'units', 'customers', 'suppliers',
+            'inventory', 'categories', 'companies', 'units', 'customers', 'suppliers',
             'sales', 'drafts', 'purchases', 'returns', 'settlements',
             'transactions', 'srSettlements', 'expenses', 'expenseCategories', 'staff',
             'attendance', 'leaves', 'payrolls', 'smsHistory',
@@ -387,6 +389,45 @@ const useStore = create(
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the unit.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      addCompany: async (companyName) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.COMPANIES, { name: companyName });
+          set((state) => ({
+            companies: [...(state.companies || []).filter((c) => (c.name || c) !== companyName), res],
+            lastError: null,
+          }));
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to create company.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      updateCompany: async (id, name) => {
+        try {
+          await apiClient.patch(ENDPOINTS.COMPANY_DETAILS(id), { name });
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to rename the company.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      deleteCompany: async (id) => {
+        try {
+          await apiClient.delete(ENDPOINTS.COMPANY_DETAILS(id));
+          await get().fetchAllData();
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete the company.');
           set({ lastError: message });
           return { success: false, error: message };
         }

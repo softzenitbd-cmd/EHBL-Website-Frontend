@@ -18,6 +18,8 @@ export const ENDPOINTS = {
   PRODUCT_DETAILS: (id) => `/inventory/products/${id}/`,
   CATEGORIES: '/inventory/categories/',
   CATEGORY_DETAILS: (id) => `/inventory/categories/${id}/`,
+  COMPANIES: '/inventory/companies/',
+  COMPANY_DETAILS: (id) => `/inventory/companies/${id}/`,
   UNITS: '/inventory/units/',
   UNIT_DETAILS: (id) => `/inventory/units/${id}/`,
   STOCK_LOGS: '/inventory/stock-logs/',

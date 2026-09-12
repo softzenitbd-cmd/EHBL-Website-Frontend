@@ -21,29 +21,29 @@ const InvoiceHeader = () => {
   const contactLine = [numbers, shop.email ? `Email: ${shop.email}` : ''].filter(Boolean).join(' | ');
 
   return (
-    <div style={{ textAlign: 'center', paddingTop: '2.75rem', marginBottom: '1.25rem', color: '#0f172a', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif" }}>
+    <div style={{ textAlign: 'center', paddingTop: '1.5rem', marginBottom: '1.25rem', color: '#000000', fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif" }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', marginBottom: '6px' }}>
         <img 
           src={ehblLogo} 
           alt="EHBL Logo" 
-          style={{ height: '70px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
+          style={{ height: '75px', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
         />
         <div style={{ textAlign: 'left' }}>
-          <h1 style={{ margin: '0 0 2px 0', fontSize: '1.4rem', fontWeight: '900', fontFamily: 'serif', letterSpacing: '0.5px', color: '#0f172a', textTransform: 'uppercase' }}>
+          <h1 style={{ margin: '0 0 2px 0', fontSize: '1.55rem', fontWeight: '950', WebkitTextStroke: '0.4px #000000', letterSpacing: '0.5px', color: '#000000', textTransform: 'uppercase', lineHeight: 1.15 }}>
             {shop.shop_name}
           </h1>
-          <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '600', color: '#334155', maxWidth: '620px', lineHeight: 1.3 }}>
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '700', color: '#000000', maxWidth: '620px', lineHeight: 1.35 }}>
             {shop.tagline}
           </p>
         </div>
       </div>
-      <p style={{ margin: '3px 0 2px 0', fontSize: '0.75rem', color: '#475569' }}>
+      <p style={{ margin: '4px 0 2px 0', fontSize: '0.78rem', fontWeight: '600', color: '#000000' }}>
         {shop.address}
       </p>
-      <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '600', color: '#0f172a' }}>
+      <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '800', color: '#000000' }}>
         Phone: {contactLine}
       </p>
-      <div style={{ borderBottom: '2px solid #0f172a', margin: '8px 0 4px 0' }}></div>
+      <div style={{ borderBottom: '2.5px solid #000000', margin: '8px 0 4px 0' }}></div>
     </div>
   );
 };

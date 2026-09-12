@@ -123,6 +123,7 @@ const PrintableInventory = ({ items = [], filters = {} }) => {
           <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #64748b' }}>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 4px', textAlign: 'center', width: '32px' }}>SL</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'left' }}>Item Description (পণ্যের বিবরণ)</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'left', width: '80px' }}>Company</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '78px' }}>Code</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'left', width: '90px' }}>Category</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '58px' }}>Size</th>
@@ -140,6 +141,7 @@ const PrintableInventory = ({ items = [], filters = {} }) => {
               <tr key={item.id || idx} style={{ backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff' }}>
                 <td style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>{idx + 1}</td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '4px 8px' }}><strong>{item.name}</strong></td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px' }}>{item.company || item.company_name || '-'}</td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'center', color: '#475569' }}>{item.id}</td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px' }}>{item.category || item.category_name || '-'}</td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'center' }}>{item.variant || '-'}</td>
@@ -154,13 +156,13 @@ const PrintableInventory = ({ items = [], filters = {} }) => {
           })}
           {items.length === 0 && (
             <tr>
-              <td colSpan="9" style={{ border: '1px solid #cbd5e1', padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
+              <td colSpan="10" style={{ border: '1px solid #cbd5e1', padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
                 No products match the current filters.
               </td>
             </tr>
           )}
           <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid #64748b' }}>
-            <td colSpan="5" style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>
+            <td colSpan="6" style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>
               Total Products: {items.length} &nbsp;|&nbsp; Total Quantity:
             </td>
             <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center' }}>{totalStock}</td>

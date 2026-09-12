@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
-import { Plus, Search, Printer, Trash2, FolderPlus, Layers, X, RotateCcw, Calendar, Edit, Check } from 'lucide-react';
+import { Plus, Search, Printer, Trash2, FolderPlus, Building2, Layers, X, RotateCcw, Calendar, Edit, Check } from 'lucide-react';
 import useStore from '../store/useStore';
 import PrintableInventory from '../components/PrintableInventory';
 import { confirmDialog } from '../utils/swal';
@@ -26,6 +26,19 @@ const defaultCategories = [
   'Uncategorized'
 ];
 
+const defaultCompanies = [
+  'Bosch',
+  'Makita',
+  'Total',
+  'Ingco',
+  'Crown',
+  'Dongcheng',
+  'DeWalt',
+  'Stanley',
+  'Hitachi',
+  'Black & Decker'
+];
+
 const defaultUnits = [
   'Pcs', 'Box', 'Set', 'Dozen', 'Bag', 'Kg', 'Packet', 'Roll', 'Feet', 'Meter'
 ];
@@ -37,9 +50,10 @@ const money = (value) => Number(value || 0).toLocaleString('en-US', {
 
 const Inventory = () => {
   const {
-    inventory, categories, units,
+    inventory, categories, companies, units,
     addInventoryItem, updateInventoryItem, deleteInventoryItem,
     addCategory, updateCategory, deleteCategory,
+    addCompany, updateCompany, deleteCompany,
     addUnit, updateUnit, deleteUnit,
     showToast,
   } = useStore();
@@ -47,6 +61,7 @@ const Inventory = () => {
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
+  const [filterCompany, setFilterCompany] = useState('All');
   const [filterStock, setFilterStock] = useState('All');
   const [filterDate, setFilterDate] = useState('All Time');
   const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
@@ -56,26 +71,30 @@ const Inventory = () => {
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCatModal, setShowCatModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showUnitModal, setShowUnitModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [printQuantity, setPrintQuantity] = useState(21);
   const [editingProduct, setEditingProduct] = useState({
-    id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0
+    id: '', name: '', category: 'Power Tools', company: '', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0
   });
 
-  // New Category / Unit Inputs
+  // New Category / Company / Unit Inputs
   const [newCatInput, setNewCatInput] = useState('');
+  const [newCompanyInput, setNewCompanyInput] = useState('');
   const [newUnitInput, setNewUnitInput] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [isCustomCompany, setIsCustomCompany] = useState(false);
 
   // Which catalogue row is being renamed, and the name being typed into it.
   const [editingCat, setEditingCat] = useState(null);
+  const [editingCompany, setEditingCompany] = useState(null);
   const [editingUnit, setEditingUnit] = useState(null);
   const [renameInput, setRenameInput] = useState('');
 
   const [newProduct, setNewProduct] = useState({
-    id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0
+    id: '', name: '', category: 'Power Tools', company: '', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0
   });
 
   const location = useLocation();
@@ -93,19 +112,32 @@ const Inventory = () => {
   // Rows that came from the server: these are the ones that can be renamed or
   // deleted. Anything else on the list is one of the built-in suggestions.
   const savedCategories = (categories || []).filter(c => c && typeof c === 'object' && c.id);
+  const savedCompanies = (companies || []).filter(c => c && typeof c === 'object' && c.id);
   const savedUnits = (units || []).filter(u => u && typeof u === 'object' && u.id);
 
   const savedCatNames = savedCategories.map(c => c.name);
+  const savedCompanyNames = savedCompanies.map(c => c.name);
   const savedUnitNames = savedUnits.map(u => u.name);
 
   const builtInCategories = defaultCategories.filter(c => !savedCatNames.includes(c));
+  const builtInCompanies = defaultCompanies.filter(c => !savedCompanyNames.includes(c));
   const builtInUnits = defaultUnits.filter(u => !savedUnitNames.includes(u));
+
+  const productCompanies = (inventory || [])
+    .map(i => i.company || i.company_name)
+    .filter(Boolean);
 
   // Merged lists drive the dropdowns and the category filter.
   const allCategories = Array.from(new Set([
     ...defaultCategories,
     ...(categories || []).map(c => typeof c === 'string' ? c : c.name).filter(Boolean)
   ]));
+
+  const allCompanies = Array.from(new Set([
+    ...defaultCompanies,
+    ...(companies || []).map(c => typeof c === 'string' ? c : c.name).filter(Boolean),
+    ...productCompanies
+  ])).sort((a, b) => a.localeCompare(b));
 
   const allUnits = Array.from(new Set([
     ...defaultUnits,
@@ -114,6 +146,9 @@ const Inventory = () => {
 
   const countProductsIn = (categoryName) =>
     inventory.filter(i => (i.category || i.category_name || '').toLowerCase() === categoryName.toLowerCase()).length;
+
+  const countProductsInCompany = (companyName) =>
+    inventory.filter(i => (i.company || i.company_name || '').toLowerCase() === companyName.toLowerCase()).length;
 
   const countProductsWithUnit = (unitName) =>
     inventory.filter(i => (i.unit || '').toLowerCase() === unitName.toLowerCase()).length;
@@ -145,8 +180,9 @@ const Inventory = () => {
     showToast('Product added successfully!', 'success');
     setShowAddModal(false);
     navigate('/inventory');
-    setNewProduct({ id: '', name: '', category: 'Power Tools', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0 });
+    setNewProduct({ id: '', name: '', category: 'Power Tools', company: '', unit: 'Pcs', variant: '', stock: 0, price: 0, purchasePrice: 0 });
     setIsCustomCategory(false);
+    setIsCustomCompany(false);
   };
 
   const handleCreateCategory = async (e) => {
@@ -158,6 +194,17 @@ const Inventory = () => {
       return;
     }
     setNewCatInput('');
+  };
+
+  const handleCreateCompany = async (e) => {
+    e.preventDefault();
+    if (!newCompanyInput.trim()) return;
+    const result = await addCompany(newCompanyInput.trim());
+    if (result?.success === false) {
+      showToast(result.error, 'error');
+      return;
+    }
+    setNewCompanyInput('');
   };
 
   const handleCreateUnit = async (e) => {
@@ -172,7 +219,9 @@ const Inventory = () => {
   };
 
   const adoptBuiltIn = async (kind, name) => {
-    const result = kind === 'category' ? await addCategory(name) : await addUnit(name);
+    const result = kind === 'category'
+      ? await addCategory(name)
+      : (kind === 'company' ? await addCompany(name) : await addUnit(name));
     showToast(
       result?.success === false
         ? result.error
@@ -185,15 +234,22 @@ const Inventory = () => {
     setRenameInput(row.name);
     if (kind === 'category') {
       setEditingCat(row.id);
+      setEditingCompany(null);
+      setEditingUnit(null);
+    } else if (kind === 'company') {
+      setEditingCompany(row.id);
+      setEditingCat(null);
       setEditingUnit(null);
     } else {
       setEditingUnit(row.id);
       setEditingCat(null);
+      setEditingCompany(null);
     }
   };
 
   const cancelRename = () => {
     setEditingCat(null);
+    setEditingCompany(null);
     setEditingUnit(null);
     setRenameInput('');
   };
@@ -206,7 +262,7 @@ const Inventory = () => {
     }
     const result = kind === 'category'
       ? await updateCategory(row.id, name)
-      : await updateUnit(row.id, name);
+      : (kind === 'company' ? await updateCompany(row.id, name) : await updateUnit(row.id, name));
 
     if (!result.success) {
       showToast(result.error, 'error');
@@ -220,8 +276,10 @@ const Inventory = () => {
   };
 
   const handleDeleteCatalogueRow = async (kind, row) => {
-    const inUse = kind === 'category' ? countProductsIn(row.name) : countProductsWithUnit(row.name);
-    const label = kind === 'category' ? 'Category' : 'Unit';
+    const inUse = kind === 'category'
+      ? countProductsIn(row.name)
+      : (kind === 'company' ? countProductsInCompany(row.name) : countProductsWithUnit(row.name));
+    const label = kind === 'category' ? 'Category' : (kind === 'company' ? 'Company' : 'Unit');
 
     if (inUse > 0) {
       showToast(
@@ -240,7 +298,9 @@ const Inventory = () => {
     });
     if (!isConfirmed) return;
 
-    const result = kind === 'category' ? await deleteCategory(row.id) : await deleteUnit(row.id);
+    const result = kind === 'category'
+      ? await deleteCategory(row.id)
+      : (kind === 'company' ? await deleteCompany(row.id) : await deleteUnit(row.id));
     showToast(
       result.success ? `${label} "${row.name}" deleted.` : result.error,
       result.success ? 'success' : 'error'
@@ -255,6 +315,7 @@ const Inventory = () => {
   const handleResetFilters = () => {
     setSearchTerm('');
     setFilterCategory('All');
+    setFilterCompany('All');
     setFilterStock('All');
     setFilterDate('All Time');
     setCustomDateRange({ start: '', end: '' });
@@ -263,19 +324,28 @@ const Inventory = () => {
 
   // Robust Multi-dimensional Filtering
   const filteredInventory = inventory.filter(item => {
-    // 1. Text Search Filter (name, barcode, size, category)
+    // 1. Text Search Filter (name, barcode, size, category, company)
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
       const nameMatch = (item.name || '').toLowerCase().includes(q);
       const codeMatch = String(item.id || item.product_code || '').toLowerCase().includes(q);
       const variantMatch = (item.variant || '').toLowerCase().includes(q);
       const categoryMatch = (item.category || item.category_name || '').toLowerCase().includes(q);
-      if (!nameMatch && !codeMatch && !variantMatch && !categoryMatch) {
+      const companyMatch = (item.company || item.company_name || '').toLowerCase().includes(q);
+      if (!nameMatch && !codeMatch && !variantMatch && !categoryMatch && !companyMatch) {
         return false;
       }
     }
 
-    // 2. Category Filter
+    // 2. Company Filter
+    if (filterCompany !== 'All') {
+      const itemComp = (item.company || item.company_name || '').toLowerCase();
+      if (itemComp !== filterCompany.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 3. Category Filter
     if (filterCategory !== 'All') {
       const itemCat = (item.category || item.category_name || '').toLowerCase();
       if (itemCat !== filterCategory.toLowerCase()) {
@@ -283,13 +353,13 @@ const Inventory = () => {
       }
     }
 
-    // 3. Stock Status Filter
+    // 4. Stock Status Filter
     const stockNum = Number(item.stock || 0);
     if (filterStock === 'InStock' && stockNum <= 10) return false;
     if (filterStock === 'LowStock' && (stockNum <= 0 || stockNum > 10)) return false;
     if (filterStock === 'OutOfStock' && stockNum > 0) return false;
 
-    // 4. Date Filter
+    // 5. Date Filter
     if (filterDate !== 'All Time') {
       const rawDate = item.dateAdded || item.date_added || item.createdAt || item.created_at;
       if (!rawDate) return false;
@@ -340,7 +410,7 @@ const Inventory = () => {
   const totalItems = sortedInventory.reduce((sum, item) => sum + Number(item.stock || 0), 0);
   const totalValue = sortedInventory.reduce((sum, item) => sum + (Number(item.stock || 0) * Number(item.price || 0)), 0);
 
-  const hasActiveFilters = searchTerm || filterCategory !== 'All' || filterStock !== 'All' || filterDate !== 'All Time' || sortBy !== 'newest';
+  const hasActiveFilters = searchTerm || filterCategory !== 'All' || filterCompany !== 'All' || filterStock !== 'All' || filterDate !== 'All Time' || sortBy !== 'newest';
 
   const formatProductDate = (dateVal) => {
     if (!dateVal) return '-';
@@ -447,6 +517,16 @@ const Inventory = () => {
           </div>
 
           <div className="inv-field">
+            <label htmlFor="inv-comp">Company</label>
+            <select id="inv-comp" value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)}>
+              <option value="All">All companies ({inventory.length})</option>
+              {allCompanies.map((comp, idx) => (
+                <option key={idx} value={comp}>{comp} ({countProductsInCompany(comp)})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="inv-field">
             <label htmlFor="inv-cat">Category</label>
             <select id="inv-cat" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="All">All categories ({inventory.length})</option>
@@ -527,6 +607,9 @@ const Inventory = () => {
           </div>
 
           <div className="inv-filterbar__right">
+            <button type="button" className="inv-btn" onClick={() => setShowCompanyModal(true)}>
+              <Building2 size={15} /> Companies ({allCompanies.length})
+            </button>
             <button type="button" className="inv-btn" onClick={() => setShowCatModal(true)}>
               <FolderPlus size={15} /> Categories ({allCategories.length})
             </button>
@@ -564,6 +647,7 @@ const Inventory = () => {
                 <th scope="col" className="is-center inv-sl">SL</th>
                 <th scope="col">ID / Barcode</th>
                 <th scope="col">Product Name</th>
+                <th scope="col">Company</th>
                 <th scope="col">Category</th>
                 <th scope="col">Size</th>
                 <th scope="col">Unit</th>
@@ -580,6 +664,13 @@ const Inventory = () => {
                   <td className="is-center inv-sl">{index + 1}</td>
                   <td className="is-code">{item.id}</td>
                   <td className="is-strong">{item.name}</td>
+                  <td>
+                    {item.company || item.company_name ? (
+                      <span className="inv-tag inv-tag--comp">{item.company || item.company_name}</span>
+                    ) : (
+                      <span className="text-muted" style={{ fontSize: '0.8rem' }}>-</span>
+                    )}
+                  </td>
                   <td>
                     <span className="inv-tag">{item.category || item.category_name || 'Hardware'}</span>
                   </td>
@@ -631,7 +722,7 @@ const Inventory = () => {
               ))}
               {sortedInventory.length === 0 && (
                 <tr>
-                  <td colSpan="11" className="inv-empty">
+                  <td colSpan="12" className="inv-empty">
                     No products match the current search or filters.
                   </td>
                 </tr>
@@ -640,7 +731,7 @@ const Inventory = () => {
             {sortedInventory.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6}>Total of {sortedInventory.length} product{sortedInventory.length === 1 ? '' : 's'}</td>
+                  <td colSpan={7}>Total of {sortedInventory.length} product{sortedInventory.length === 1 ? '' : 's'}</td>
                   <td className="is-num">{totalItems}</td>
                   <td colSpan={2} className="is-num">&#2547;{money(totalValue)}</td>
                   <td colSpan={2} />
@@ -658,6 +749,7 @@ const Inventory = () => {
             items={sortedInventory}
             filters={{
               Search: searchTerm,
+              Company: filterCompany,
               Category: filterCategory,
               Stock: filterStock,
               Added: filterDate,
@@ -755,6 +847,45 @@ const Inventory = () => {
                       required
                       placeholder="e.g. Bosch Impact Drill 13mm"
                     />
+                  </div>
+
+                  <div className="inv-field inv-col-6">
+                    <div className="inv-labelrow">
+                      <label htmlFor="add-comp">Company / Brand</label>
+                      <button type="button" className="inv-btn inv-btn--link" onClick={() => setIsCustomCompany(!isCustomCompany)}>
+                        {isCustomCompany ? 'Choose from list' : 'Type a new one'}
+                      </button>
+                    </div>
+
+                    {!isCustomCompany ? (
+                      <select
+                        id="add-comp"
+                        value={newProduct.company || ''}
+                        onChange={e => {
+                          if (e.target.value === '__NEW__') {
+                            setIsCustomCompany(true);
+                            setNewProduct({ ...newProduct, company: '' });
+                          } else {
+                            setNewProduct({ ...newProduct, company: e.target.value });
+                          }
+                        }}
+                      >
+                        <option value="">Select Company / Brand (Optional)</option>
+                        {allCompanies.map((compName, idx) => (
+                          <option key={idx} value={compName}>{compName}</option>
+                        ))}
+                        <option value="__NEW__">+ Add custom company...</option>
+                      </select>
+                    ) : (
+                      <input
+                        id="add-comp"
+                        type="text"
+                        placeholder="e.g. Bosch, Makita"
+                        value={newProduct.company || ''}
+                        onChange={e => setNewProduct({ ...newProduct, company: e.target.value })}
+                        autoFocus
+                      />
+                    )}
                   </div>
 
                   <div className="inv-field inv-col-6">
@@ -901,6 +1032,18 @@ const Inventory = () => {
                   </div>
 
                   <div className="inv-field inv-col-6">
+                    <label htmlFor="edit-comp">Company / Brand</label>
+                    <select
+                      id="edit-comp"
+                      value={editingProduct.company || editingProduct.company_name || ''}
+                      onChange={e => setEditingProduct({ ...editingProduct, company: e.target.value })}
+                    >
+                      <option value="">No Company / Unassigned</option>
+                      {allCompanies.map((c, idx) => <option key={idx} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="inv-field inv-col-6">
                     <label htmlFor="edit-cat">Category</label>
                     <select
                       id="edit-cat"
@@ -973,6 +1116,80 @@ const Inventory = () => {
               <button type="submit" form="edit-product-form" className="inv-btn inv-btn--primary">
                 <Edit size={16} /> Update Product
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Manage Companies */}
+      {showCompanyModal && createPortal(
+        <div className="inv-modal-overlay" onClick={() => { setShowCompanyModal(false); cancelRename(); }}>
+          <div className="inv-modal inv-modal--narrow" onClick={e => e.stopPropagation()} role="dialog" aria-label="Manage companies">
+            <div className="inv-modal__head">
+              <h2>Manage Companies</h2>
+              <button type="button" className="inv-iconbtn" onClick={() => { setShowCompanyModal(false); cancelRename(); }} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="inv-modal__body">
+              <form onSubmit={handleCreateCompany} className="inv-addrow">
+                <input
+                  type="text"
+                  placeholder="New company name, e.g. Bosch, Makita"
+                  value={newCompanyInput}
+                  onChange={e => setNewCompanyInput(e.target.value)}
+                  required
+                />
+                <button type="submit" className="inv-btn inv-btn--primary"><Plus size={16} /> Add</button>
+              </form>
+
+              <h3 className="inv-subhead">Your companies ({savedCompanies.length})</h3>
+              {savedCompanies.length === 0 ? (
+                <p className="inv-hint">Nothing added yet. Companies you create appear here and can be renamed or deleted.</p>
+              ) : (
+                <ul className="inv-cat-list">
+                  {savedCompanies.map(row => (
+                    <CatalogueRow
+                      key={row.id}
+                      kind="company"
+                      row={row}
+                      count={countProductsInCompany(row.name)}
+                      editingId={editingCompany}
+                    />
+                  ))}
+                </ul>
+              )}
+
+              {builtInCompanies.length > 0 && (
+                <>
+                  <h3 className="inv-subhead">Built-in suggestions ({builtInCompanies.length})</h3>
+                  <p className="inv-hint">
+                    These ship with the app rather than living in the database. Add one to your list to
+                    make it a real record you can rename or delete.
+                  </p>
+                  <ul className="inv-cat-list inv-cat-list--muted">
+                    {builtInCompanies.map((name, idx) => (
+                      <li className="inv-cat-row" key={idx}>
+                        <span className="inv-cat-name">{name}</span>
+                        <span className="inv-cat-count">{countProductsInCompany(name)} products</span>
+                        <button
+                          type="button"
+                          className="inv-btn inv-btn--link"
+                          onClick={() => adoptBuiltIn('company', name)}
+                        >
+                          Add to my list
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+
+            <div className="inv-modal__foot">
+              <button type="button" className="inv-btn inv-btn--primary" onClick={() => { setShowCompanyModal(false); cancelRename(); }}>Done</button>
             </div>
           </div>
         </div>,
