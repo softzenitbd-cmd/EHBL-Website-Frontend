@@ -247,9 +247,9 @@ const PrintableInvoice = ({ sale, customers }) => {
       </table>
 
       {/* Account Balance & Financial Summary Grid (Clean borderless layout) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '1.5rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
         {/* Left: Customer Account Due Balance */}
-        <div>
+        <div style={{ maxWidth: '300px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000000' }}>
             <tbody>
               <tr>
@@ -269,7 +269,7 @@ const PrintableInvoice = ({ sale, customers }) => {
         </div>
 
         {/* Right: Invoice Calculation */}
-        <div>
+        <div style={{ marginLeft: 'auto', width: '100%', maxWidth: '300px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000000' }}>
             <tbody>
               <tr>
@@ -282,7 +282,7 @@ const PrintableInvoice = ({ sale, customers }) => {
                   <td style={{ padding: '4px 0', textAlign: 'right', color: '#16a34a', fontWeight: '700' }}>-৳{Number(sale.invoiceDiscount).toLocaleString()}</td>
                 </tr>
               )}
-              <tr style={{ borderTop: '1px solid #000000' }}>
+              <tr>
                 <td style={{ padding: '5px 0', fontWeight: '800', color: '#000000' }}>Total Invoice Bill:</td>
                 <td style={{ padding: '5px 0', textAlign: 'right', fontWeight: '900', fontSize: '0.95rem', color: '#000000' }}>৳{total.toLocaleString()}</td>
               </tr>
@@ -300,9 +300,9 @@ const PrintableInvoice = ({ sale, customers }) => {
       </div>
 
       {/* Amount in words line */}
-      <div style={{ padding: '4px 0', borderTop: '1px solid #000000', borderBottom: '1px solid #000000', fontSize: '0.84rem', marginBottom: '1.5rem', color: '#000000' }}>
-        <strong style={{ color: '#000000', fontWeight: '800' }}>In Words (কথায়): </strong>
-        <span style={{ fontWeight: '800', color: '#000000' }}>{numberToWords(total)}</span>
+      <div style={{ padding: '6px 0', borderTop: '1.5px solid #000000', borderBottom: '1.5px solid #000000', fontSize: '1rem', marginBottom: '1.5rem', color: '#000000', lineHeight: 1.35 }}>
+        <strong style={{ color: '#000000', fontWeight: '900' }}>In Words (কথায়): </strong>
+        <span style={{ fontWeight: '800', color: '#000000', letterSpacing: '0.2px' }}>{numberToWords(total)}</span>
       </div>
 
       {/* Signatures Section */}
