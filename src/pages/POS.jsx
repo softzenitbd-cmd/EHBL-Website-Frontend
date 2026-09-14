@@ -57,11 +57,20 @@ const POS = () => {
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const searchContainerRef = useRef(null);
 
-  // Close search dropdown on click outside
+  // Edit Invoice Product Search
+  const [editProductSearch, setEditProductSearch] = useState('');
+  const [showEditProductDropdown, setShowEditProductDropdown] = useState(false);
+  const [activeEditSearchIndex, setActiveEditSearchIndex] = useState(0);
+  const editSearchContainerRef = useRef(null);
+
+  // Close search dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setShowSearchDropdown(false);
+      }
+      if (editSearchContainerRef.current && !editSearchContainerRef.current.contains(e.target)) {
+        setShowEditProductDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -80,6 +89,19 @@ const POS = () => {
       return name.includes(term) || code.includes(term) || category.includes(term) || variant.includes(term);
     }).slice(0, 10);
   }, [inventory, barcodeInput]);
+
+  // Filter products for Edit Invoice Drawer
+  const editSearchResults = useMemo(() => {
+    const term = editProductSearch.trim().toLowerCase();
+    if (!term) return [];
+    return inventory.filter(p => {
+      const name = String(p.name || '').toLowerCase();
+      const code = String(p.product_code || p.id || '').toLowerCase();
+      const category = String(p.category || p.category_name || '').toLowerCase();
+      const variant = String(p.variant || '').toLowerCase();
+      return name.includes(term) || code.includes(term) || category.includes(term) || variant.includes(term);
+    }).slice(0, 10);
+  }, [inventory, editProductSearch]);
 
   const handleSelectProduct = (product) => {
     addToCart({ ...product, isGift: false, itemDiscount: 0 });
@@ -342,6 +364,14 @@ const POS = () => {
   // -------------------------------------------------------------
   const [editDiscount, setEditDiscount] = useState(0);
 
+  const handleCloseEdit = () => {
+    setEditingInvoice(null);
+    setEditItems([]);
+    setEditDiscount(0);
+    setEditProductSearch('');
+    setShowEditProductDropdown(false);
+  };
+
   const handleStartEdit = (invoice) => {
     if (invoice.status === 'Locked' || invoice.isLocked) {
       showToast('This invoice is permanently locked and cannot be edited.', 'error');
@@ -355,7 +385,7 @@ const POS = () => {
     });
     setEditDiscount(Number(invoice.invoiceDiscount || invoice.discount || 0));
     setEditItems((invoice.items || []).map(item => ({
-      item_id: item.id,
+      item_id: item.id || item.item_id,
       product_code: item.product_code || item.id,
       name: item.name,
       unit: item.unit || 'pcs',
@@ -363,6 +393,56 @@ const POS = () => {
       quantity: Number(item.quantity || 1),
       total_price: Number(item.price || 0) * Number(item.quantity || 1)
     })));
+    setEditProductSearch('');
+    setShowEditProductDropdown(false);
+  };
+
+  const handleAddProductToEditInvoice = (product) => {
+    if (!product) return;
+    const existingIdx = editItems.findIndex(it => 
+      String(it.product_code || it.item_id || it.id) === String(product.product_code || product.id)
+    );
+
+    if (existingIdx !== -1) {
+      updateEditItemQty(existingIdx, editItems[existingIdx].quantity + 1);
+      showToast(`Increased quantity of "${product.name}" in invoice`, 'success');
+    } else {
+      const newItem = {
+        item_id: product.id,
+        product_code: product.product_code || product.id,
+        name: product.name,
+        unit: product.unit || 'pcs',
+        price: Number(product.price || 0),
+        quantity: 1,
+        total_price: Number(product.price || 0)
+      };
+      setEditItems(prev => [...prev, newItem]);
+      showToast(`Added "${product.name}" to invoice`, 'success');
+    }
+    setEditProductSearch('');
+    setShowEditProductDropdown(false);
+  };
+
+  const handleEditSearchKeyDown = (e) => {
+    if (!showEditProductDropdown || editSearchResults.length === 0) {
+      if (e.key === 'Enter') e.preventDefault();
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveEditSearchIndex(prev => (prev < editSearchResults.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveEditSearchIndex(prev => (prev > 0 ? prev - 1 : editSearchResults.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (editSearchResults[activeEditSearchIndex]) {
+        handleAddProductToEditInvoice(editSearchResults[activeEditSearchIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setShowEditProductDropdown(false);
+    }
   };
 
   const updateEditItemQty = (idx, newQty) => {
@@ -373,6 +453,20 @@ const POS = () => {
           ...item,
           quantity: qty,
           total_price: qty * item.price
+        };
+      }
+      return item;
+    }));
+  };
+
+  const updateEditItemPrice = (idx, newPrice) => {
+    const price = Math.max(0, parseFloat(newPrice) || 0);
+    setEditItems(prev => prev.map((item, i) => {
+      if (i === idx) {
+        return {
+          ...item,
+          price,
+          total_price: item.quantity * price
         };
       }
       return item;
@@ -401,12 +495,12 @@ const POS = () => {
     setIsUpdating(true);
     const updates = {
       items: editItems.map(it => ({
-        item_id: it.item_id,
-        product_code: it.product_code,
+        item_id: it.item_id || it.id,
+        product_code: it.product_code || it.item_id || it.id,
         name: it.name,
-        unit: it.unit,
-        price: it.price,
-        quantity: it.quantity,
+        unit: it.unit || 'pcs',
+        price: Number(it.price) || 0,
+        quantity: Math.max(1, Number(it.quantity) || 1),
       })),
       customerName: editingInvoice.customerName,
       customer_phone: editingInvoice.customerPhone,
@@ -425,9 +519,7 @@ const POS = () => {
     }
 
     showToast(`Invoice ${targetId} updated successfully!`, 'success');
-    setEditingInvoice(null);
-    setEditItems([]);
-    setEditDiscount(0);
+    handleCloseEdit();
   };
 
   const handleLockInvoice = async () => {
@@ -457,12 +549,12 @@ const POS = () => {
     setIsUpdating(true);
     const updates = {
       items: editItems.map(it => ({
-        item_id: it.item_id,
-        product_code: it.product_code,
+        item_id: it.item_id || it.id,
+        product_code: it.product_code || it.item_id || it.id,
         name: it.name,
-        unit: it.unit,
-        price: it.price,
-        quantity: it.quantity,
+        unit: it.unit || 'pcs',
+        price: Number(it.price) || 0,
+        quantity: Math.max(1, Number(it.quantity) || 1),
       })),
       customerName: editingInvoice.customerName,
       customer_phone: editingInvoice.customerPhone,
@@ -481,8 +573,7 @@ const POS = () => {
     }
 
     showToast(`Invoice ${targetId} has been permanently locked!`, 'success');
-    setEditingInvoice(null);
-    setEditItems([]);
+    handleCloseEdit();
   };
 
   const handleOpenPayment = (invoice) => {
@@ -1213,8 +1304,8 @@ const POS = () => {
 
       {/* EDIT INVOICE DRAWER */}
       {editingInvoice && createPortal(
-        <div className="drawer-overlay" onClick={() => setEditingInvoice(null)}>
-          <div className="drawer-container" style={{ maxWidth: '750px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="drawer-overlay" onClick={handleCloseEdit}>
+          <div className="drawer-container pos-page" style={{ maxWidth: '750px' }} onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
               <div>
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1224,7 +1315,7 @@ const POS = () => {
                   Customer: <strong>{editingInvoice.customerName || 'N/A'}</strong> &middot; Date: {editingInvoice.date?.split('T')[0]}
                 </span>
               </div>
-              <button className="drawer-close-btn" onClick={() => setEditingInvoice(null)}>
+              <button className="drawer-close-btn" onClick={handleCloseEdit}>
                 <X size={20} />
               </button>
             </div>
@@ -1257,9 +1348,101 @@ const POS = () => {
                 </div>
               </div>
 
+              {/* Add New Product to Invoice */}
+              <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', background: 'var(--bg-muted, rgba(127,127,127,0.06))', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <label className="text-sm block mb-1" style={{ fontWeight: '700', color: 'var(--primary)' }}>
+                  + Add Product to this Invoice
+                </label>
+                <div ref={editSearchContainerRef} className="pos-search-wrapper" style={{ position: 'relative' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Search size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      className="w-full"
+                      placeholder="Search product by name, code, category to add..."
+                      value={editProductSearch}
+                      onChange={(e) => {
+                        setEditProductSearch(e.target.value);
+                        setShowEditProductDropdown(true);
+                        setActiveEditSearchIndex(0);
+                      }}
+                      onFocus={() => {
+                        if (editProductSearch.trim()) setShowEditProductDropdown(true);
+                      }}
+                      onKeyDown={handleEditSearchKeyDown}
+                      style={{ paddingLeft: '2.5rem', paddingRight: editProductSearch ? '2.5rem' : '1rem', background: 'var(--bg-card)' }}
+                      autoComplete="off"
+                    />
+                    {editProductSearch && (
+                      <button
+                        type="button"
+                        className="btn-icon text-muted"
+                        style={{ position: 'absolute', right: '8px', padding: '0.2rem' }}
+                        onClick={() => {
+                          setEditProductSearch('');
+                          setShowEditProductDropdown(false);
+                        }}
+                        title="Clear search"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown search results */}
+                  {showEditProductDropdown && editProductSearch.trim() && (
+                    <div
+                      className="search-dropdown-menu"
+                      style={{
+                        maxHeight: '260px',
+                        zIndex: 1200,
+                        backgroundColor: 'var(--pos-bg, #ffffff)',
+                        background: 'var(--pos-bg, #ffffff)',
+                        border: '1px solid var(--pos-border, #cbd5e1)',
+                        boxShadow: '0 14px 30px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15)'
+                      }}
+                    >
+                      {editSearchResults.length === 0 ? (
+                        <div className="search-no-results" style={{ padding: '0.75rem 1rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--pos-bg, #ffffff)' }}>
+                          No products found matching &ldquo;<strong>{editProductSearch}</strong>&rdquo;
+                        </div>
+                      ) : (
+                        editSearchResults.map((product, idx) => (
+                          <div
+                            key={product.id || idx}
+                            className={`search-dropdown-item ${activeEditSearchIndex === idx ? 'selected' : ''}`}
+                            onMouseEnter={() => setActiveEditSearchIndex(idx)}
+                            onClick={() => handleAddProductToEditInvoice(product)}
+                            style={{
+                              cursor: 'pointer',
+                              backgroundColor: activeEditSearchIndex === idx ? 'var(--pos-accent-bg, #fff7ed)' : 'var(--pos-bg, #ffffff)'
+                            }}
+                          >
+                            <div className="search-item-left">
+                              <div className="search-item-name">{product.name}</div>
+                              <div className="search-item-meta">
+                                <span className="search-badge code-badge">Code: {product.product_code || product.id}</span>
+                                {product.category && <span className="search-badge">{product.category}</span>}
+                                {product.variant && <span className="search-badge">{product.variant}</span>}
+                              </div>
+                            </div>
+                            <div className="search-item-right" style={{ textAlign: 'right' }}>
+                              <div className="search-item-price">৳{Number(product.price || 0).toLocaleString()}</div>
+                              <div className={`search-item-stock ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}`}>
+                                {product.stock > 0 ? `${product.stock} ${product.unit || 'pcs'} in stock` : 'Out of stock'}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Products in Invoice (Edit Quantity)</h4>
-                <span className="text-muted text-xs">Stock & Customer Due will adjust automatically</span>
+                <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Products in Invoice ({editItems.length})</h4>
+                <span className="text-muted text-xs">Stock &amp; Customer Due will adjust automatically</span>
               </div>
 
               <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
@@ -1268,8 +1451,8 @@ const POS = () => {
                     <tr>
                       <th style={{ width: '40px' }}>#</th>
                       <th>Product</th>
-                      <th style={{ textAlign: 'right', width: '100px' }}>Unit Price</th>
-                      <th style={{ textAlign: 'center', width: '160px' }}>Quantity</th>
+                      <th style={{ textAlign: 'right', width: '130px' }}>Unit Price (৳)</th>
+                      <th style={{ textAlign: 'center', width: '150px' }}>Quantity</th>
                       <th style={{ textAlign: 'right', width: '110px' }}>Total</th>
                       <th style={{ textAlign: 'center', width: '60px' }}>Action</th>
                     </tr>
@@ -1282,7 +1465,29 @@ const POS = () => {
                           <strong>{item.name}</strong>
                           <div className="text-muted text-xs">Code: {item.product_code}</div>
                         </td>
-                        <td style={{ textAlign: 'right' }}>৳{item.price.toLocaleString()}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', justifyContent: 'flex-end' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>৳</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={item.price}
+                              onChange={(e) => updateEditItemPrice(idx, e.target.value)}
+                              style={{
+                                width: '85px',
+                                textAlign: 'right',
+                                padding: '0.2rem 0.4rem',
+                                borderRadius: 'var(--radius-md, 4px)',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-input)',
+                                fontWeight: 'bold',
+                                fontSize: '0.9rem'
+                              }}
+                              title="Edit unit price"
+                            />
+                          </div>
+                        </td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'var(--bg-input)', padding: '0.2rem 0.4rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}>
                             <button
@@ -1325,6 +1530,13 @@ const POS = () => {
                         </td>
                       </tr>
                     ))}
+                    {editItems.length === 0 && (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                          No products in this invoice. Search and add products above.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1378,7 +1590,7 @@ const POS = () => {
               </button>
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="button" className="btn-outline" onClick={() => setEditingInvoice(null)} disabled={isUpdating}>
+                <button type="button" className="btn-outline" onClick={handleCloseEdit} disabled={isUpdating}>
                   Cancel
                 </button>
                 <button

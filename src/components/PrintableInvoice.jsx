@@ -315,7 +315,7 @@ const PrintableInvoice = ({ sale, customers }) => {
 
       {/* Amount in words */}
       <div style={{ border: 'none', borderTop: 'none', borderBottom: 'none', padding: isCompact ? '2px 0' : '4px 0', fontSize: isCompact ? '0.78rem' : '0.95rem', marginBottom: isCompact ? '0.4rem' : isLarge ? '0.8rem' : '1.25rem', color: '#000000', lineHeight: 1.3 }}>
-        <strong style={{ color: '#000000', fontWeight: '900' }}>In Words (কথায়): </strong>
+        <strong style={{ color: '#000000', fontWeight: '900' }}>In Words: </strong>
         <span style={{ fontWeight: '800', color: '#000000', letterSpacing: '0.2px' }}>{numberToWords(total)}</span>
       </div>
 

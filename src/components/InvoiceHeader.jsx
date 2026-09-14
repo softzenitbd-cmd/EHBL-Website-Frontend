@@ -4,7 +4,7 @@ import ehblLogo from '../assets/ehbl.jpeg';
 
 const FALLBACK = {
   shop_name: 'EHBL AND POWER TOOLS SUPPLIERS',
-  tagline: 'Hardware: Hand Tools, Machine Tools, Sanitary, Building, Furniture items, Indian lock, China lock, Chemical Materials Manufacturer, Importer & Suppliers.',
+  tagline: 'Hardware: Hand Tools, Power Tools, Sanitary, Furniture items, Buildings & Indian Padlock, China PadLock Suppliers',
   address: 'Corporate Office: House # 37, (1st Floor) Road # 1/A, Block # 3, Gulshan-02, Baridhara R/A, Dhaka-1212.',
   site_office: 'Site Office: Jhenaidah',
   phone: '01744129480',
@@ -14,7 +14,11 @@ const FALLBACK = {
 
 const InvoiceHeader = ({ compact = false }) => {
   const shopProfile = useStore((state) => state.shopProfile);
-  const shop = { ...FALLBACK, ...(shopProfile || {}) };
+  const cleanProfile = { ...(shopProfile || {}) };
+  if (!cleanProfile.tagline || /Machine Tools|Chemical Materials/i.test(cleanProfile.tagline)) {
+    delete cleanProfile.tagline;
+  }
+  const shop = { ...FALLBACK, ...cleanProfile };
 
   const numbers = [shop.phone, shop.whatsapp ? `${shop.whatsapp} (WhatsApp)` : '']
     .filter(Boolean)
@@ -27,6 +31,17 @@ const InvoiceHeader = ({ compact = false }) => {
       .replace(/:([^\s])/g, ': $1')
       .replace(/\s+/g, ' ')
       .trim();
+
+    if (raw.includes('\n')) {
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+      return (
+        <>
+          {lines.map((line, idx) => (
+            <span key={idx} style={{ display: 'block', whiteSpace: 'nowrap' }}>{line}</span>
+          ))}
+        </>
+      );
+    }
 
     const match = raw.match(/^(.*?Furniture items,?\s*)(.*)$/i);
     if (match) {

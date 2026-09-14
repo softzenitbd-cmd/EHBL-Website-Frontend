@@ -227,7 +227,7 @@ const PrintablePurchase = ({ purchase, supplier }) => {
 
       {/* Amount in words */}
       <div style={{ padding: '4px 0', fontSize: '0.82rem', marginBottom: purchase.notes ? '0.6rem' : '1.5rem' }}>
-        <strong style={{ color: '#475569' }}>In Words (কথায়): </strong>
+        <strong style={{ color: '#475569' }}>In Words : </strong>
         <span style={{ fontWeight: '700', color: '#0f172a' }}>৳{money(total)} Taka Only</span>
       </div>
 

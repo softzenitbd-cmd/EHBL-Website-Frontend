@@ -251,25 +251,11 @@ const Reports = () => {
     const netQty = soldQty - returnedQty;
     const netRevenue = salesValue - returnedValue;
 
-    let purchasedQty = 0;
-    let purchasedValue = 0;
-    purchases.forEach((p) => {
-      (p.items || []).forEach((it) => {
-        const itName = String(it.name || '').toLowerCase().trim();
-        const itId = String(it.id || '').trim();
-        if (itName !== pname && (!pid || itId !== pid)) return;
-        const q = Number(it.quantity || 0);
-        purchasedQty += q;
-        purchasedValue += q * Number(it.price || 0);
-      });
-    });
+    // Cost is derived directly from the product's purchase price in inventory
+    const avgCost = Number(prod.purchasePrice ?? prod.cost_price ?? prod.costPrice ?? 0);
+    const costBasis = 'Product purchase price';
 
-    const avgCost = purchasedQty > 0
-      ? purchasedValue / purchasedQty
-      : Number(prod.purchasePrice || prod.cost_price || 0);
-    const costBasis = purchasedQty > 0 ? 'Weighted average of purchases' : 'Product purchase rate';
-
-    const totalCost = avgCost * netQty;
+    const totalCost = avgCost * Math.max(0, netQty);
     const profit = netRevenue - totalCost;
     const margin = netRevenue > 0 ? (profit / netRevenue) * 100 : 0;
 
@@ -851,7 +837,6 @@ const Reports = () => {
                   <option value="revenue_desc">Revenue (High to Low)</option>
                   <option value="sold_desc">Sold Qty (High to Low)</option>
                   <option value="margin_desc">Margin % (High to Low)</option>
-                  <option value="stock_desc">Stock (High to Low)</option>
                   <option value="name_asc">Product Name (A - Z)</option>
                 </select>
               </div>
@@ -892,7 +877,6 @@ const Reports = () => {
                     <th>Product Name</th>
                     <th>Company</th>
                     <th>Category</th>
-                    <th className="is-num">Stock</th>
                     <th className="is-num">Sold Qty</th>
                     <th className="is-num">Net Sales</th>
                     <th className="is-num">Total Cost</th>
@@ -920,9 +904,6 @@ const Reports = () => {
                         <td>
                           <span className="pp-tag">{p.category || p.category_name || 'General'}</span>
                         </td>
-                        <td className="is-num">
-                          {p.stock ?? 0} {p.unit || 'Pcs'}
-                        </td>
                         <td className="is-num is-strong">{item.soldQty}</td>
                         <td className="is-num">&#2547;{money(item.netRevenue)}</td>
                         <td className="is-num">&#2547;{money(item.totalCost)}</td>
@@ -949,7 +930,7 @@ const Reports = () => {
                   })}
                   {sortedProductProfits.length === 0 && (
                     <tr>
-                      <td colSpan="12" className="pp-empty">
+                      <td colSpan="11" className="pp-empty">
                         No products found matching the criteria.
                       </td>
                     </tr>
@@ -958,7 +939,7 @@ const Reports = () => {
                 {sortedProductProfits.length > 0 && (
                   <tfoot>
                     <tr>
-                      <td colSpan={6} style={{ fontWeight: 'bold' }}>Grand Total ({sortedProductProfits.length} Products)</td>
+                      <td colSpan={5} style={{ fontWeight: 'bold' }}>Grand Total ({sortedProductProfits.length} Products)</td>
                       <td className="is-num">{ppTotalSoldQty}</td>
                       <td className="is-num">&#2547;{money(ppTotalRevenue)}</td>
                       <td className="is-num">&#2547;{money(ppTotalCost)}</td>

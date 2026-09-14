@@ -219,7 +219,7 @@ const PrintableReturn = ({ record, product }) => {
 
       {/* Amount in words banner */}
       <div style={{ padding: '4px 0', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
-        <strong style={{ color: '#475569' }}>In Words (কথায়): </strong>
+        <strong style={{ color: '#475569' }}>In Words : </strong>
         <span style={{ fontWeight: '700', color: '#0f172a' }}>৳{money(amount)} Taka Only</span>
       </div>
 

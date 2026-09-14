@@ -7,7 +7,10 @@
  * drawer styles, which is fine for a sheet that is mostly the printed invoice.
  */
 
-.pos-page {
+:root,
+.pos-page,
+.drawer-overlay,
+.drawer-container {
   --pos-bg: #ffffff;
   --pos-bg-alt: #f8fafc;
   --pos-bg-head: #f1f5f9;
@@ -26,10 +29,16 @@
   --pos-radius: 6px;
 
   color: var(--pos-text);
+}
+
+.pos-page {
   width: 100%;
 }
 
-body:not(.light-mode) .pos-page {
+body:not(.light-mode),
+body:not(.light-mode) .pos-page,
+body:not(.light-mode) .drawer-overlay,
+body:not(.light-mode) .drawer-container {
   --pos-bg: #111827;
   --pos-bg-alt: #0d1526;
   --pos-bg-head: #172032;
@@ -808,13 +817,14 @@ body:not(.light-mode) .pos-page .data-table th {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: 1200;
   max-height: 380px;
   overflow-y: auto;
-  background: var(--pos-bg);
-  border: 1px solid var(--pos-border);
-  border-radius: var(--pos-radius);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  background-color: var(--pos-bg, #ffffff) !important;
+  background: var(--pos-bg, #ffffff) !important;
+  border: 1px solid var(--pos-border, #d8dee7) !important;
+  border-radius: var(--pos-radius, 6px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
 }
 
 .search-dropdown-item {
@@ -822,9 +832,11 @@ body:not(.light-mode) .pos-page .data-table th {
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.6rem 0.85rem;
+  padding: 0.65rem 0.85rem;
   cursor: pointer;
-  border-bottom: 1px solid var(--pos-border-soft);
+  border-bottom: 1px solid var(--pos-border-soft, #e6eaf0);
+  background-color: var(--pos-bg, #ffffff);
+  background: var(--pos-bg, #ffffff);
 }
 
 .search-dropdown-item:last-child {
@@ -833,7 +845,8 @@ body:not(.light-mode) .pos-page .data-table th {
 
 .search-dropdown-item:hover,
 .search-dropdown-item.selected {
-  background: var(--pos-accent-bg);
+  background-color: var(--pos-accent-bg, #fff7ed) !important;
+  background: var(--pos-accent-bg, #fff7ed) !important;
 }
 
 .search-item-left {

@@ -51,7 +51,13 @@ const Settings = () => {
   useEffect(() => {
     if (shopProfile && profileForm === null) {
       setProfileForm(
-        PROFILE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: shopProfile[f.key] ?? '' }), {})
+        PROFILE_FIELDS.reduce((acc, f) => {
+          let val = shopProfile[f.key] ?? '';
+          if (f.key === 'tagline' && (!val || /Machine Tools|Chemical Materials/i.test(val))) {
+            val = 'Hardware: Hand Tools, Power Tools, Sanitary, Furniture items, Buildings & Indian Padlock, China PadLock Suppliers';
+          }
+          return { ...acc, [f.key]: val };
+        }, {})
       );
     }
   }, [shopProfile, profileForm]);
