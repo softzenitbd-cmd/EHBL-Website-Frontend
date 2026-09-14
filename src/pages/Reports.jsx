@@ -835,7 +835,7 @@ const Reports = () => {
                   <option value="profit_desc">Profit (High to Low)</option>
                   <option value="profit_asc">Profit (Low to High)</option>
                   <option value="revenue_desc">Revenue (High to Low)</option>
-                  <option value="sold_desc">Sold Qty (High to Low)</option>
+                  <option value="sold_desc">Sales Qty (High to Low)</option>
                   <option value="margin_desc">Margin % (High to Low)</option>
                   <option value="name_asc">Product Name (A - Z)</option>
                 </select>
@@ -877,9 +877,9 @@ const Reports = () => {
                     <th>Product Name</th>
                     <th>Company</th>
                     <th>Category</th>
-                    <th className="is-num">Sold Qty</th>
-                    <th className="is-num">Net Sales</th>
-                    <th className="is-num">Total Cost</th>
+                    <th className="is-num">Sales Qty</th>
+                    <th className="is-num">Sales Price</th>
+                    <th className="is-num">Purchase Price</th>
                     <th className="is-num">Gross Profit</th>
                     <th className="is-center">Margin</th>
                     <th className="is-center">Action</th>
