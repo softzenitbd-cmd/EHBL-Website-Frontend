@@ -210,20 +210,42 @@ const POS = () => {
 
   // Payment is strictly Due (Baki)
   const paymentType = 'Baki';
-  // The salesman is whoever is logged in - not a choice. A staff login is
-  // matched to its Staff record through the username the account was created
-  // with; anything else (the admin account) is recorded as "Admin" under the
-  // user's own name and phone.
-  const currentSalesman = (() => {
+  const isAdmin = user?.role === 'Admin';
+  const [selectedSalesmanId, setSelectedSalesmanId] = useState('Admin');
+
+  const adminDisplayName = useMemo(() => {
+    return [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
+      || user?.username || 'Admin';
+  }, [user]);
+
+  // If Admin, they can choose any salesman/staff or Admin.
+  // If non-admin (staff/salesman), it is locked to their logged-in account.
+  const currentSalesman = useMemo(() => {
+    if (isAdmin) {
+      if (selectedSalesmanId && selectedSalesmanId !== 'Admin') {
+        const linkedStaff = (staff || []).find(st => String(st.id) === String(selectedSalesmanId));
+        if (linkedStaff) {
+          return {
+            id: linkedStaff.id,
+            name: linkedStaff.name,
+            phone: linkedStaff.phone || ''
+          };
+        }
+      }
+      return {
+        id: 'Admin',
+        name: adminDisplayName,
+        phone: user?.phone || ''
+      };
+    }
+
     const uname = String(user?.username || '').toLowerCase();
-    const linked = uname ? staff.find(st => String(st.username || '').toLowerCase() === uname) : null;
+    const linked = uname ? (staff || []).find(st => String(st.username || '').toLowerCase() === uname) : null;
     if (linked) {
       return { id: linked.id, name: linked.name, phone: linked.phone || user?.phone || '' };
     }
-    const display = [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
-      || user?.username || 'Admin';
-    return { id: 'Admin', name: display, phone: user?.phone || '' };
-  })();
+    return { id: 'Admin', name: adminDisplayName, phone: user?.phone || '' };
+  }, [isAdmin, selectedSalesmanId, staff, user, adminDisplayName]);
   const [completedSale, setCompletedSale] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -1003,11 +1025,42 @@ const POS = () => {
           </div>
 
           <div className="checkout-section">
-            <label>Salesman</label>
-            <div className="pos-salesman" title="Set from the account you are logged in with">
-              <strong>{currentSalesman.name}</strong>
-              <span>{currentSalesman.phone || (currentSalesman.id === 'Admin' ? 'Admin account' : currentSalesman.id)}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <label style={{ margin: 0 }}>Salesman</label>
+              {isAdmin && (
+                <span className="badge bg-primary" style={{ fontSize: '0.68rem', padding: '2px 6px', fontWeight: 600 }}>
+                  Admin Select
+                </span>
+              )}
             </div>
+            {isAdmin ? (
+              <div>
+                <select
+                  id="pos-salesman-select"
+                  className="w-full"
+                  value={selectedSalesmanId}
+                  onChange={(e) => setSelectedSalesmanId(e.target.value)}
+                  style={{ cursor: 'pointer', fontWeight: 500 }}
+                >
+                  <option value="Admin">Admin ({adminDisplayName})</option>
+                  {(staff || []).map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.role ? `(${s.role})` : ''} {s.phone ? `- ${s.phone}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedSalesmanId !== 'Admin' && currentSalesman.phone && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-muted)', marginTop: '4px', paddingLeft: '2px' }}>
+                    Phone: {currentSalesman.phone}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="pos-salesman" title="Set from the account you are logged in with">
+                <strong>{currentSalesman.name}</strong>
+                <span>{currentSalesman.phone || (currentSalesman.id === 'Admin' ? 'Admin account' : currentSalesman.id)}</span>
+              </div>
+            )}
           </div>
 
           {/* Payment Type is strictly Due */}
