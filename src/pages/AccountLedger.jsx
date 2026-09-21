@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Printer, Wallet, X, RefreshCcw, Users, Truck, FileText, Receipt, BookOpen } from 'lucide-react';
@@ -34,7 +34,12 @@ const AccountLedger = () => {
   const params = new URLSearchParams(location.search);
   const [kind, setKind] = useState(params.get('type') === 'Supplier' ? 'Supplier' : 'Customer');
   const [partyId, setPartyId] = useState(params.get('id') || '');
-  const [filter, setFilter] = useState('');
+  // One box does the finding: type any part of a name, phone or code and
+  // matches drop down underneath; pick one and the ledger loads.
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const comboRef = useRef(null);
 
   const [statement, setStatement] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -48,11 +53,22 @@ const AccountLedger = () => {
   const isCustomer = kind === 'Customer';
   const parties = (isCustomer ? customers : suppliers) || [];
 
-  const filterQ = filter.trim().toLowerCase();
-  const visibleParties = [...(filterQ
-    ? parties.filter(p => [p.name, p.phone, p.id, p.company].some(v => String(v || '').toLowerCase().includes(filterQ)))
-    : parties)]
-    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  const q = query.trim().toLowerCase();
+  const matches = (q
+    ? parties.filter(p => [p.name, p.phone, p.id, p.company].some(v => String(v || '').toLowerCase().includes(q)))
+    : parties)
+    .slice()
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+    .slice(0, 12);
+
+  // Clicking anywhere else closes the list.
+  useEffect(() => {
+    const onDown = (e) => {
+      if (comboRef.current && !comboRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   const load = useCallback(async (type, id) => {
     if (!id) { setStatement(null); return; }
@@ -71,6 +87,13 @@ const AccountLedger = () => {
     load(kind, partyId);
   }, [kind, partyId, load]);
 
+  useEffect(() => {
+    if (!partyId) return;
+    const p = parties.find(x => x.id === partyId);
+    if (p && !query) setQuery(p.name || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyId, parties.length]);
+
   const choose = (type, id) => {
     setKind(type);
     setPartyId(id);
@@ -82,9 +105,36 @@ const AccountLedger = () => {
 
   const switchKind = (type) => {
     if (type === kind) return;
-    setFilter('');
+    setQuery('');
+    setOpen(false);
     setStatement(null);
     choose(type, '');
+  };
+
+  const pick = (p) => {
+    setQuery(p.name || '');
+    setOpen(false);
+    setActiveIdx(0);
+    choose(kind, p.id);
+  };
+
+  const onComboKey = (e) => {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+      setOpen(true);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx(i => Math.min(matches.length - 1, i + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx(i => Math.max(0, i - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (matches[activeIdx]) pick(matches[activeIdx]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
   };
 
   const entity = statement?.entity;
@@ -179,28 +229,62 @@ const AccountLedger = () => {
           </button>
         </div>
 
-        <div className="lg-field lg-field--grow">
-          <label htmlFor="lg-filter">Search</label>
-          <input
-            id="lg-filter"
-            type="text"
-            placeholder={`Name, phone or code of the ${kind.toLowerCase()}`}
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
-
-        <div className="lg-field lg-field--grow">
+        <div className="lg-field lg-field--grow lg-combo" ref={comboRef}>
           <label htmlFor="lg-party">{kind}</label>
-          <select id="lg-party" value={partyId} onChange={(e) => choose(kind, e.target.value)}>
-            <option value="">Select a {kind.toLowerCase()}...</option>
-            {visibleParties.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name}{p.phone ? ` · ${p.phone}` : ''}{Number(p.due) > 0 ? ` · due ৳${money(p.due)}` : ''}
-              </option>
-            ))}
-          </select>
+          <div className="lg-combo__box">
+            <input
+              id="lg-party"
+              type="text"
+              role="combobox"
+              aria-expanded={open}
+              aria-controls="lg-party-list"
+              aria-autocomplete="list"
+              placeholder={`Type a ${kind.toLowerCase()} name or phone...`}
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setOpen(true); setActiveIdx(0); }}
+              onFocus={() => setOpen(true)}
+              onKeyDown={onComboKey}
+              autoComplete="off"
+            />
+            {query && (
+              <button
+                type="button"
+                className="lg-combo__clear"
+                aria-label="Clear"
+                onClick={() => { setQuery(''); setOpen(true); choose(kind, ''); }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {open && (
+            <ul id="lg-party-list" className="lg-combo__list" role="listbox">
+              {matches.length === 0 && (
+                <li className="lg-combo__empty">No {kind.toLowerCase()} matches &ldquo;{query}&rdquo;</li>
+              )}
+              {matches.map((p, i) => (
+                <li
+                  key={p.id}
+                  role="option"
+                  aria-selected={p.id === partyId}
+                  className={`lg-combo__item ${i === activeIdx ? 'is-active' : ''} ${p.id === partyId ? 'is-selected' : ''}`}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(p)}
+                >
+                  <div className="lg-combo__main">
+                    <strong>{p.name}</strong>
+                    <span>{[p.phone, p.company].filter(Boolean).join(' · ') || p.id}</span>
+                  </div>
+                  <div className="lg-combo__side">
+                    <span className="lg-code">{p.id}</span>
+                    {Number(p.due) > 0 && <span className="lg-combo__due">due &#2547;{money(p.due)}</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <button type="button" className="lg-btn" onClick={() => load(kind, partyId)} disabled={!partyId || loading} title="Reload">

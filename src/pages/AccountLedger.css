@@ -110,6 +110,9 @@ body:not(.light-mode) .lg-modal-overlay {
   flex-wrap: wrap;
   gap: 0.85rem;
   padding: 1rem;
+  /* The suggestion list hangs below this panel; the panel's overflow:hidden
+     would otherwise cut it off. */
+  overflow: visible;
 }
 
 .lg-kind {
@@ -180,6 +183,114 @@ body:not(.light-mode) .lg-modal-overlay {
   border-color: var(--lg-accent);
   box-shadow: none;
   background: var(--lg-bg);
+}
+
+/* --------------------------------------------------------- party combobox */
+
+.lg-combo {
+  position: relative;
+}
+
+.lg-combo__box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ledger-page .lg-combo__box input {
+  padding-right: 2rem;
+}
+
+.ledger-page .lg-combo__clear {
+  position: absolute;
+  right: 0.45rem;
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  color: var(--lg-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lg-combo__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--lg-bg);
+  border: 1px solid var(--lg-border);
+  border-radius: var(--lg-radius);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.lg-combo__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--lg-border-soft);
+}
+
+.lg-combo__item:last-child {
+  border-bottom: none;
+}
+
+.lg-combo__item.is-active {
+  background: var(--lg-accent-bg);
+}
+
+.lg-combo__item.is-selected strong {
+  color: var(--lg-accent);
+}
+
+.lg-combo__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.lg-combo__main strong {
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-combo__main span {
+  font-size: 0.75rem;
+  color: var(--lg-muted);
+}
+
+.lg-combo__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.lg-combo__due {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--lg-bad);
+  font-variant-numeric: tabular-nums;
+}
+
+.lg-combo__empty {
+  padding: 0.8rem;
+  font-size: 0.85rem;
+  color: var(--lg-muted);
+  text-align: center;
 }
 
 /* ------------------------------------------------------------ party card */
