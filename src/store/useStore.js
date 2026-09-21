@@ -607,16 +607,23 @@ const useStore = create(
       // Dues. The server is the source of truth for balances, so every
       // settlement re-syncs rather than adjusting the number locally.
       // ---------------------------------------------------------------
-      settleCustomerDue: async (customerId, amount, dateStr) => {
+      /**
+       * Collect against a customer's balance. The server drops the money onto
+       * the customer's unpaid invoices oldest first and hands back the receipt
+       * with the invoices it covered - the mirror of settleSupplierDue.
+       */
+      settleCustomerDue: async (customerId, amount, dateStr, extra = {}) => {
         try {
-          await apiClient.post(ENDPOINTS.SETTLE_DUE, {
+          const res = await apiClient.post(ENDPOINTS.SETTLE_DUE, {
             targetId: customerId,
             type: 'Customer',
             amount: parseFloat(amount),
             date: dateStr || undefined,
+            paymentMethod: extra.paymentMethod || undefined,
+            notes: extra.notes || undefined,
           });
           await get().fetchAllData();
-          return { success: true };
+          return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to record the payment.');
           set({ lastError: message });

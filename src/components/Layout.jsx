@@ -172,7 +172,7 @@ const Layout = () => {
       icon: <FileSpreadsheet size={20} />,
       subItems: [
         { path: '/transaction-entry', search: '', name: 'Transaction Entry' },
-        { path: '/account-ledger', search: '', name: 'Account Ledger' },
+        { path: '/account-ledger', search: '', name: 'Party Ledger' },
         { path: '/stock-ledger', search: '', name: 'Stock Ledger' },
         { path: '/stock-logs', search: '', name: 'Stock Movement Log' },
       ]
