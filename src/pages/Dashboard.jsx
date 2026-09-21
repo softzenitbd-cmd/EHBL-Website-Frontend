@@ -5,6 +5,7 @@ import useStore from '../store/useStore';
 import apiClient from '../api/client';
 import { ENDPOINTS } from '../api/endpoints';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import './Dashboard.css';
 
 // Shown while the real series loads, and if the server cannot be reached, so
 // the chart never invents numbers the shop might act on.
@@ -119,209 +120,131 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-page animate-fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div>
+      {/* Header & Clock Section */}
+      <div className="dashboard-header-container">
+        <div className="dashboard-header-title">
           <h1>Dashboard Overview</h1>
           <p className="text-muted">Welcome to EHBL System.</p>
         </div>
 
-        <div className="card glass animate-fade-in" style={{
-          padding: '0.8rem 1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1rem',
-          minWidth: 'fit-content'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-            padding: '10px',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white'
-          }}>
-            <Clock size={24} />
+        <div className="dashboard-clock-card">
+          <div className="clock-icon-wrapper">
+            <Clock size={22} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{
-              fontSize: '1.8rem',
-              fontWeight: '800',
-              fontFamily: '"Orbitron", monospace, sans-serif',
-              lineHeight: '1.2',
-              background: 'linear-gradient(to right, var(--primary), var(--secondary))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              letterSpacing: '1px'
-            }}>
+          <div className="clock-text-wrapper">
+            <span className="clock-time">
               {currentTime.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
-            <span className="text-muted" style={{
-              fontSize: '0.85rem',
-              fontWeight: '600',
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase'
-            }}>
+            <span className="clock-date">
               {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
             </span>
           </div>
         </div>
       </div>
 
-      {/* --- GRADIENT LAYOUT (Commented out) --- */}
-      {/* 
-      <div className="grid responsive-grid-3" style={{ marginBottom: '2rem', gap: '1.5rem' }}>
+      {/* Stats Cards Grid */}
+      <div className="dashboard-stats-grid">
         {stats.map((stat, idx) => (
-          <div key={idx} className="stat-card-hover" style={{ 
-            position: 'relative',
-            overflow: 'hidden',
-            background: stat.gradient,
-            boxShadow: stat.shadow,
-            border: 'none',
-            color: 'white',
-            padding: '1.5rem',
-            borderRadius: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            transition: 'transform 0.3s ease, box-shadow 0.3s ease'
-          }}>
-            <stat.icon size={120} style={{ 
-              position: 'absolute', 
-              right: '-15px', 
-              bottom: '-15px', 
-              opacity: 0.15, 
-              transform: 'rotate(-15deg)',
-              pointerEvents: 'none'
-            }} />
-            
-            <div className="flex-align-gap" style={{ justifyContent: 'space-between', marginBottom: '1rem', position: 'relative', zIndex: 1 }}>
-               <h3 style={{ fontSize: '1rem', fontWeight: '600', opacity: 0.9, letterSpacing: '0.5px' }}>{stat.label}</h3>
-               <div style={{ padding: '8px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.25)', backdropFilter: 'blur(5px)' }}>
-                 <stat.icon color="white" size={24} />
-               </div>
+          <div 
+            key={idx} 
+            className={`dashboard-stat-card ${stat.highlight ? 'highlighted' : ''}`}
+            style={{ '--card-color': stat.color }}
+          >
+            <div className="stat-card-top">
+              <span className="stat-card-label">{stat.label}</span>
+              <div 
+                className="stat-card-icon-pill" 
+                style={{ backgroundColor: `${stat.color}18`, color: stat.color }}
+              >
+                <stat.icon size={18} />
+              </div>
             </div>
-            <p style={{ fontSize: '2.2rem', fontWeight: '800', margin: 0, position: 'relative', zIndex: 1, textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              {stat.value}
-            </p>
-          </div>
-        ))}
-      </div>
-      */}
-
-      {/* --- ACTIVE BORDER LAYOUT --- */}
-      <div className="grid responsive-grid" style={{ marginBottom: '2rem' }}>
-        {stats.map((stat, idx) => (
-          <div key={idx} className="card flex-align-gap stat-card-hover" style={{ 
-            flexDirection: 'column', 
-            alignItems: 'flex-start',
-            border: stat.highlight ? `2px solid ${stat.color}` : 'none',
-            borderLeft: !stat.highlight ? `4px solid ${stat.color}` : `4px solid ${stat.color}`,
-            background: stat.highlight ? '#f0fdf4' : 'rgba(255, 255, 255, 0.85)',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
-            backdropFilter: 'blur(10px)',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-          }}>
-            <div className="flex-align-gap w-full" style={{ justifyContent: 'space-between', width: '100%' }}>
-               <h3 className="text-sm font-bold" style={{ color: stat.highlight ? '#000' : '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</h3>
-               <div style={{ padding: '8px', borderRadius: '50%', background: `${stat.color}15` }}>
-                 <stat.icon style={{ color: stat.color }} size={22} />
-               </div>
-            </div>
-            <p className="font-bold mt-2" style={{ fontSize: '1.75rem', marginTop: '0.8rem', color: stat.highlight ? stat.color : '#1e293b' }}>
+            <p className="stat-card-value">
               {stat.value}
             </p>
           </div>
         ))}
       </div>
 
-      <h2 style={{ marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Quick Actions</h2>
-      <div className="grid responsive-grid-3" style={{ marginBottom: '2rem' }}>
+      {/* Quick Actions */}
+      <div className="dashboard-section-header">
+        <h2 className="dashboard-section-title">Quick Actions</h2>
+      </div>
+      <div className="dashboard-quick-actions-grid">
         {allQuickActions.map((action, index) => (
           <div
             key={index}
-            className="card flex-align-gap quick-action-card"
-            style={{
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '1.5rem'
-            }}
+            className="dashboard-quick-action-card"
             onClick={() => navigate(action.path)}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            <div className="flex-align-gap">
-              <div style={{
-                padding: '0.75rem',
-                borderRadius: '0.75rem',
-                backgroundColor: 'var(--bg-hover)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: action.color
-              }}>
-                <action.icon size={24} />
+            <div className="quick-action-left">
+              <div className="quick-action-icon" style={{ color: action.color }}>
+                <action.icon size={20} />
               </div>
-              <span style={{ fontSize: '0.9rem', fontWeight: '500', marginLeft: '0.75rem' }}>{action.name}</span>
+              <span className="quick-action-name">{action.name}</span>
             </div>
-            <ArrowRight size={20} className="text-muted" style={{ opacity: 0.5 }} />
+            <ArrowRight size={18} className="quick-action-arrow" />
           </div>
         ))}
       </div>
 
-      <div className="grid responsive-grid-2" style={{ marginBottom: '2rem', gap: '1.5rem' }}>
-        <div className="card" style={{ gridColumn: '1 / -1' }}>
-          <div className="flex-align-gap" style={{ justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600' }}>Sales Analytics</h3>
-              <p className="text-muted text-sm mt-1">Revenue and Profit over the last 7 days</p>
-            </div>
-            <div className="segmented-control">
-              <button className="active">Weekly</button>
-              <button>Monthly</button>
-            </div>
+      {/* Sales Analytics Chart */}
+      <div className="dashboard-chart-card">
+        <div className="dashboard-chart-header">
+          <div className="chart-title-group">
+            <h3>Sales Analytics</h3>
+            <p className="text-muted">Revenue and Profit over the last 7 days</p>
           </div>
-          <div style={{ width: '100%', height: 350 }}>
-            <ResponsiveContainer>
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--success)" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', backdropFilter: 'blur(20px)', boxShadow: 'var(--shadow-lg)' }}
-                  itemStyle={{ color: 'var(--text-main)', fontWeight: 'bold' }}
-                />
-                <Area type="monotone" dataKey="sales" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                <Area type="monotone" dataKey="profit" stroke="var(--success)" strokeWidth={3} fillOpacity={1} fill="url(#colorProfit)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="segmented-control">
+            <button className="active">Weekly</button>
+            <button>Monthly</button>
           </div>
+        </div>
+        <div className="chart-container-wrapper">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--success)" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{ 
+                  backgroundColor: 'var(--bg-card)', 
+                  borderRadius: '12px', 
+                  border: '1px solid var(--border-color)', 
+                  backdropFilter: 'blur(20px)', 
+                  boxShadow: 'var(--shadow-lg)',
+                  color: 'var(--text-main)'
+                }}
+                itemStyle={{ color: 'var(--text-main)', fontWeight: 'bold' }}
+              />
+              <Area type="monotone" dataKey="sales" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+              <Area type="monotone" dataKey="profit" stroke="var(--success)" strokeWidth={3} fillOpacity={1} fill="url(#colorProfit)" />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="grid responsive-grid-2" style={{ gap: '1.5rem' }}>
-
+      {/* Dues Section: Accounts Receivable & Accounts Payable */}
+      <div className="dashboard-dues-grid">
         {/* Customer Dues (Accounts Receivable) */}
-        <div className="card">
-          <div className="flex-align-gap" style={{ justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--warning)' }}>Accounts Receivable</h3>
+        <div className="dashboard-due-card">
+          <div className="due-card-header">
+            <h3 className="due-card-title text-warning">Accounts Receivable</h3>
             <span className="badge warning">Customer Due</span>
           </div>
-          <p className="text-muted text-sm mb-3">Total money owed to you by customers.</p>
-          <div className="table-responsive" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            <table className="data-table" style={{ fontSize: '0.9rem' }}>
+          <p className="text-muted due-card-subtitle">Total money owed to you by customers.</p>
+          <div className="dashboard-due-table-wrapper">
+            <table className="dashboard-due-table">
               <thead>
                 <tr>
                   <th>Customer Name</th>
@@ -336,7 +259,7 @@ const Dashboard = () => {
                       <td style={{ fontWeight: '500' }}>{customer.name}</td>
                       <td>{customer.phone}</td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--warning)' }}>
-                        {customer.due.toLocaleString()}
+                        ৳{Number(customer.due).toLocaleString()}
                       </td>
                     </tr>
                   ))
@@ -353,14 +276,14 @@ const Dashboard = () => {
         </div>
 
         {/* Supplier Dues (Accounts Payable) */}
-        <div className="card">
-          <div className="flex-align-gap" style={{ justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--danger)' }}>Accounts Payable</h3>
+        <div className="dashboard-due-card">
+          <div className="due-card-header">
+            <h3 className="due-card-title text-danger">Accounts Payable</h3>
             <span className="badge danger">Supplier Due</span>
           </div>
-          <p className="text-muted text-sm mb-3">Total money you owe to suppliers.</p>
-          <div className="table-responsive" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            <table className="data-table" style={{ fontSize: '0.9rem' }}>
+          <p className="text-muted due-card-subtitle">Total money you owe to suppliers.</p>
+          <div className="dashboard-due-table-wrapper">
+            <table className="dashboard-due-table">
               <thead>
                 <tr>
                   <th>Supplier Name</th>
@@ -375,7 +298,7 @@ const Dashboard = () => {
                       <td style={{ fontWeight: '500' }}>{supplier.name}</td>
                       <td>{supplier.phone}</td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--danger)' }}>
-                        {supplier.due.toLocaleString()}
+                        ৳{Number(supplier.due).toLocaleString()}
                       </td>
                     </tr>
                   ))
@@ -390,7 +313,6 @@ const Dashboard = () => {
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );

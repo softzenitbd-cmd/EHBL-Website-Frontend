@@ -22,7 +22,8 @@ import {
   Minus,
   ChevronsRight,
   FileSpreadsheet,
-  Menu
+  Menu,
+  X
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -100,6 +101,12 @@ const Layout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Auto-close mobile drawer on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     fetchAllData();
@@ -201,10 +208,19 @@ const Layout = () => {
 
   return (
     <div className="app-container">
-      <aside className={`sidebar glass ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+      {/* Mobile Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={`sidebar glass ${isSidebarCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-brand-container" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img src={logoImg} alt="EHBL Logo" className="sidebar-logo" style={{ height: '45px', width: '45px', borderRadius: '8px', objectFit: 'contain', background: 'white' }} />
+            <img src={logoImg} alt="EHBL Logo" className="sidebar-logo" style={{ height: '40px', width: '40px', borderRadius: '8px', objectFit: 'contain', background: 'white' }} />
             <div className="sidebar-brand-text">
               <h2>EHBL</h2>
               <span className="role-badge">{user?.role}</span>
@@ -213,17 +229,19 @@ const Layout = () => {
           <button 
             className="desktop-menu-toggle btn-icon" 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            title="Toggle sidebar"
           >
             <Menu size={20} />
           </button>
           <button 
-            className="mobile-menu-toggle btn-icon" 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="mobile-menu-close btn-icon" 
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Close menu"
           >
-            <MoreVertical size={24} />
+            <X size={22} />
           </button>
         </div>
-        <nav className={`sidebar-nav ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+        <nav className="sidebar-nav">
           {menuItems.map((item) => (
             <NavItem 
               key={item.name} 
@@ -238,25 +256,45 @@ const Layout = () => {
             <div className="avatar">{user?.name?.charAt(0).toUpperCase()}</div>
             <span>{user?.name}</span>
           </div>
-          <button onClick={handleLogout} className="logout-btn">
+          <button onClick={handleLogout} className="logout-btn" title="Logout">
             <LogOut size={20} />
           </button>
         </div>
       </aside>
+
       <main className="main-content">
         <header className="topbar glass">
-          <div className="topbar-search">
-            {/* Search or breadcrumbs can go here */}
+          <div className="topbar-left flex-align-gap">
+            <button 
+              className="mobile-topbar-toggle btn-icon" 
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Open Navigation Menu"
+            >
+              <Menu size={22} />
+            </button>
+            <div className="mobile-topbar-brand">
+              <img src={logoImg} alt="EHBL Logo" className="mobile-brand-logo" />
+              <span className="mobile-brand-title">EHBL</span>
+            </div>
           </div>
+
           <div className="topbar-actions flex-align-gap">
-            <div className={`flex-align-gap px-3 py-1 rounded`} style={{ backgroundColor: isOnline ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(var(--warning-rgb), 0.1)', color: isOnline ? 'var(--success)' : 'var(--warning)', border: `1px solid ${isOnline ? 'var(--success)' : 'var(--warning)'}`, fontSize: '0.85rem' }}>
+            <div 
+              className="sync-status-badge flex-align-gap px-3 py-1 rounded" 
+              style={{ 
+                backgroundColor: isOnline ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(var(--warning-rgb), 0.1)', 
+                color: isOnline ? 'var(--success)' : 'var(--warning)', 
+                border: `1px solid ${isOnline ? 'var(--success)' : 'var(--warning)'}`, 
+                fontSize: '0.85rem' 
+              }}
+              title={isOnline ? 'Synced with server' : 'Offline (Saved Locally)'}
+            >
               {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
-              {isOnline ? 'Synced' : 'Offline (Saved Locally)'}
+              <span className="sync-status-text">{isOnline ? 'Synced' : 'Offline'}</span>
             </div>
             <button className="btn-icon" onClick={toggleTheme} title="Toggle Theme">
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            {/* Notifications, POS quick link, etc. */}
           </div>
         </header>
         <div className="content-area">

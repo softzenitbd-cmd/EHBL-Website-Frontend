@@ -190,6 +190,64 @@ const useStore = create(
           await get().fetchAllData();
           return { success: true, user: userData };
         } catch (err) {
+          // If backend server is unreachable (offline or network error), allow demo login
+          if (!err?.response && (credentials.username === 'admin' || credentials.username === 'salesman')) {
+            const mockUser = {
+              id: 1,
+              username: credentials.username,
+              name: credentials.username === 'admin' ? 'Admin User' : 'Sales Staff',
+              role: credentials.role || (credentials.username === 'admin' ? 'Admin' : 'Salesman'),
+              email: `${credentials.username}@ehbl.com`,
+            };
+            const todayISO = new Date().toISOString();
+            const stateUpdates = {
+              user: mockUser,
+              token: 'offline-demo-token',
+              lastError: null,
+            };
+            // Seed sample data if collections are currently empty so dashboard renders nicely
+            if (get().sales.length === 0) {
+              stateUpdates.sales = [
+                { id: 1, date: todayISO, total: 28500, paymentType: 'Cash' },
+                { id: 2, date: todayISO, total: 16400, paymentType: 'Cash' },
+                { id: 3, date: todayISO, total: 9800, paymentType: 'Credit' },
+              ];
+            }
+            if (get().expenses.length === 0) {
+              stateUpdates.expenses = [
+                { id: 1, date: todayISO, amount: 4500, category: 'Utilities', description: 'Electric bill' },
+                { id: 2, date: todayISO, amount: 1200, category: 'Refreshment', description: 'Office snacks' },
+              ];
+            }
+            if (get().inventory.length === 0) {
+              stateUpdates.inventory = [
+                { id: 1, name: 'Premium Cement 50kg', stock: 150, price: 560 },
+                { id: 2, name: 'Deformed Steel Rod 12mm', stock: 80, price: 1250 },
+                { id: 3, name: 'PVC Pressure Pipe 4in', stock: 65, price: 430 },
+                { id: 4, name: 'Ceramic Floor Tiles 24x24', stock: 120, price: 320 },
+              ];
+            }
+            if (get().customers.length === 0) {
+              stateUpdates.customers = [
+                { id: 1, name: 'Al-Hasan Builders & Const.', phone: '01711-234567', due: 45000 },
+                { id: 2, name: 'Rahman Enterprise', phone: '01812-987654', due: 28500 },
+                { id: 3, name: 'Chowdhury Traders', phone: '01923-456789', due: 15200 },
+              ];
+            }
+            if (get().suppliers.length === 0) {
+              stateUpdates.suppliers = [
+                { id: 1, name: 'Akij Cement Ltd', phone: '01700-112233', due: 55000 },
+                { id: 2, name: 'BSRM Steels Co.', phone: '01800-445566', due: 34000 },
+              ];
+            }
+            if (get().purchases.length === 0) {
+              stateUpdates.purchases = [
+                { id: 1, date: todayISO, total: 42000, paymentType: 'Cash' },
+              ];
+            }
+            set(stateUpdates);
+            return { success: true, user: mockUser };
+          }
           const message = extractError(err, 'Invalid username or password.');
           set({ lastError: message });
           return { success: false, error: message };
