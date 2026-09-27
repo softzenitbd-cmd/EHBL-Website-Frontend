@@ -6,6 +6,7 @@ import useStore from '../store/useStore';
 import PrintablePayment from '../components/PrintablePayment';
 import PrintableStatement from '../components/PrintableStatement';
 import { printElement } from '../utils/printElement';
+import { buildLedgerBook, fmtLedgerDate, lakh } from '../utils/ledgerBook';
 import './AccountLedger.css';
 
 const money = (value) => Number(value || 0).toLocaleString('en-US', {
@@ -22,7 +23,7 @@ const today = () => new Date().toISOString().split('T')[0];
  */
 const AccountLedger = () => {
   const {
-    customers, suppliers,
+    customers, suppliers, user,
     fetchLedgerStatement, settleCustomerDue, settleSupplierDue, showToast,
   } = useStore();
 
@@ -44,6 +45,10 @@ const AccountLedger = () => {
   const [statement, setStatement] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('statement');
+
+  // Ledger book period. Blank means "from the first entry" / "to today".
+  const [bookFrom, setBookFrom] = useState('');
+  const [bookTo, setBookTo] = useState('');
 
   const [payOpen, setPayOpen] = useState(false);
   const [payForm, setPayForm] = useState({ date: today(), amount: '', method: 'Cash', note: '' });
@@ -209,6 +214,9 @@ const AccountLedger = () => {
   const totalBilled = Number(statement?.totalBilled || 0);
   const totalPaid = Number(statement?.totalPaid || 0);
 
+  const book = statement ? buildLedgerBook(statement, isCustomer, bookFrom, bookTo) : null;
+  const printedBy = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.username || '';
+
   return (
     <div className="ledger-page">
       <header className="lg-header">
@@ -344,7 +352,7 @@ const AccountLedger = () => {
                 <Wallet size={15} /> {isCustomer ? 'Receive Payment' : 'Pay Supplier'}
               </button>
               <button type="button" className="lg-btn" onClick={() => printElement('printable-party-statement')}>
-                <Printer size={15} /> Print Statement
+                <Printer size={15} /> Print Ledger
               </button>
             </div>
           </section>
@@ -362,47 +370,70 @@ const AccountLedger = () => {
             </button>
           </nav>
 
-          {activeTab === 'statement' && (
+          {activeTab === 'statement' && book && (
             <section className="lg-panel">
+              <div className="lg-bookbar">
+                <div className="lg-field">
+                  <label htmlFor="lg-book-from">From</label>
+                  <input id="lg-book-from" type="date" value={bookFrom} onChange={(e) => setBookFrom(e.target.value)} />
+                </div>
+                <div className="lg-field">
+                  <label htmlFor="lg-book-to">To</label>
+                  <input id="lg-book-to" type="date" value={bookTo} onChange={(e) => setBookTo(e.target.value)} />
+                </div>
+                {(bookFrom || bookTo) && (
+                  <button type="button" className="lg-btn" onClick={() => { setBookFrom(''); setBookTo(''); }}>All time</button>
+                )}
+                <div className="lg-bookbar__opening">
+                  <span>Opening Balance (Tk.)</span>
+                  <strong>{lakh(book.opening)}</strong>
+                </div>
+              </div>
+
               <div className="lg-tablewrap">
-                <table className="lg-table">
+                <table className="lg-table lg-book">
                   <thead>
                     <tr>
-                      <th className="is-center lg-sl">SL</th>
                       <th>Date</th>
-                      <th>Ref</th>
-                      <th>Description</th>
-                      <th className="is-num">{isCustomer ? 'Sale' : 'Purchase'}</th>
-                      <th className="is-num">{isCustomer ? 'Received' : 'Paid'}</th>
-                      <th className="is-num">Balance</th>
+                      <th>Doc. No</th>
+                      <th>Particulars</th>
+                      <th className="is-num">Debit (Tk.)</th>
+                      <th className="is-num">Credit (Tk.)</th>
+                      <th className="is-num">Balance (Tk.)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="lg-opening">
-                      <td />
-                      <td colSpan={3}>Opening balance</td>
-                      <td /><td />
-                      <td className="is-num">&#2547;{money(entity.openingDue)}</td>
-                    </tr>
-                    {ledger.map((r, idx) => (
+                    {book.rows.map((r, idx) => (
                       <tr key={`${r.id}-${idx}`}>
-                        <td className="is-center lg-sl">{idx + 1}</td>
-                        <td>{day(r.date)}</td>
+                        <td>{fmtLedgerDate(r.date)}</td>
                         <td className="is-code">{r.id}</td>
-                        <td>{r.description}</td>
-                        <td className="is-num">{r.type === 'charge' ? `৳${money(r.amount)}` : ''}</td>
-                        <td className="is-num is-good">{r.type === 'payment' ? `৳${money(r.amount)}` : ''}</td>
-                        <td className="is-num is-strong">&#2547;{money(r.balance)}</td>
+                        <td><strong>{r.particulars.head}</strong> {r.particulars.detail}</td>
+                        <td className="is-num">{lakh(r.debit)}</td>
+                        <td className="is-num">{lakh(r.credit)}</td>
+                        <td className="is-num is-strong">{lakh(r.balance)}</td>
                       </tr>
                     ))}
-                    {ledger.length === 0 && (
-                      <tr><td colSpan="7" className="lg-empty">No charges or payments on this account yet.</td></tr>
+                    {book.rows.length === 0 && (
+                      <tr><td colSpan="6" className="lg-empty">No transactions in this period.</td></tr>
                     )}
                   </tbody>
                   <tfoot>
-                    <tr>
-                      <td colSpan={6}>Current due</td>
-                      <td className={`is-num ${currentDue > 0 ? 'is-bad' : 'is-good'}`}>&#2547;{money(currentDue)}</td>
+                    <tr className="lg-book__period">
+                      <td colSpan={3}>Periodic Total</td>
+                      <td className="is-num">{lakh(book.periodDebit)}</td>
+                      <td className="is-num">{lakh(book.periodCredit)}</td>
+                      <td />
+                    </tr>
+                    <tr className="lg-book__period">
+                      <td colSpan={3}>Periodic Balance</td>
+                      <td className="is-num">{lakh(book.periodBalance)}</td>
+                      <td /><td />
+                    </tr>
+                    <tr className="lg-book__total">
+                      <td colSpan={3}>Total</td>
+                      <td className="is-num">{lakh(book.totalDebit)}</td>
+                      <td className="is-num">{lakh(book.totalCredit)}</td>
+                      <td className={`is-num ${book.closing > 0 ? 'is-bad' : 'is-good'}`}>{lakh(book.closing)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -517,7 +548,7 @@ const AccountLedger = () => {
           {/* Printable statement (hidden on screen) */}
           <div style={{ display: 'none' }}>
             <div id="printable-party-statement">
-              <PrintableStatement statement={statement} kind={kind} />
+              <PrintableStatement statement={statement} kind={kind} from={bookFrom} to={bookTo} printedBy={printedBy} />
             </div>
           </div>
         </>

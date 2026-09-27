@@ -438,6 +438,57 @@ body:not(.light-mode) .lg-modal-overlay {
   color: var(--lg-muted);
 }
 
+/* ----------------------------------------------------------- ledger book */
+
+.lg-bookbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--lg-border);
+}
+
+.lg-bookbar__opening {
+  margin-left: auto;
+  text-align: right;
+}
+
+.lg-bookbar__opening span {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lg-muted);
+}
+
+.lg-bookbar__opening strong {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lg-book td strong {
+  font-weight: 700;
+}
+
+.lg-table tfoot .lg-book__period td {
+  font-weight: 700;
+  text-align: right;
+  background: var(--lg-bg-alt);
+}
+
+.lg-table tfoot .lg-book__period td:first-child,
+.lg-table tfoot .lg-book__total td:first-child {
+  text-align: right;
+}
+
+.lg-table tfoot .lg-book__total td {
+  font-size: 0.95rem;
+  font-weight: 800;
+  border-top: 2px solid var(--lg-text);
+}
+
 /* ----------------------------------------------------------------- table */
 
 .lg-tablewrap {
