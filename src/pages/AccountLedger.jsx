@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Printer, Wallet, X, RefreshCcw, Users, Truck, FileText, Receipt, BookOpen } from 'lucide-react';
+import { Printer, Wallet, X, RefreshCcw, Users, Truck, FileText, Receipt, BookOpen, Eye, Package, Search } from 'lucide-react';
 import useStore from '../store/useStore';
 import PrintablePayment from '../components/PrintablePayment';
 import PrintableStatement from '../components/PrintableStatement';
@@ -23,7 +23,7 @@ const today = () => new Date().toISOString().split('T')[0];
  */
 const AccountLedger = () => {
   const {
-    customers, suppliers, user,
+    customers, suppliers, sales = [], purchases = [], user,
     fetchLedgerStatement, settleCustomerDue, settleSupplierDue, showToast,
   } = useStore();
 
@@ -49,6 +49,9 @@ const AccountLedger = () => {
   // Ledger book period. Blank means "from the first entry" / "to today".
   const [bookFrom, setBookFrom] = useState('');
   const [bookTo, setBookTo] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [showProducts, setShowProducts] = useState(true);
+  const [productSearch, setProductSearch] = useState('');
 
   const [payOpen, setPayOpen] = useState(false);
   const [payForm, setPayForm] = useState({ date: today(), amount: '', method: 'Cash', note: '' });
@@ -57,6 +60,46 @@ const AccountLedger = () => {
 
   const isCustomer = kind === 'Customer';
   const parties = (isCustomer ? customers : suppliers) || [];
+
+  // Map of bill/invoice/purchase codes to their products
+  const itemsMap = React.useMemo(() => {
+    const map = new Map();
+    for (const s of (sales || [])) {
+      const keys = [s.invoice_number, s.id].filter(Boolean);
+      const raw = s.items || s.cartItems || [];
+      const normalized = raw.map(it => ({
+        name: it.name || it.product_name || 'Product',
+        variant: it.variant || '',
+        unit: it.unit || 'pcs',
+        quantity: Number(it.quantity || 1),
+        price: Number(it.price || 0),
+        total: Number(it.total_price || (Number(it.quantity || 1) * Number(it.price || 0)) || 0),
+      }));
+      keys.forEach(k => {
+        const str = String(k).trim().toLowerCase();
+        map.set(str, normalized);
+        map.set(str.replace(/^(inv|ajv|pur|doc)-?/i, ''), normalized);
+      });
+    }
+    for (const p of (purchases || [])) {
+      const keys = [p.purchase_number, p.id].filter(Boolean);
+      const raw = p.items || [];
+      const normalized = raw.map(it => ({
+        name: it.name || it.product_name || 'Product',
+        variant: it.variant || '',
+        unit: it.unit || 'pcs',
+        quantity: Number(it.quantity || 1),
+        price: Number(it.price || 0),
+        total: Number(it.total_cost || (Number(it.quantity || 1) * Number(it.price || 0)) || 0),
+      }));
+      keys.forEach(k => {
+        const str = String(k).trim().toLowerCase();
+        map.set(str, normalized);
+        map.set(str.replace(/^(inv|ajv|pur|doc)-?/i, ''), normalized);
+      });
+    }
+    return map;
+  }, [sales, purchases]);
 
   const q = query.trim().toLowerCase();
   const matches = (q
@@ -214,8 +257,42 @@ const AccountLedger = () => {
   const totalBilled = Number(statement?.totalBilled || 0);
   const totalPaid = Number(statement?.totalPaid || 0);
 
-  const book = statement ? buildLedgerBook(statement, isCustomer, bookFrom, bookTo) : null;
+  const book = statement ? buildLedgerBook(statement, isCustomer, bookFrom, bookTo, itemsMap) : null;
   const printedBy = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.username || '';
+
+  // All individual products purchased across this period
+  const purchasedProducts = React.useMemo(() => {
+    if (!book) return [];
+    const list = [];
+    book.rows.forEach(r => {
+      if (r.type === 'charge' && r.items && r.items.length > 0) {
+        r.items.forEach(it => {
+          list.push({
+            date: r.date,
+            docNo: r.docNo || r.id,
+            rawId: r.id,
+            name: it.name,
+            variant: it.variant,
+            unit: it.unit || 'pcs',
+            quantity: Number(it.quantity || 1),
+            price: Number(it.price || 0),
+            total: Number(it.total || (Number(it.quantity || 1) * Number(it.price || 0)) || 0),
+          });
+        });
+      }
+    });
+    return list;
+  }, [book]);
+
+  const filteredProducts = React.useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return purchasedProducts;
+    return purchasedProducts.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.docNo.toLowerCase().includes(q) ||
+      p.date.includes(q)
+    );
+  }, [purchasedProducts, productSearch]);
 
   return (
     <div className="ledger-page">
@@ -351,6 +428,9 @@ const AccountLedger = () => {
               <button type="button" className="lg-btn lg-btn--primary" onClick={openPay} disabled={!(currentDue > 0)}>
                 <Wallet size={15} /> {isCustomer ? 'Receive Payment' : 'Pay Supplier'}
               </button>
+              <button type="button" className="lg-btn" onClick={() => setPreviewOpen(true)}>
+                <Eye size={15} /> Preview Ledger
+              </button>
               <button type="button" className="lg-btn" onClick={() => printElement('printable-party-statement')}>
                 <Printer size={15} /> Print Ledger
               </button>
@@ -361,6 +441,9 @@ const AccountLedger = () => {
           <nav className="lg-tabs" role="tablist">
             <button type="button" role="tab" aria-selected={activeTab === 'statement'} className={`lg-tab ${activeTab === 'statement' ? 'is-active' : ''}`} onClick={() => setActiveTab('statement')}>
               <BookOpen size={14} /> Statement <span className="lg-tab__count">{ledger.length}</span>
+            </button>
+            <button type="button" role="tab" aria-selected={activeTab === 'products'} className={`lg-tab ${activeTab === 'products' ? 'is-active' : ''}`} onClick={() => setActiveTab('products')}>
+              <Package size={14} /> Products Bought <span className="lg-tab__count">{purchasedProducts.length}</span>
             </button>
             <button type="button" role="tab" aria-selected={activeTab === 'documents'} className={`lg-tab ${activeTab === 'documents' ? 'is-active' : ''}`} onClick={() => setActiveTab('documents')}>
               <FileText size={14} /> {isCustomer ? 'Invoices' : 'Purchases'} <span className="lg-tab__count">{documents.length}</span>
@@ -384,6 +467,14 @@ const AccountLedger = () => {
                 {(bookFrom || bookTo) && (
                   <button type="button" className="lg-btn" onClick={() => { setBookFrom(''); setBookTo(''); }}>All time</button>
                 )}
+                <button
+                  type="button"
+                  className={`lg-btn ${showProducts ? 'is-active' : ''}`}
+                  onClick={() => setShowProducts(!showProducts)}
+                  title="Toggle product breakdown in Particulars"
+                >
+                  <Package size={14} /> {showProducts ? 'Hide Products' : 'Show Products'}
+                </button>
                 <div className="lg-bookbar__opening">
                   <span>Opening Balance (Tk.)</span>
                   <strong>{lakh(book.opening)}</strong>
@@ -405,12 +496,26 @@ const AccountLedger = () => {
                   <tbody>
                     {book.rows.map((r, idx) => (
                       <tr key={`${r.id}-${idx}`}>
-                        <td>{fmtLedgerDate(r.date)}</td>
-                        <td className="is-code">{r.id}</td>
-                        <td><strong>{r.particulars.head}</strong> {r.particulars.detail}</td>
-                        <td className="is-num">{lakh(r.debit)}</td>
-                        <td className="is-num">{lakh(r.credit)}</td>
-                        <td className="is-num is-strong">{lakh(r.balance)}</td>
+                        <td style={{ verticalAlign: 'top' }}>{fmtLedgerDate(r.date)}</td>
+                        <td className="is-code" style={{ verticalAlign: 'top' }}>{r.docNo || r.id}</td>
+                        <td style={{ verticalAlign: 'top' }}>
+                          <div style={{ textTransform: 'uppercase' }}>
+                            <strong>{r.particulars.head}</strong> {r.particulars.detail}
+                          </div>
+                          {showProducts && r.items && r.items.length > 0 && (
+                            <div style={{ marginTop: '5px', padding: '4px 6px', background: 'var(--lg-bg-head)', borderRadius: '4px', border: '1px dashed var(--lg-border)' }}>
+                              {r.items.map((it, iIdx) => (
+                                <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.78rem', color: 'var(--lg-text)', margin: '2px 0' }}>
+                                  <span>&bull; <strong>{it.name}</strong>{it.variant ? ` (${it.variant})` : ''} &mdash; {it.quantity} {it.unit || 'pcs'} &times; &#2547;{money(it.price)}</span>
+                                  <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>&#2547;{money(it.total || (it.quantity * it.price))}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="is-num" style={{ verticalAlign: 'top' }}>{lakh(r.debit)}</td>
+                        <td className="is-num" style={{ verticalAlign: 'top' }}>{lakh(r.credit)}</td>
+                        <td className="is-num is-strong" style={{ verticalAlign: 'top' }}>{lakh(r.balance)}</td>
                       </tr>
                     ))}
                     {book.rows.length === 0 && (
@@ -419,23 +524,113 @@ const AccountLedger = () => {
                   </tbody>
                   <tfoot>
                     <tr className="lg-book__period">
-                      <td colSpan={3}>Periodic Total</td>
+                      <td colSpan={3}>Periodic Total :</td>
                       <td className="is-num">{lakh(book.periodDebit)}</td>
                       <td className="is-num">{lakh(book.periodCredit)}</td>
                       <td />
                     </tr>
                     <tr className="lg-book__period">
-                      <td colSpan={3}>Periodic Balance</td>
+                      <td colSpan={3}>Periodic Balance :</td>
                       <td className="is-num">{lakh(book.periodBalance)}</td>
                       <td /><td />
                     </tr>
                     <tr className="lg-book__total">
-                      <td colSpan={3}>Total</td>
+                      <td colSpan={3}>Total :</td>
                       <td className="is-num">{lakh(book.totalDebit)}</td>
                       <td className="is-num">{lakh(book.totalCredit)}</td>
                       <td className={`is-num ${book.closing > 0 ? 'is-bad' : 'is-good'}`}>{lakh(book.closing)}</td>
                     </tr>
                   </tfoot>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'products' && (
+            <section className="lg-panel">
+              <div className="lg-bookbar" style={{ gap: '1rem', alignItems: 'center' }}>
+                <div className="lg-field" style={{ flex: '1 1 240px', maxWidth: '360px' }}>
+                  <label htmlFor="lg-prod-search">Search Product</label>
+                  <div className="lg-combo__box">
+                    <input
+                      id="lg-prod-search"
+                      type="text"
+                      placeholder="Type product name, bill no..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                    />
+                    {productSearch && (
+                      <button type="button" className="lg-combo__clear" onClick={() => setProductSearch('')}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1.25rem', marginLeft: 'auto', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--lg-muted)' }}>Total Items</span>
+                    <strong style={{ fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>{filteredProducts.length}</strong>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--lg-muted)' }}>Total Qty</span>
+                    <strong style={{ fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>{filteredProducts.reduce((sum, p) => sum + p.quantity, 0)}</strong>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--lg-muted)' }}>Total Value</span>
+                    <strong style={{ fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums', color: 'var(--lg-accent)' }}>
+                      &#2547;{money(filteredProducts.reduce((sum, p) => sum + p.total, 0))}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg-tablewrap">
+                <table className="lg-table">
+                  <thead>
+                    <tr>
+                      <th className="is-center lg-sl">SL</th>
+                      <th>Date</th>
+                      <th>Bill / Doc. No</th>
+                      <th>Product Name</th>
+                      <th className="is-num">Qty</th>
+                      <th className="is-num">Unit Price</th>
+                      <th className="is-num">Total (Tk.)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((p, idx) => (
+                      <tr key={`${p.rawId}-${p.name}-${idx}`}>
+                        <td className="is-center lg-sl">{idx + 1}</td>
+                        <td>{fmtLedgerDate(p.date)}</td>
+                        <td className="is-code">{p.docNo}</td>
+                        <td>
+                          <strong>{p.name}</strong>
+                          {p.variant ? <span style={{ marginLeft: '4px', fontSize: '0.78rem', color: 'var(--lg-muted)' }}>({p.variant})</span> : ''}
+                        </td>
+                        <td className="is-num">{p.quantity} {p.unit || 'pcs'}</td>
+                        <td className="is-num">&#2547;{money(p.price)}</td>
+                        <td className="is-num is-strong">&#2547;{money(p.total)}</td>
+                      </tr>
+                    ))}
+                    {filteredProducts.length === 0 && (
+                      <tr>
+                        <td colSpan="7" className="lg-empty">
+                          {productSearch ? `No products match "${productSearch}".` : 'No product purchases recorded in this period.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  {filteredProducts.length > 0 && (
+                    <tfoot>
+                      <tr>
+                        <td colSpan={4}>Total of {filteredProducts.length} purchase line{filteredProducts.length === 1 ? '' : 's'}</td>
+                        <td className="is-num">{filteredProducts.reduce((sum, p) => sum + p.quantity, 0)}</td>
+                        <td />
+                        <td className="is-num is-strong">&#2547;{money(filteredProducts.reduce((sum, p) => sum + p.total, 0))}</td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             </section>
@@ -548,7 +743,15 @@ const AccountLedger = () => {
           {/* Printable statement (hidden on screen) */}
           <div style={{ display: 'none' }}>
             <div id="printable-party-statement">
-              <PrintableStatement statement={statement} kind={kind} from={bookFrom} to={bookTo} printedBy={printedBy} />
+              <PrintableStatement
+                statement={statement}
+                kind={kind}
+                from={bookFrom}
+                to={bookTo}
+                printedBy={printedBy}
+                itemsMap={itemsMap}
+                showProducts={showProducts}
+              />
             </div>
           </div>
         </>
@@ -677,6 +880,38 @@ const AccountLedger = () => {
             <div className="lg-modal__foot">
               <button type="button" className="lg-btn" onClick={() => setReceipt(null)}>Close</button>
               <button type="button" className="lg-btn lg-btn--primary" onClick={() => printElement('printable-party-receipt')}>
+                <Printer size={15} /> Print
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* -------------------------------------- ledger book preview modal */}
+      {previewOpen && statement && createPortal(
+        <div className="lg-modal-overlay" onClick={() => setPreviewOpen(false)}>
+          <div className="lg-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Ledger Book Preview" style={{ maxWidth: '820px' }}>
+            <div className="lg-modal__head">
+              <h2>Ledger Book &middot; {entity?.name}</h2>
+              <button type="button" className="lg-iconbtn" onClick={() => setPreviewOpen(false)} aria-label="Close"><X size={18} /></button>
+            </div>
+            <div className="lg-modal__body lg-modal__body--paper">
+              <div style={{ background: '#ffffff', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', border: '1px solid #d8dee7', borderRadius: '4px' }}>
+                <PrintableStatement
+                  statement={statement}
+                  kind={kind}
+                  from={bookFrom}
+                  to={bookTo}
+                  printedBy={printedBy}
+                  itemsMap={itemsMap}
+                  showProducts={showProducts}
+                />
+              </div>
+            </div>
+            <div className="lg-modal__foot">
+              <button type="button" className="lg-btn" onClick={() => setPreviewOpen(false)}>Close</button>
+              <button type="button" className="lg-btn lg-btn--primary" onClick={() => printElement('printable-party-statement')}>
                 <Printer size={15} /> Print
               </button>
             </div>

@@ -18,19 +18,47 @@ const methodOf = (text) => {
   return m ? m[1] : 'Cash';
 };
 
-export const particularsFor = (row, isCustomer) => {
+export const docNoFor = (row) => {
+  if (!row?.id) return '';
+  const idStr = String(row.id).trim();
   if (row.type === 'charge') {
-    return isCustomer
-      ? { head: 'FROM SALES INCOME', detail: `SALE - BILL NO-${row.id}` }
-      : { head: 'TO PURCHASE', detail: `PURCHASE - BILL NO-${row.id}` };
+    if (/^AJV/i.test(idStr)) return idStr;
+    const clean = idStr.replace(/^INV-?/i, '');
+    return clean ? `AJV ${clean}` : idStr;
   }
-  const method = methodOf(row.description);
-  return isCustomer
-    ? { head: `BY ${method.toUpperCase()}`, detail: 'PAYMENT RECEIVED' }
-    : { head: `TO ${method.toUpperCase()}`, detail: 'PAYMENT MADE' };
+  if (row.type === 'payment') {
+    if (/^MRV/i.test(idStr)) return idStr;
+    const clean = idStr.replace(/^(STL|REC)-?/i, '');
+    return clean ? `MRV ${clean}` : idStr;
+  }
+  return idStr;
 };
 
-export const buildLedgerBook = (statement, isCustomer, from = '', to = '') => {
+export const particularsFor = (row, isCustomer) => {
+  if (row.type === 'charge') {
+    const billNo = row.invoice_number || row.id || '';
+    const cleanBill = String(billNo).replace(/^INV-?/i, '');
+    return isCustomer
+      ? { head: 'FROM SALES INCOME', detail: `SALE- BILL NO-${cleanBill}` }
+      : { head: 'TO PURCHASE', detail: `PURCHASE- BILL NO-${cleanBill}` };
+  }
+  if (row.type === 'return') {
+    return { head: 'TO Sales Return', detail: 'SALE RETURN' };
+  }
+  const method = methodOf(row.description);
+  const methodUpper = method.toUpperCase();
+  const acct = methodUpper.includes('A/C') || methodUpper.includes('BANK')
+    ? methodUpper
+    : `${methodUpper} A/C`;
+
+  const notePart = row.notes ? ` - ${row.notes}` : '';
+
+  return isCustomer
+    ? { head: `TO ${acct}${notePart}`, detail: '' }
+    : { head: `BY ${acct}${notePart}`, detail: '' };
+};
+
+export const buildLedgerBook = (statement, isCustomer, from = '', to = '', itemsMap = null) => {
   const entries = statement?.ledger || [];
   const openingDue = Number(statement?.entity?.openingDue || 0);
 
@@ -56,7 +84,31 @@ export const buildLedgerBook = (statement, isCustomer, from = '', to = '') => {
     // Customer: charges in Debit. Supplier: charges in Credit.
     const debit = isCustomer ? (raises ? amt : 0) : (raises ? 0 : amt);
     const credit = isCustomer ? (raises ? 0 : amt) : (raises ? amt : 0);
-    return { ...r, date: day(r.date), debit, credit, balance, particulars: particularsFor(r, isCustomer) };
+    const docNo = docNoFor(r);
+    const particulars = particularsFor(r, isCustomer);
+    const particularsText = [particulars.head, particulars.detail].filter(Boolean).join(' ');
+
+    let items = Array.isArray(r.items) && r.items.length > 0 ? r.items : null;
+    if (!items && itemsMap && r.type === 'charge') {
+      const rawId = String(r.id || '').trim().toLowerCase();
+      items = itemsMap.get(rawId)
+        || itemsMap.get(rawId.replace(/^(inv|ajv|pur|mrv|doc)-?/i, ''))
+        || itemsMap.get(`inv-${rawId}`)
+        || itemsMap.get(`inv${rawId}`)
+        || null;
+    }
+
+    return {
+      ...r,
+      date: day(r.date),
+      docNo,
+      debit,
+      credit,
+      balance,
+      particulars,
+      particularsText,
+      items: items || [],
+    };
   });
 
   const periodDebit = rows.reduce((n, r) => n + r.debit, 0);
@@ -79,6 +131,7 @@ export const buildLedgerBook = (statement, isCustomer, from = '', to = '') => {
 };
 
 export const fmtLedgerDate = (d) => {
+  if (!d) return '';
   const [y, m, dd] = day(d).split('-');
   return y && m && dd ? `${dd}/${m}/${y}` : '';
 };
