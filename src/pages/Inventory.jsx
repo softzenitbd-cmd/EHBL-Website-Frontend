@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Barcode from 'react-barcode';
@@ -7,6 +7,7 @@ import useStore from '../store/useStore';
 import PrintableInventory from '../components/PrintableInventory';
 import { confirmDialog } from '../utils/swal';
 import { printElement } from '../utils/printElement';
+import { searchProducts } from '../utils/productSearch';
 import './Inventory.css';
 
 // Suggestions the dropdowns fall back on for a fresh install. They are not
@@ -60,6 +61,18 @@ const Inventory = () => {
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestIdx, setSuggestIdx] = useState(0);
+  const searchBoxRef = useRef(null);
+
+  // Clicking anywhere else closes the suggestion list.
+  useEffect(() => {
+    const onDown = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) setShowSuggest(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterCompany, setFilterCompany] = useState('All');
   const [filterStock, setFilterStock] = useState('All');
@@ -322,20 +335,15 @@ const Inventory = () => {
     setSortBy('newest');
   };
 
+  // Search ranking: id -> position, best match first. Null when not searching.
+  const searchRanked = searchTerm.trim() ? searchProducts(inventory, searchTerm, 0) : null;
+  const searchRank = searchRanked ? new Map(searchRanked.map((p, i) => [p.id, i])) : null;
+  const suggestions = searchRanked ? searchRanked.slice(0, 8) : [];
+
   // Robust Multi-dimensional Filtering
   const filteredInventory = inventory.filter(item => {
-    // 1. Text Search Filter (name, barcode, size, category, company)
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase().trim();
-      const nameMatch = (item.name || '').toLowerCase().includes(q);
-      const codeMatch = String(item.id || item.product_code || '').toLowerCase().includes(q);
-      const variantMatch = (item.variant || '').toLowerCase().includes(q);
-      const categoryMatch = (item.category || item.category_name || '').toLowerCase().includes(q);
-      const companyMatch = (item.company || item.company_name || '').toLowerCase().includes(q);
-      if (!nameMatch && !codeMatch && !variantMatch && !categoryMatch && !companyMatch) {
-        return false;
-      }
-    }
+    // 1. Text search: ranked matcher shared with the invoice screen.
+    if (searchRank && !searchRank.has(item.id)) return false;
 
     // 2. Company Filter
     if (filterCompany !== 'All') {
@@ -394,6 +402,8 @@ const Inventory = () => {
 
   // Sorting Logic
   const sortedInventory = [...filteredInventory].sort((a, b) => {
+    // While searching, best match first regardless of the sort menu.
+    if (searchRank) return searchRank.get(a.id) - searchRank.get(b.id);
     const dateA = new Date(a.dateAdded || a.date_added || 0).getTime();
     const dateB = new Date(b.dateAdded || b.date_added || 0).getTime();
 
@@ -499,19 +509,62 @@ const Inventory = () => {
         <div className="inv-filtergrid">
           <div className="inv-field inv-f-search">
             <label htmlFor="inv-search">Search</label>
-            <div className="inv-search">
-              <Search size={15} />
-              <input
-                id="inv-search"
-                type="text"
-                placeholder="Product name, barcode, size or category"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <button type="button" onClick={() => setSearchTerm('')} aria-label="Clear search">
-                  <X size={14} />
-                </button>
+            <div className="inv-search-wrap" ref={searchBoxRef}>
+              <div className="inv-search">
+                <Search size={15} />
+                <input
+                  id="inv-search"
+                  type="text"
+                  placeholder="Product name, code, size or company"
+                  value={searchTerm}
+                  autoComplete="off"
+                  onChange={(e) => { setSearchTerm(e.target.value); setShowSuggest(true); setSuggestIdx(0); }}
+                  onFocus={() => setShowSuggest(true)}
+                  onKeyDown={(e) => {
+                    if (!showSuggest || suggestions.length === 0) return;
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setSuggestIdx(i => Math.min(suggestions.length - 1, i + 1)); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); setSuggestIdx(i => Math.max(0, i - 1)); }
+                    else if (e.key === 'Enter') { e.preventDefault(); const p = suggestions[suggestIdx]; if (p) { setSearchTerm(String(p.id)); setShowSuggest(false); } }
+                    else if (e.key === 'Escape') setShowSuggest(false);
+                  }}
+                />
+                {searchTerm && (
+                  <button type="button" onClick={() => { setSearchTerm(''); setShowSuggest(false); }} aria-label="Clear search">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {showSuggest && searchTerm.trim() && (
+                <ul className="inv-suggest" role="listbox">
+                  {suggestions.length === 0 && <li className="inv-suggest__empty">No product matches &ldquo;{searchTerm}&rdquo;</li>}
+                  {suggestions.map((p, i) => (
+                    <li
+                      key={p.id}
+                      role="option"
+                      aria-selected={i === suggestIdx}
+                      className={`inv-suggest__item ${i === suggestIdx ? 'is-active' : ''}`}
+                      onMouseEnter={() => setSuggestIdx(i)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { setSearchTerm(String(p.id)); setShowSuggest(false); }}
+                    >
+                      <div className="inv-suggest__main">
+                        <strong>{p.name}</strong>
+                        <span>
+                          Code {p.id}
+                          {p.variant ? ` · ${p.variant}` : ''}
+                          {p.company || p.company_name ? ` · ${p.company || p.company_name}` : ''}
+                        </span>
+                      </div>
+                      <div className="inv-suggest__side">
+                        <strong>&#2547;{Number(p.price || 0).toLocaleString()}</strong>
+                        <span className={Number(p.stock) > 0 ? 'is-in' : 'is-out'}>
+                          {Number(p.stock) > 0 ? `${p.stock} ${p.unit || 'Pcs'}` : 'Out of stock'}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>

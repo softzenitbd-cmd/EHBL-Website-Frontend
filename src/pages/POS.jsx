@@ -8,6 +8,7 @@ import PrintableInvoice from '../components/PrintableInvoice';
 import PrintFooter from '../components/PrintFooter';
 import { confirmDialog } from '../utils/swal';
 import { printElement } from '../utils/printElement';
+import { searchProducts } from '../utils/productSearch';
 import './POS.css';
 
 const POS = () => {
@@ -78,30 +79,17 @@ const POS = () => {
   }, []);
 
   // Filter products by Name, Barcode/Product Code, Category, Variant
-  const searchResults = useMemo(() => {
-    const term = barcodeInput.trim().toLowerCase();
-    if (!term) return [];
-    return inventory.filter(p => {
-      const name = String(p.name || '').toLowerCase();
-      const code = String(p.product_code || p.id || '').toLowerCase();
-      const category = String(p.category || p.category_name || '').toLowerCase();
-      const variant = String(p.variant || '').toLowerCase();
-      return name.includes(term) || code.includes(term) || category.includes(term) || variant.includes(term);
-    }).slice(0, 10);
-  }, [inventory, barcodeInput]);
+  // Ranked: best name/code match first (see utils/productSearch).
+  const searchResults = useMemo(
+    () => searchProducts(inventory, barcodeInput, 12),
+    [inventory, barcodeInput]
+  );
 
   // Filter products for Edit Invoice Drawer
-  const editSearchResults = useMemo(() => {
-    const term = editProductSearch.trim().toLowerCase();
-    if (!term) return [];
-    return inventory.filter(p => {
-      const name = String(p.name || '').toLowerCase();
-      const code = String(p.product_code || p.id || '').toLowerCase();
-      const category = String(p.category || p.category_name || '').toLowerCase();
-      const variant = String(p.variant || '').toLowerCase();
-      return name.includes(term) || code.includes(term) || category.includes(term) || variant.includes(term);
-    }).slice(0, 10);
-  }, [inventory, editProductSearch]);
+  const editSearchResults = useMemo(
+    () => searchProducts(inventory, editProductSearch, 12),
+    [inventory, editProductSearch]
+  );
 
   const handleSelectProduct = (product) => {
     addToCart({ ...product, isGift: false, itemDiscount: 0 });

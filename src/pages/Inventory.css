@@ -137,8 +137,10 @@ body:not(.light-mode) .inv-modal-overlay {
 
 /* --------------------------------------------------------------- filters */
 
-.inv-filters {
+.inventory-page .inv-filters {
   padding: 0;
+  /* The search suggestions hang below this panel. */
+  overflow: visible;
 }
 
 .inv-filtergrid {
@@ -221,6 +223,80 @@ body:not(.light-mode) .inv-modal-overlay {
   background: none;
   border: none;
   line-height: 0;
+}
+
+/* -------------------------------------------------------- search suggest */
+
+.inv-search-wrap {
+  position: relative;
+}
+
+.inv-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 360px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--inv-bg);
+  border: 1px solid var(--inv-border);
+  border-radius: var(--inv-radius);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.inv-suggest__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--inv-border-soft);
+}
+
+.inv-suggest__item:last-child { border-bottom: none; }
+.inv-suggest__item.is-active { background: var(--inv-accent-bg); }
+
+.inv-suggest__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.inv-suggest__main strong {
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inv-suggest__main span,
+.inv-suggest__side span {
+  font-size: 0.74rem;
+  color: var(--inv-muted);
+}
+
+.inv-suggest__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-suggest__side .is-in { color: var(--inv-in); font-weight: 600; }
+.inv-suggest__side .is-out { color: var(--inv-out); font-weight: 600; }
+
+.inv-suggest__empty {
+  padding: 0.8rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--inv-muted);
 }
 
 /* ---------------------------------------------------------------- fields */
