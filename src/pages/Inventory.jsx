@@ -65,6 +65,11 @@ const Inventory = () => {
   const [suggestIdx, setSuggestIdx] = useState(0);
   const searchBoxRef = useRef(null);
 
+  // Every match is listed, so keep the arrow-key highlight in view.
+  useEffect(() => {
+    searchBoxRef.current?.querySelector('.inv-suggest__item.is-active')?.scrollIntoView({ block: 'nearest' });
+  }, [suggestIdx]);
+
   // Clicking anywhere else closes the suggestion list.
   useEffect(() => {
     const onDown = (e) => {
@@ -338,7 +343,7 @@ const Inventory = () => {
   // Search ranking: id -> position, best match first. Null when not searching.
   const searchRanked = searchTerm.trim() ? searchProducts(inventory, searchTerm, 0) : null;
   const searchRank = searchRanked ? new Map(searchRanked.map((p, i) => [p.id, i])) : null;
-  const suggestions = searchRanked ? searchRanked.slice(0, 8) : [];
+  const suggestions = searchRanked || [];
 
   // Robust Multi-dimensional Filtering
   const filteredInventory = inventory.filter(item => {
@@ -537,6 +542,11 @@ const Inventory = () => {
 
               {showSuggest && searchTerm.trim() && (
                 <ul className="inv-suggest" role="listbox">
+                  {suggestions.length > 0 && (
+                    <li className="inv-suggest__count" aria-hidden="true">
+                      {suggestions.length} product{suggestions.length === 1 ? '' : 's'} found
+                    </li>
+                  )}
                   {suggestions.length === 0 && <li className="inv-suggest__empty">No product matches &ldquo;{searchTerm}&rdquo;</li>}
                   {suggestions.map((p, i) => (
                     <li

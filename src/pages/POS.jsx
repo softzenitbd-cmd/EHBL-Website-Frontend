@@ -81,15 +81,20 @@ const POS = () => {
   // Filter products by Name, Barcode/Product Code, Category, Variant
   // Ranked: best name/code match first (see utils/productSearch).
   const searchResults = useMemo(
-    () => searchProducts(inventory, barcodeInput, 12),
+    () => searchProducts(inventory, barcodeInput, 0),
     [inventory, barcodeInput]
   );
 
   // Filter products for Edit Invoice Drawer
   const editSearchResults = useMemo(
-    () => searchProducts(inventory, editProductSearch, 12),
+    () => searchProducts(inventory, editProductSearch, 0),
     [inventory, editProductSearch]
   );
+
+  // Every match is listed now, so keep the arrow-key highlight scrolled into view.
+  useEffect(() => {
+    document.querySelector('.search-dropdown-item.selected')?.scrollIntoView({ block: 'nearest' });
+  }, [activeSearchIndex]);
 
   const handleSelectProduct = (product) => {
     addToCart({ ...product, isGift: false, itemDiscount: 0 });
@@ -737,6 +742,9 @@ const POS = () => {
               {/* Live Search Results Dropdown */}
               {showSearchDropdown && barcodeInput.trim() && (
                 <div className="search-dropdown-menu">
+                  {searchResults.length > 0 && (
+                    <div className="search-count">{searchResults.length} product{searchResults.length === 1 ? '' : 's'} found</div>
+                  )}
                   {searchResults.length === 0 ? (
                     <div className="search-no-results">
                       No products found matching "<strong>{barcodeInput}</strong>"

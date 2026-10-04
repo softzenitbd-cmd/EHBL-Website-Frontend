@@ -827,6 +827,20 @@ body:not(.light-mode) .pos-page .data-table th {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
 }
 
+.search-count {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pos-muted);
+  background: var(--pos-bg-head);
+  border-bottom: 1px solid var(--pos-border);
+}
+
 .search-dropdown-item {
   display: flex;
   justify-content: space-between;

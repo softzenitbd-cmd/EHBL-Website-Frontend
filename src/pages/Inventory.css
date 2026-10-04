@@ -248,6 +248,20 @@ body:not(.light-mode) .inv-modal-overlay {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
+.inv-suggest__count {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--inv-muted);
+  background: var(--inv-bg-head);
+  border-bottom: 1px solid var(--inv-border);
+}
+
 .inv-suggest__item {
   display: flex;
   align-items: center;
