@@ -298,7 +298,7 @@ const AccountLedger = () => {
     <div className="ledger-page">
       <header className="lg-header">
         <div>
-          <h1>Party Ledger</h1>
+          <h1>Account Ledger</h1>
           <p>Pick a customer or supplier to see everything on their account, and settle it from here.</p>
         </div>
       </header>
