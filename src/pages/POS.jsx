@@ -63,6 +63,9 @@ const POS = () => {
   const [showEditProductDropdown, setShowEditProductDropdown] = useState(false);
   const [activeEditSearchIndex, setActiveEditSearchIndex] = useState(0);
   const editSearchContainerRef = useRef(null);
+  const editCustomerContainerRef = useRef(null);
+  const [editCustomerSearch, setEditCustomerSearch] = useState('');
+  const [showEditCustomerDropdown, setShowEditCustomerDropdown] = useState(false);
 
   // Close search dropdowns on click outside
   useEffect(() => {
@@ -72,6 +75,9 @@ const POS = () => {
       }
       if (editSearchContainerRef.current && !editSearchContainerRef.current.contains(e.target)) {
         setShowEditProductDropdown(false);
+      }
+      if (editCustomerContainerRef.current && !editCustomerContainerRef.current.contains(e.target)) {
+        setShowEditCustomerDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -90,6 +96,19 @@ const POS = () => {
     () => searchProducts(inventory, editProductSearch, 0),
     [inventory, editProductSearch]
   );
+
+  const editFilteredCustomers = useMemo(() => {
+    const term = editCustomerSearch.trim().toLowerCase();
+    const list = customers || [];
+    if (!term) return list.slice(0, 10);
+    return list.filter(c => {
+      const name = String(c.name || '').toLowerCase();
+      const phone = String(c.phone || '').toLowerCase();
+      const location = String(c.location || '').toLowerCase();
+      const code = String(c.customer_code || c.id || '').toLowerCase();
+      return name.includes(term) || phone.includes(term) || location.includes(term) || code.includes(term);
+    }).slice(0, 15);
+  }, [customers, editCustomerSearch]);
 
   // Every match is listed now, so keep the arrow-key highlight scrolled into view.
   useEffect(() => {
@@ -401,6 +420,8 @@ const POS = () => {
     setEditDiscount(0);
     setEditProductSearch('');
     setShowEditProductDropdown(false);
+    setEditCustomerSearch('');
+    setShowEditCustomerDropdown(false);
   };
 
   const handleStartEdit = (invoice) => {
@@ -410,10 +431,13 @@ const POS = () => {
     }
     setEditingInvoice({
       ...invoice,
+      customerId: invoice.customerId || invoice.customer_id || (invoice.customer?.customer_code || invoice.customer?.id) || '',
       customerName: invoice.customerName || invoice.customerInfo?.name || '',
       customerPhone: invoice.customer_phone || invoice.customerInfo?.phone || '',
       customerLocation: invoice.customer_location || invoice.customerInfo?.location || '',
     });
+    setEditCustomerSearch('');
+    setShowEditCustomerDropdown(false);
     setEditDiscount(Number(invoice.invoiceDiscount || invoice.discount || 0));
     setEditItems((invoice.items || []).map(item => ({
       item_id: item.id || item.item_id,
@@ -533,6 +557,7 @@ const POS = () => {
         price: Number(it.price) || 0,
         quantity: Math.max(1, Number(it.quantity) || 1),
       })),
+      customerId: editingInvoice.customerId,
       customerName: editingInvoice.customerName,
       customer_phone: editingInvoice.customerPhone,
       customer_location: editingInvoice.customerLocation,
@@ -587,6 +612,7 @@ const POS = () => {
         price: Number(it.price) || 0,
         quantity: Math.max(1, Number(it.quantity) || 1),
       })),
+      customerId: editingInvoice.customerId,
       customerName: editingInvoice.customerName,
       customer_phone: editingInvoice.customerPhone,
       customer_location: editingInvoice.customerLocation,
@@ -1382,30 +1408,162 @@ const POS = () => {
             </div>
 
             <div className="drawer-body" style={{ padding: '1.25rem' }}>
-              <div style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-                <div>
-                  <label className="text-muted text-sm block mb-1">Customer Name</label>
-                  <input
-                    type="text"
-                    className="w-full"
-                    value={editingInvoice.customerName}
-                    onChange={(e) => setEditingInvoice({ ...editingInvoice, customerName: e.target.value })}
-                  />
+              {/* Customer Selection & Change Section */}
+              <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', background: 'var(--bg-muted, rgba(127,127,127,0.06))', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                  <label className="text-sm" style={{ fontWeight: '700', color: 'var(--primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Users size={16} /> Customer Details &amp; Change Customer
+                  </label>
+                  {editingInvoice.customerId && (
+                    <span className="badge bg-info" style={{ fontSize: '0.72rem', padding: '2px 7px' }}>
+                      ID: {editingInvoice.customerId}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <label className="text-muted text-sm block mb-1">Customer Phone</label>
-                  <input
-                    type="text"
-                    className="w-full"
-                    value={editingInvoice.customerPhone || ''}
-                    onChange={(e) => setEditingInvoice({ ...editingInvoice, customerPhone: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-muted text-sm block mb-1">Payment Mode</label>
-                  <div style={{ padding: '0.55rem 0.75rem', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontWeight: 'bold' }}>
-                    <span className="badge bg-warning" style={{ fontSize: '0.85rem' }}>Only Due (Baki)</span>
+
+                {/* Change Customer Search Bar with Dropdown */}
+                <div ref={editCustomerContainerRef} style={{ position: 'relative', marginBottom: '0.75rem' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      className="w-full"
+                      placeholder="Type to search & select another customer (Name, Phone, Code)..."
+                      value={editCustomerSearch}
+                      onChange={(e) => {
+                        setEditCustomerSearch(e.target.value);
+                        setShowEditCustomerDropdown(true);
+                      }}
+                      onFocus={() => {
+                        if (editCustomerSearch.trim()) setShowEditCustomerDropdown(true);
+                      }}
+                      style={{ paddingLeft: '2.2rem', paddingRight: editCustomerSearch ? '2.2rem' : '0.75rem', fontSize: '0.85rem', background: 'var(--bg-card)' }}
+                      autoComplete="off"
+                    />
+                    {editCustomerSearch && (
+                      <button
+                        type="button"
+                        className="btn-icon text-muted"
+                        style={{ position: 'absolute', right: '6px', padding: '0.2rem' }}
+                        onClick={() => {
+                          setEditCustomerSearch('');
+                          setShowEditCustomerDropdown(false);
+                        }}
+                        title="Clear search"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
                   </div>
+
+                  {/* Dropdown list of customers */}
+                  {showEditCustomerDropdown && (
+                    <div
+                      className="customer-dropdown-menu"
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        zIndex: 1300,
+                        maxHeight: '240px',
+                        overflowY: 'auto',
+                        background: 'var(--pos-bg, #ffffff)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                        marginTop: '4px'
+                      }}
+                    >
+                      {editFilteredCustomers.length === 0 ? (
+                        <div style={{ padding: '0.65rem 0.85rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          No customer found matching &ldquo;{editCustomerSearch}&rdquo;
+                        </div>
+                      ) : (
+                        editFilteredCustomers.map(c => (
+                          <div
+                            key={c.id || c.customer_code}
+                            className="customer-dropdown-item"
+                            style={{ padding: '0.55rem 0.85rem', cursor: 'pointer', borderBottom: '1px solid var(--border-soft, #f1f5f9)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            onClick={() => {
+                              setEditingInvoice(prev => ({
+                                ...prev,
+                                customerId: c.customer_code || c.id,
+                                customerName: c.name,
+                                customerPhone: c.phone || '',
+                                customerLocation: c.location || ''
+                              }));
+                              setEditCustomerSearch('');
+                              setShowEditCustomerDropdown(false);
+                              showToast(`Switched customer to "${c.name}". Account will adjust upon saving!`, 'success');
+                            }}
+                          >
+                            <div className="customer-item-left">
+                              <div style={{ fontWeight: '600', fontSize: '0.88rem' }}>{c.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <span>ID: {c.customer_code || c.id}</span>
+                                {c.phone && <span>📞 {c.phone}</span>}
+                                {c.location && <span>📍 {c.location}</span>}
+                              </div>
+                            </div>
+                            <div className="customer-item-right" style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                Opening: ৳{Number(c.opening_due || 0).toLocaleString()}
+                              </div>
+                              <span className={`customer-due-badge ${Number(c.due || 0) > 0 ? 'bg-danger text-white' : 'bg-success text-white'}`} style={{ fontSize: '0.72rem', padding: '2px 6px', borderRadius: '4px' }}>
+                                Due: ৳{Number(c.due || 0).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Editable Fields Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
+                  <div>
+                    <label className="text-muted text-xs block mb-1 font-semibold">Customer Name *</label>
+                    <input
+                      type="text"
+                      className="w-full"
+                      value={editingInvoice.customerName}
+                      onChange={(e) => setEditingInvoice({ ...editingInvoice, customerName: e.target.value })}
+                      placeholder="Customer name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted text-xs block mb-1 font-semibold">Customer Phone</label>
+                    <input
+                      type="text"
+                      className="w-full"
+                      value={editingInvoice.customerPhone || ''}
+                      onChange={(e) => setEditingInvoice({ ...editingInvoice, customerPhone: e.target.value })}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted text-xs block mb-1 font-semibold">Address / Location</label>
+                    <input
+                      type="text"
+                      className="w-full"
+                      value={editingInvoice.customerLocation || ''}
+                      onChange={(e) => setEditingInvoice({ ...editingInvoice, customerLocation: e.target.value })}
+                      placeholder="e.g. Kotchandpur, Dhaka"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted text-xs block mb-1 font-semibold">Payment Mode</label>
+                    <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontWeight: 'bold' }}>
+                      <span className="badge bg-warning" style={{ fontSize: '0.8rem' }}>Only Due (Baki)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted" style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>
+                  💡 Customer পরিবর্তন করলে পূর্বের কাস্টমার থেকে এই চালান ও হিসাব সম্পূর্ণ মুছে সমন্বয় হবে এবং নতুন কাস্টমারের অ্যাকাউন্টে যোগ হবে।
                 </div>
               </div>
 

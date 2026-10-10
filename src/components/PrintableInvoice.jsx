@@ -211,14 +211,14 @@ const PrintableInvoice = ({ sale, customers }) => {
       {/* Products Table */}
       <table style={{ width: '100%', fontSize: isCompact ? '0.74rem' : isLarge ? '0.78rem' : '0.85rem', marginBottom: isCompact ? '0.4rem' : isLarge ? '0.65rem' : '0.85rem', borderCollapse: 'collapse', border: '1px solid #000000', color: '#000000' }}>
         <thead>
-          <tr style={{ backgroundColor: '#27272a', borderBottom: '1px solid #000000', color: '#ffffff' }}>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: '32px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>SL</th>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '68px' : '75px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Code</th>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 6px' : isLarge ? '5px 6px' : '8px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Item Description (পণ্যের বিবরণ)</th>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '55px' : '65px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Size</th>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '50px' : '55px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Qty</th>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 5px' : isLarge ? '5px 6px' : '8px 6px', textAlign: 'right', width: isCompact ? '80px' : '90px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Rate</th>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 6px' : isLarge ? '5px 6px' : '8px 8px', textAlign: 'right', width: isCompact ? '85px' : '95px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Total (৳)</th>
+          <tr style={{ backgroundColor: '#374151', borderBottom: '1px solid #000000', color: '#ffffff' }}>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: '32px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>SL</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '68px' : '75px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Code</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 6px' : isLarge ? '5px 6px' : '8px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Item Description (পণ্যের বিবরণ)</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '55px' : '65px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Size</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '50px' : '55px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Qty</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 4px' : isLarge ? '5px 4px' : '8px 5px', textAlign: 'right', width: isCompact ? '55px' : '62px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem', whiteSpace: 'nowrap' }}>Rate (৳)</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 5px' : isLarge ? '5px 5px' : '8px 6px', textAlign: 'right', width: isCompact ? '75px' : '85px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem', whiteSpace: 'nowrap' }}>Total (৳)</th>
           </tr>
         </thead>
         <tbody>
@@ -240,7 +240,7 @@ const PrintableInvoice = ({ sale, customers }) => {
                 </td>
                 <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', fontSize: isCompact ? '0.7rem' : '0.82rem', color: '#000000', fontWeight: '600' }}>{size}</td>
                 <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.73rem' : 'inherit' }}>{itemQty} {item.unit || 'pcs'}</td>
-                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 4px' : '5px 6px', textAlign: 'right', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.73rem' : 'inherit' }}>৳{itemPrice.toLocaleString()}</td>
+                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 3px' : '5px 5px', textAlign: 'right', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.73rem' : 'inherit', whiteSpace: 'nowrap' }}>৳{itemPrice.toLocaleString()}</td>
                 <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 5px' : '5px 8px', textAlign: 'right', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.75rem' : 'inherit' }}>৳{itemTotal.toLocaleString()}</td>
               </tr>
             );
