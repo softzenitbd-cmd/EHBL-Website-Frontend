@@ -147,7 +147,22 @@ const POS = () => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomerObj, setSelectedCustomerObj] = useState(null);
+  const [showCustomerListModal, setShowCustomerListModal] = useState(false);
+  const [customerListSearchTerm, setCustomerListSearchTerm] = useState('');
   const customerContainerRef = useRef(null);
+
+  const modalFilteredCustomers = useMemo(() => {
+    const term = customerListSearchTerm.trim().toLowerCase();
+    const list = customers || [];
+    if (!term) return list;
+    return list.filter(c => {
+      const name = String(c.name || '').toLowerCase();
+      const phone = String(c.phone || '').toLowerCase();
+      const location = String(c.location || '').toLowerCase();
+      const code = String(c.customer_code || c.id || '').toLowerCase();
+      return name.includes(term) || phone.includes(term) || location.includes(term) || code.includes(term);
+    });
+  }, [customers, customerListSearchTerm]);
 
   // Close customer dropdown on click outside
   useEffect(() => {
@@ -182,7 +197,8 @@ const POS = () => {
       phone: c.phone || '',
       location: c.location || '',
       customerId: c.id || c.customer_code,
-      due: c.due
+      due: c.due,
+      opening_due: c.opening_due
     });
     setShowCustomerDropdown(false);
   };
@@ -575,7 +591,7 @@ const POS = () => {
       customer_phone: editingInvoice.customerPhone,
       customer_location: editingInvoice.customerLocation,
       paymentType: 'Baki',
-      invoiceDiscount: 0,
+      invoiceDiscount: parseFloat(editDiscount) || 0,
       status: 'Locked'
     };
 
@@ -779,32 +795,6 @@ const POS = () => {
             </div>
           </div>
 
-          {/* Quick Add Section */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', padding: '0 1.5rem 1rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-            {inventory.length === 0 ? (
-              <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={loadDummyData}>
-                <Database size={16} /> Load Dummy Inventory
-              </button>
-            ) : (
-              inventory.slice(0, 5).map(item => (
-                <button
-                  key={item.id}
-                  className="btn-icon"
-                  style={{
-                    border: '1px solid var(--border-color)',
-                    padding: '0.5rem 1rem',
-                    borderRadius: 'var(--radius-full)',
-                    fontSize: '0.85rem',
-                    backgroundColor: 'var(--bg-input)'
-                  }}
-                  onClick={() => addToCart({ ...item, isGift: false, itemDiscount: 0 })}
-                >
-                  {item.name} (Buy: {item.purchasePrice || 0} | Sell: {item.price})
-                </button>
-              ))
-            )}
-          </div>
-
           <div className="cart-list">
             {cart.length === 0 ? (
               <div className="empty-cart text-muted">Cart is empty. Scan or select an item to begin.</div>
@@ -929,7 +919,18 @@ const POS = () => {
           <h3>Invoice Details</h3>
 
           <div className="checkout-section">
-            <label>Customer Details <span className="text-danger">*</span></label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <label style={{ margin: 0 }}>Customer Details <span className="text-danger">*</span></label>
+              <button
+                type="button"
+                className="btn-outline flex-align-gap"
+                style={{ padding: '0.2rem 0.6rem', fontSize: '0.78rem', borderRadius: 'var(--radius-sm, 4px)', borderColor: 'var(--primary)', color: 'var(--primary)', fontWeight: 600 }}
+                onClick={() => setShowCustomerListModal(true)}
+                title="Browse & select from Customer List"
+              >
+                <Users size={13} /> Customer List
+              </button>
+            </div>
             <div className="pos-customer-wrapper" ref={customerContainerRef}>
               <div className="customer-search-input-box mb-2">
                 <input
@@ -979,7 +980,10 @@ const POS = () => {
                             {(c.customer_code || c.id) && <span className="search-badge">ID: {c.customer_code || c.id}</span>}
                           </div>
                         </div>
-                        <div className="customer-item-right">
+                        <div className="customer-item-right" style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--pos-muted, #64748b)', marginBottom: '2px' }}>
+                            Opening: ৳{Number(c.opening_due || 0).toLocaleString()}
+                          </div>
                           <span className={`customer-due-badge ${Number(c.due || 0) > 0 ? 'bg-danger text-white' : 'bg-success text-white'}`}>
                             Due: ৳{Number(c.due || 0).toLocaleString()}
                           </span>
@@ -991,16 +995,24 @@ const POS = () => {
               )}
             </div>
 
-            {/* Selected customer card with previous due info */}
+            {/* Selected customer card with opening balance and previous due info */}
             {selectedCustomerObj && (
               <div className="customer-selected-card">
                 <div>
                   <span className="text-muted text-xs block">Existing Customer:</span>
                   <strong>{selectedCustomerObj.name}</strong> {selectedCustomerObj.phone ? `(${selectedCustomerObj.phone})` : ''}
+                  {selectedCustomerObj.location && (
+                    <div className="text-muted text-xs">📍 {selectedCustomerObj.location}</div>
+                  )}
                 </div>
                 <div className="text-right">
-                  <span className="text-muted text-xs block">Previous Due:</span>
-                  <span className="text-danger font-bold">৳{Number(selectedCustomerObj.due || 0).toLocaleString()}</span>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-muted, #64748b)' }}>
+                    Opening: <strong style={{ color: 'var(--pos-text)' }}>৳{Number(selectedCustomerObj.opening_due || 0).toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted text-xs">Previous Due: </span>
+                    <span className="text-danger font-bold">৳{Number(selectedCustomerObj.due || 0).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1834,6 +1846,102 @@ const POS = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Full Customer List Modal */}
+      {showCustomerListModal && createPortal(
+        <div className="drawer-overlay" onClick={() => setShowCustomerListModal(false)}>
+          <div className="drawer-container pos-page" style={{ maxWidth: '850px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <div>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Users size={20} color="var(--primary)" /> Customer List ({customers.length})
+                </h3>
+                <span className="text-muted text-sm">Select a customer to quickly fill POS invoice</span>
+              </div>
+              <button className="drawer-close-btn" onClick={() => setShowCustomerListModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="drawer-body" style={{ padding: '1rem' }}>
+              <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  className="w-full"
+                  placeholder="Search by name, phone, code or location..."
+                  value={customerListSearchTerm}
+                  onChange={(e) => setCustomerListSearchTerm(e.target.value)}
+                  style={{ paddingLeft: '2.5rem' }}
+                  autoFocus
+                />
+              </div>
+
+              <div className="table-responsive" style={{ maxHeight: '420px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                <table className="data-table" style={{ margin: 0 }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--pos-bg-head, #f1f5f9)' }}>
+                    <tr>
+                      <th>Code</th>
+                      <th>Name</th>
+                      <th>Phone</th>
+                      <th>Location</th>
+                      <th style={{ textAlign: 'right' }}>Opening Balance</th>
+                      <th style={{ textAlign: 'right' }}>Current Due</th>
+                      <th style={{ textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalFilteredCustomers.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="text-center text-muted" style={{ padding: '2rem' }}>
+                          No customers found matching &ldquo;{customerListSearchTerm}&rdquo;
+                        </td>
+                      </tr>
+                    ) : (
+                      modalFilteredCustomers.map(c => (
+                        <tr key={c.id || c.customer_code}>
+                          <td><span className="search-badge">{c.customer_code || c.id}</span></td>
+                          <td><strong>{c.name}</strong></td>
+                          <td>{c.phone || 'N/A'}</td>
+                          <td>{c.location || 'N/A'}</td>
+                          <td style={{ textAlign: 'right' }}>৳{Number(c.opening_due || 0).toLocaleString()}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <span className={Number(c.due || 0) > 0 ? 'text-danger font-bold' : 'text-success font-bold'}>
+                              ৳{Number(c.due || 0).toLocaleString()}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem', borderRadius: '4px' }}
+                              onClick={() => {
+                                handleSelectCustomer(c);
+                                setShowCustomerListModal(false);
+                                showToast(`Selected "${c.name}"`, 'success');
+                              }}
+                            >
+                              Select
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="text-muted text-xs">Total Customers: {customers.length}</span>
+              <button type="button" className="btn-outline" onClick={() => setShowCustomerListModal(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>,
         document.body

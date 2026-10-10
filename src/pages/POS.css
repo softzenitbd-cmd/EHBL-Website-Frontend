@@ -236,8 +236,8 @@ body:not(.light-mode) .drawer-container {
   display: flex;
   flex-direction: column;
   min-height: 280px;
-  max-height: calc(100vh - 330px);
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .empty-cart {

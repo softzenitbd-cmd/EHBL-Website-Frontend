@@ -236,20 +236,24 @@ const Customers = () => {
                 <th>ID</th>
                 <th>Name</th>
                 <th>Phone</th>
+                <th>Location</th>
+                <th>Opening Balance (BDT)</th>
                 <th>Total Due (BDT)</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredList.length === 0 ? (
-                <tr><td colSpan="5" className="text-center text-muted">No records found.</td></tr>
+                <tr><td colSpan="7" className="text-center text-muted">No records found.</td></tr>
               ) : (
                 filteredList.map((person) => (
                   <tr key={person.id}>
-                    <td>{person.id}</td>
-                    <td>{person.name}</td>
-                    <td className="flex-align-gap"><Phone size={14} className="text-muted" /> {person.phone}</td>
-                    <td><span className="text-danger font-bold">{person.due}</span></td>
+                    <td><span className="search-badge">{person.customer_code || person.id}</span></td>
+                    <td><strong>{person.name}</strong></td>
+                    <td className="flex-align-gap"><Phone size={14} className="text-muted" /> {person.phone || 'N/A'}</td>
+                    <td>{person.location || 'N/A'}</td>
+                    <td>৳{Number(person.opening_due || 0).toLocaleString()}</td>
+                    <td><span className={Number(person.due || 0) > 0 ? "text-danger font-bold" : "text-success font-bold"}>৳{Number(person.due || 0).toLocaleString()}</span></td>
                     <td>
                       <div className="action-buttons flex-align-gap" style={{flexWrap:'nowrap'}}>
                         <button type="button" className="btn-icon" title="Edit" onClick={(e) => { e.stopPropagation(); handleEditClick(person); }}>
@@ -291,6 +295,7 @@ const Customers = () => {
                 <th style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'left'}}>ID</th>
                 <th style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'left'}}>Name</th>
                 <th style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'left'}}>Phone</th>
+                <th style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right'}}>Opening Balance (BDT)</th>
                 <th style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right'}}>Total Due (BDT)</th>
               </tr>
             </thead>
@@ -300,17 +305,21 @@ const Customers = () => {
                   <td style={{border: '1px solid #ccc', padding: '0.4rem'}}>{person.id}</td>
                   <td style={{border: '1px solid #ccc', padding: '0.4rem'}}>{person.name}</td>
                   <td style={{border: '1px solid #ccc', padding: '0.4rem'}}>{person.phone}</td>
-                  <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right'}}>{person.due.toLocaleString()}</td>
+                  <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right'}}>{Number(person.opening_due || 0).toLocaleString()}</td>
+                  <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right'}}>{Number(person.due || 0).toLocaleString()}</td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="4" style={{border: '1px solid #ccc', padding: '1rem', textAlign: 'center'}}>No records found.</td>
+                  <td colSpan="5" style={{border: '1px solid #ccc', padding: '1rem', textAlign: 'center'}}>No records found.</td>
                 </tr>
               )}
             </tbody>
             <tfoot>
               <tr style={{ background: '#f8f9fa', fontWeight: 'bold' }}>
-                <td colSpan="3" style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right'}}>Total Due:</td>
+                <td colSpan="3" style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right'}}>Total:</td>
+                <td style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right'}}>
+                  {filteredList.reduce((sum, item) => sum + Number(item.opening_due || 0), 0).toLocaleString()}
+                </td>
                 <td style={{border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right', color: 'red'}}>
                   {filteredList.reduce((sum, item) => sum + Number(item.due || 0), 0).toLocaleString()}
                 </td>
@@ -628,6 +637,16 @@ const Customers = () => {
                     type="text" 
                     value={editingPerson.location || ''} 
                     onChange={e => setEditingPerson({...editingPerson, location: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Opening Balance (Due)</label>
+                  <input 
+                    type="number" 
+                    value={editingPerson.opening_due ?? ''} 
+                    onChange={e => setEditingPerson({...editingPerson, opening_due: e.target.value})} 
+                    placeholder="e.g. 5000"
                     style={{ width: '100%' }}
                   />
                 </div>

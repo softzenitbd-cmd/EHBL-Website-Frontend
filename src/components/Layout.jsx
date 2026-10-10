@@ -159,7 +159,7 @@ const Layout = () => {
       icon: <DollarSign size={20} />,
       subItems: [
         { path: '/customers?action=add', search: '?action=add', name: 'Add Customer' },
-        { path: '/customers', search: '', name: 'Customer Due List' },
+        { path: '/customers', search: '', name: 'Customer List' },
         { path: '/suppliers?action=add', search: '?action=add', name: 'Add Supplier' },
         { path: '/suppliers', search: '', name: 'Supplier Due List' },
         { path: '/staff-dues', search: '', name: 'Staff/SR Due List' },

@@ -217,7 +217,7 @@ const PrintableInvoice = ({ sale, customers }) => {
             <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 6px' : isLarge ? '5px 6px' : '8px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Item Description (পণ্যের বিবরণ)</th>
             <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '55px' : '65px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Size</th>
             <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '50px' : '55px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Qty</th>
-            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 5px' : isLarge ? '5px 6px' : '8px 6px', textAlign: 'right', width: isCompact ? '80px' : '90px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Rate(Taka)</th>
+            <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 5px' : isLarge ? '5px 6px' : '8px 6px', textAlign: 'right', width: isCompact ? '80px' : '90px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Rate</th>
             <th style={{ border: '1px solid #3f3f46', padding: isCompact ? '3px 6px' : isLarge ? '5px 6px' : '8px 8px', textAlign: 'right', width: isCompact ? '85px' : '95px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Total (৳)</th>
           </tr>
         </thead>
