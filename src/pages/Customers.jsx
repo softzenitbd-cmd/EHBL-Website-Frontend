@@ -111,9 +111,10 @@ const Customers = () => {
       showToast("Name is required", "error");
       return;
     }
-    const updatedData = { ...editingPerson };
-    if (updatedData.due) updatedData.due = parseFloat(updatedData.due) || 0;
-    else updatedData.due = 0;
+    // Current due is worked out by the server from the opening balance and the
+    // account's history, so only the opening balance is sent.
+    const { due: _ignoredDue, ...updatedData } = editingPerson;
+    updatedData.opening_due = parseFloat(updatedData.opening_due) || 0;
 
     const result = activeTab === 'Customer'
       ? await updateCustomer(editingPerson.id, updatedData)
@@ -651,13 +652,17 @@ const Customers = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Due Balance</label>
-                  <input 
-                    type="number" 
-                    value={editingPerson.due} 
-                    onChange={e => setEditingPerson({...editingPerson, due: e.target.value})} 
-                    style={{ width: '100%' }}
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Current Due (calculated)</label>
+                  <input
+                    type="text"
+                    value={Number(editingPerson.due || 0).toLocaleString()}
+                    readOnly
+                    disabled
+                    style={{ width: '100%', opacity: 0.75 }}
                   />
+                  <small className="text-muted">
+                    Changes with the opening balance, sales and payments. Raising the opening balance by 1,000 raises this by 1,000.
+                  </small>
                 </div>
                 <div>
                   <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Notes / Remarks</label>

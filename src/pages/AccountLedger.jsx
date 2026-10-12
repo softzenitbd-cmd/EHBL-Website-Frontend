@@ -494,6 +494,14 @@ const AccountLedger = () => {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr className="lg-opening">
+                      <td>{bookFrom ? fmtLedgerDate(bookFrom) : ''}</td>
+                      <td />
+                      <td><strong>OPENING BALANCE</strong>{bookFrom ? ' B/F' : ''}</td>
+                      <td className="is-num">{isCustomer ? lakh(book.opening) : lakh(0)}</td>
+                      <td className="is-num">{isCustomer ? lakh(0) : lakh(book.opening)}</td>
+                      <td className="is-num is-strong">{lakh(book.opening)}</td>
+                    </tr>
                     {book.rows.map((r, idx) => (
                       <tr key={`${r.id}-${idx}`}>
                         <td style={{ verticalAlign: 'top' }}>{fmtLedgerDate(r.date)}</td>

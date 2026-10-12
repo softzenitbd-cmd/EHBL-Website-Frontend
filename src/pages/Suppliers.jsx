@@ -193,9 +193,10 @@ const Suppliers = () => {
       showToast("Name is required", "error");
       return;
     }
-    const updatedData = { ...editingSupplier };
-    if (updatedData.due) updatedData.due = parseFloat(updatedData.due) || 0;
-    else updatedData.due = 0;
+    // Current due is worked out by the server from the opening balance and the
+    // account's history, so only the opening balance is sent.
+    const { due: _ignoredDue, ...updatedData } = editingSupplier;
+    updatedData.opening_due = parseFloat(updatedData.opening_due) || 0;
 
     const result = await updateSupplier(editingSupplier.id, updatedData);
     if (!result.success) {
@@ -453,13 +454,25 @@ const Suppliers = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Due Balance</label>
-                  <input 
-                    type="number" 
-                    value={editingSupplier.due} 
-                    onChange={e => setEditingSupplier({...editingSupplier, due: e.target.value})} 
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Opening Balance (Due)</label>
+                  <input
+                    type="number"
+                    value={editingSupplier.opening_due ?? ''}
+                    onChange={e => setEditingSupplier({...editingSupplier, opening_due: e.target.value})}
+                    placeholder="e.g. 5000"
                     style={{ width: '100%' }}
                   />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Current Due (calculated)</label>
+                  <input
+                    type="text"
+                    value={Number(editingSupplier.due || 0).toLocaleString()}
+                    readOnly
+                    disabled
+                    style={{ width: '100%', opacity: 0.75 }}
+                  />
+                  <small className="text-muted">Changes with the opening balance, purchases and payments.</small>
                 </div>
                 <div>
                   <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem' }}>Notes / Remarks</label>

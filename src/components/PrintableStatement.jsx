@@ -204,6 +204,14 @@ const PrintableStatement = ({
           </tr>
         </thead>
         <tbody>
+          <tr>
+            <td style={{ ...cell, textAlign: 'center', whiteSpace: 'nowrap' }}>{from ? fmtLedgerDate(from) : ''}</td>
+            <td style={cell} />
+            <td style={{ ...cell, fontWeight: 800 }}>OPENING BALANCE{from ? ' B/F' : ''}</td>
+            <td style={{ ...cell, textAlign: 'right', whiteSpace: 'nowrap' }}>{isCustomer ? lakh(book.opening) : lakh(0)}</td>
+            <td style={{ ...cell, textAlign: 'right', whiteSpace: 'nowrap' }}>{isCustomer ? lakh(0) : lakh(book.opening)}</td>
+            <td style={{ ...cell, textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700 }}>{lakh(book.opening)}</td>
+          </tr>
           {book.rows.map((r, idx) => (
             <tr key={`${r.id}-${idx}`}>
               <td style={{ ...cell, textAlign: 'center', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
