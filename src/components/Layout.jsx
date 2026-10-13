@@ -140,7 +140,7 @@ const Layout = () => {
         { path: '/pos', search: '', name: 'Invoice List' },
         { path: '/returns?action=add', search: '?action=add', name: 'Return' },
         { path: '/returns', search: '', name: 'Return List' },
-        { path: '/sr-settlements', search: '', name: 'Order Process' },
+        // { path: '/sr-settlements', search: '', name: 'Order Process' },
       ]
     },
     { 
