@@ -1,5 +1,5 @@
 import React from 'react';
-import useStore from '../store/useStore';
+import InvoiceHeader from './InvoiceHeader';
 import { buildLedgerBook, fmtLedgerDate, lakh } from '../utils/ledgerBook';
 
 const cell = {
@@ -29,7 +29,6 @@ const PrintableStatement = ({
   itemsMap = null,
   showProducts = true,
 }) => {
-  const shopProfile = useStore((state) => state.shopProfile);
   if (!statement?.entity) return null;
 
   const isCustomer = kind === 'Customer';
@@ -45,13 +44,6 @@ const PrintableStatement = ({
   const dayPart = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
   const timePart = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const stamp = `${dayPart} ${timePart}`;
-
-  // Company Name and Corporate Office
-  const hasCustomShop = shopProfile?.shop_name && !shopProfile.shop_name.includes('EHBL AND POWER TOOLS');
-  const shopName = hasCustomShop ? shopProfile.shop_name : 'EASTERN HARDWARE\nBD. LTD.';
-  const corporateOffice = shopProfile?.address && !shopProfile.address.includes('House # 37')
-    ? shopProfile.address
-    : 'Corporate Office: House#41(2nd Floor), Road#1/A, Block#J, Baridhara R/A, Dhaka-1212';
 
   const partyName = e.name ? (e.company ? `${e.name}, ${e.company}` : `${e.name},`) : '';
   const partyLocation = e.location || '';
@@ -101,46 +93,65 @@ const PrintableStatement = ({
         `}
       </style>
 
-      {/* Header section matching photo layout */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '8px' }}>
-        {/* Left column: Company info, customer info, and period */}
+      {/* Invoice header with EHBL Logo and Shop Address */}
+      <InvoiceHeader compact={true} />
+
+      {/* Sub-header: Party info, Period, Ledger Title, Timestamp, Opening balance */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          gap: '1rem',
+          marginTop: '6px',
+          marginBottom: '10px',
+        }}
+      >
+        {/* Left column: Party details and period */}
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-          {/* Company Name */}
-          <div
-            style={{
-              fontFamily: "'Arial Black', 'Trebuchet MS', 'Arial', sans-serif",
-              fontSize: '1.3rem',
-              fontWeight: 900,
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-              color: '#000000',
-              lineHeight: 1.15,
-            }}
-          >
-            {shopName.split('\n').map((line, idx) => (
-              <div key={idx}>{line}</div>
-            ))}
-          </div>
-
-          {/* Corporate Office Address */}
-          <div style={{ fontSize: '0.78rem', color: '#000000', marginTop: '3px', fontWeight: 500, lineHeight: 1.25 }}>
-            {corporateOffice}
-          </div>
-
-          {/* Customer / Party details */}
-          <div style={{ marginTop: '12px' }}>
-            <div style={{ fontWeight: 800, fontSize: '0.98rem', textTransform: 'uppercase', color: '#000000', letterSpacing: '0.2px' }}>
+          <div>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: '1rem',
+                textTransform: 'uppercase',
+                color: '#000000',
+                letterSpacing: '0.2px',
+                lineHeight: 1.25,
+              }}
+            >
               {partyName}
             </div>
             {partyLocation && (
-              <div style={{ fontWeight: 700, fontSize: '0.88rem', textTransform: 'uppercase', color: '#000000', marginTop: '1px' }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  textTransform: 'uppercase',
+                  color: '#000000',
+                  marginTop: '2px',
+                  lineHeight: 1.25,
+                }}
+              >
                 {partyLocation}
+              </div>
+            )}
+            {e.phone && (
+              <div style={{ fontSize: '0.82rem', color: '#222222', marginTop: '1px', fontWeight: 600 }}>
+                Phone: {e.phone}
               </div>
             )}
           </div>
 
-          {/* Period */}
-          <div style={{ marginTop: '14px', fontWeight: 800, fontSize: '0.92rem', color: '#000000', letterSpacing: '0.3px' }}>
+          <div
+            style={{
+              marginTop: '10px',
+              fontWeight: 800,
+              fontSize: '0.92rem',
+              color: '#000000',
+              letterSpacing: '0.3px',
+            }}
+          >
             PERIOD&nbsp; {fmtLedgerDate(periodFrom) || '-'} &nbsp;TO&nbsp; {fmtLedgerDate(periodTo)}
           </div>
         </div>
@@ -158,19 +169,19 @@ const PrintableStatement = ({
           }}
         >
           {/* Timestamp and printed user */}
-          <div style={{ fontSize: '0.8rem', color: '#000000', fontWeight: 500, whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '0.78rem', color: '#000000', fontWeight: 500, whiteSpace: 'nowrap' }}>
             {stamp}{printedBy ? ` | ${printedBy.toUpperCase()}` : ''}
           </div>
 
           {/* LEDGER BOOK title */}
           <div
             style={{
-              fontWeight: 800,
-              fontSize: '1.15rem',
-              letterSpacing: '0.5px',
+              fontWeight: 900,
+              fontSize: '1.25rem',
+              letterSpacing: '1px',
               textTransform: 'uppercase',
               color: '#000000',
-              margin: '12px 0',
+              margin: '8px 0',
             }}
           >
             LEDGER BOOK
