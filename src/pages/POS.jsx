@@ -421,7 +421,125 @@ const POS = () => {
   // -------------------------------------------------------------
   const [editDiscount, setEditDiscount] = useState(0);
 
+  // ---- Auto-save -------------------------------------------------------
+  // Every save re-books stock and the customer's due, so it must not fire on
+  // each keystroke (typing "12" would save 1 first). Changes are saved 1.5 s
+  // after the last edit, only when the invoice is in a savable state.
+  const AUTOSAVE_DELAY = 1500;
+  const [autoState, setAutoState] = useState('idle'); // idle|pending|saving|saved|blocked|error
+  const [autoMsg, setAutoMsg] = useState('');
+  const autoTimerRef = useRef(null);
+  const savedSnapRef = useRef(null);   // what the server has
+  const currentSnapRef = useRef(null); // what the form shows
+  const autoBusyRef = useRef(false);
+
+  const buildEditPayload = () => ({
+    items: editItems.map(it => ({
+      item_id: it.item_id || it.id,
+      product_code: it.product_code || it.item_id || it.id,
+      name: it.name,
+      unit: it.unit || 'pcs',
+      price: Number(it.price) || 0,
+      quantity: Math.max(1, Number(it.quantity) || 1),
+    })),
+    customerId: editingInvoice?.customerId,
+    customerName: editingInvoice?.customerName,
+    customer_phone: editingInvoice?.customerPhone,
+    customer_location: editingInvoice?.customerLocation,
+    paymentType: 'Baki',
+    invoiceDiscount: parseFloat(editDiscount) || 0
+  });
+
+  /** Why the form cannot be saved right now, or '' if it can. */
+  const editBlocker = () => {
+    if (editItems.length === 0) return 'Invoice has no products';
+    const noRate = editItems.find(it => it.price === '' || it.price === null || it.price === undefined);
+    if (noRate) return `Rate missing for "${noRate.name}"`;
+    return '';
+  };
+
+  const editSnapshot = editingInvoice ? JSON.stringify(buildEditPayload()) : null;
+  currentSnapRef.current = editSnapshot;
+
+  const runAutoSave = async () => {
+    if (!editingInvoice || autoBusyRef.current) return;
+    const snap = currentSnapRef.current;
+    if (!snap || snap === savedSnapRef.current) return;
+    const blocker = editBlocker();
+    if (blocker) { setAutoState('blocked'); setAutoMsg(blocker); return; }
+
+    autoBusyRef.current = true;
+    setAutoState('saving');
+    const targetId = editingInvoice.invoice_number || editingInvoice.id;
+    const result = await updateSale(targetId, JSON.parse(snap));
+    autoBusyRef.current = false;
+
+    if (!result.success) {
+      setAutoState('error');
+      setAutoMsg(result.error || 'Could not save');
+      return;
+    }
+    savedSnapRef.current = snap;
+    setAutoState('saved');
+    setAutoMsg('');
+    // Edited again while that save was in flight: save the newer state too.
+    if (currentSnapRef.current && currentSnapRef.current !== snap) {
+      clearTimeout(autoTimerRef.current);
+      autoTimerRef.current = setTimeout(runAutoSave, AUTOSAVE_DELAY);
+    }
+  };
+
+  useEffect(() => {
+    if (!editSnapshot) return;
+    // First render after opening: that is the saved state, nothing to do.
+    if (savedSnapRef.current === null) { savedSnapRef.current = editSnapshot; return; }
+    if (editSnapshot === savedSnapRef.current) return;
+
+    clearTimeout(autoTimerRef.current);
+    const blocker = editBlocker();
+    if (blocker) { setAutoState('blocked'); setAutoMsg(blocker); return; }
+    setAutoState('pending');
+    autoTimerRef.current = setTimeout(runAutoSave, AUTOSAVE_DELAY);
+    return () => clearTimeout(autoTimerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editSnapshot]);
+
+  const resetAutoSave = () => {
+    clearTimeout(autoTimerRef.current);
+    savedSnapRef.current = null;
+    autoBusyRef.current = false;
+    setAutoState('idle');
+    setAutoMsg('');
+  };
+
+  /** Close the drawer, saving anything not yet saved first. */
+  const requestCloseEdit = async () => {
+    clearTimeout(autoTimerRef.current);
+    const dirty = currentSnapRef.current && currentSnapRef.current !== savedSnapRef.current;
+    if (dirty) {
+      const blocker = editBlocker();
+      if (blocker) {
+        const ok = await confirmDialog({
+          title: 'Unsaved changes',
+          text: `${blocker}, so the latest changes are not saved. Close anyway and lose them?`,
+          icon: 'warning',
+          confirmButtonText: 'Close without saving',
+          confirmButtonColor: '#dc2626'
+        });
+        if (!ok) return;
+      } else {
+        await runAutoSave();
+        if (currentSnapRef.current !== savedSnapRef.current) {
+          showToast('Last changes could not be saved. Check the invoice and try again.', 'error');
+          return;
+        }
+      }
+    }
+    handleCloseEdit();
+  };
+
   const handleCloseEdit = () => {
+    resetAutoSave();
     setEditingInvoice(null);
     setEditItems([]);
     setEditDiscount(0);
@@ -436,6 +554,7 @@ const POS = () => {
       showToast('This invoice is permanently locked and cannot be edited.', 'error');
       return;
     }
+    resetAutoSave();
     setEditingInvoice({
       ...invoice,
       customerId: invoice.customerId || invoice.customer_id || (invoice.customer?.customer_code || invoice.customer?.id) || '',
@@ -551,6 +670,8 @@ const POS = () => {
   const handleSaveEditedInvoice = async (e) => {
     if (e) e.preventDefault();
     if (!editingInvoice) return;
+    // The button saves now; drop the queued auto-save so it does not repeat it.
+    clearTimeout(autoTimerRef.current);
     if (editItems.length === 0) {
       showToast('Invoice must have at least one product.', 'error');
       return;
@@ -589,12 +710,14 @@ const POS = () => {
       return;
     }
 
+    savedSnapRef.current = currentSnapRef.current;
     showToast(`Invoice ${targetId} updated successfully!`, 'success');
     handleCloseEdit();
   };
 
   const handleLockInvoice = async () => {
     if (!editingInvoice) return;
+    clearTimeout(autoTimerRef.current);
     if (editItems.length === 0) {
       showToast('Invoice must have at least one product.', 'error');
       return;
@@ -1405,7 +1528,7 @@ const POS = () => {
 
       {/* EDIT INVOICE DRAWER */}
       {editingInvoice && createPortal(
-        <div className="drawer-overlay" onClick={handleCloseEdit}>
+        <div className="drawer-overlay" onClick={requestCloseEdit}>
           <div className="drawer-container pos-page" style={{ maxWidth: '750px' }} onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
               <div>
@@ -1415,8 +1538,16 @@ const POS = () => {
                 <span className="text-muted text-sm">
                   Customer: <strong>{editingInvoice.customerName || 'N/A'}</strong> &middot; Date: {editingInvoice.date?.split('T')[0]}
                 </span>
+                <div className={`autosave autosave--${autoState}`} role="status" aria-live="polite">
+                  {autoState === 'idle' && 'Changes save automatically'}
+                  {autoState === 'pending' && 'Unsaved changes…'}
+                  {autoState === 'saving' && 'Saving…'}
+                  {autoState === 'saved' && 'All changes saved ✓'}
+                  {autoState === 'blocked' && `Not saved: ${autoMsg}`}
+                  {autoState === 'error' && `Save failed: ${autoMsg}`}
+                </div>
               </div>
-              <button className="drawer-close-btn" onClick={handleCloseEdit}>
+              <button className="drawer-close-btn" onClick={requestCloseEdit}>
                 <X size={20} />
               </button>
             </div>
@@ -1827,8 +1958,8 @@ const POS = () => {
               </button>
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="button" className="btn-outline" onClick={handleCloseEdit} disabled={isUpdating}>
-                  Cancel
+                <button type="button" className="btn-outline" onClick={requestCloseEdit} disabled={isUpdating || autoState === 'saving'}>
+                  Close
                 </button>
                 <button
                   type="button"

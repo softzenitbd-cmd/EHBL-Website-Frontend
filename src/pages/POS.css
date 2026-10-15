@@ -1076,3 +1076,16 @@ body:not(.light-mode) .pos-page .data-table th {
   .cart-item .item-price { grid-area: total; text-align: left; }
   .cart-item .item-btns { grid-area: btns; }
 }
+
+/* Auto-save status in the edit-invoice drawer header. */
+.autosave {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pos-muted);
+}
+.autosave--pending { color: var(--pos-accent); }
+.autosave--saving { color: var(--pos-accent); }
+.autosave--saved { color: var(--pos-good); }
+.autosave--blocked,
+.autosave--error { color: var(--pos-danger); }
