@@ -141,7 +141,7 @@ const Layout = () => {
         { path: '/returns?action=add', search: '?action=add', name: 'Return' },
         { path: '/returns', search: '', name: 'Return List' },
         // The Order Process page is Admin-only (see App.jsx), so only Admins see the link.
-        ...(user?.role === 'Admin' ? [{ path: '/sr-settlements', search: '', name: 'Order Process' }] : []),
+        ...(user?.role === 'Admin' ? [{ path: '/order-process', search: '', name: 'Order Process' }] : []),
       ]
     },
     { 

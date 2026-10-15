@@ -6,7 +6,7 @@ import Layout from './components/Layout';
 import Inventory from './pages/Inventory';
 import StockRegister from './pages/StockRegister';
 import StockLogs from './pages/StockLogs';
-import SRSettlement from './pages/SRSettlement';
+import OrderProcess from './pages/OrderProcess';
 import Purchase from './pages/Purchase';
 import Returns from './pages/Returns';
 import Suppliers from './pages/Suppliers';
@@ -90,7 +90,8 @@ function App() {
           
           {/* Admin Only Routes */}
           <Route path="hr" element={<ProtectedRoute requiredRole="Admin"><HR /></ProtectedRoute>} />
-          <Route path="sr-settlements" element={<ProtectedRoute requiredRole="Admin"><SRSettlement /></ProtectedRoute>} />
+          <Route path="order-process" element={<ProtectedRoute requiredRole="Admin"><OrderProcess /></ProtectedRoute>} />
+          <Route path="sr-settlements" element={<Navigate to="/order-process" replace />} />
           <Route path="reports" element={<ProtectedRoute requiredRole="Admin"><Reports /></ProtectedRoute>} />
           <Route path="settings" element={<ProtectedRoute requiredRole="Admin"><Settings /></ProtectedRoute>} />
         </Route>

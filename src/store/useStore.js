@@ -744,6 +744,27 @@ const useStore = create(
         }
       },
 
+      /**
+       * Collect the full remaining due on every invoice of one day. The server
+       * records one payment per invoice, so customer dues and ledgers update.
+       */
+      payDayInvoices: async (date, extra = {}) => {
+        try {
+          const res = await apiClient.post(ENDPOINTS.SALE_PAY_DAY, {
+            date,
+            payment_method: extra.paymentMethod || 'Cash',
+            notes: extra.notes || '',
+            paid_on: extra.paidOn || undefined,
+          });
+          await get().fetchAllData();
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, "Failed to collect the day's dues.");
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
       processPurchase: async (purchasePayload) => {
         try {
           const res = await apiClient.post(ENDPOINTS.PURCHASES, purchasePayload);
