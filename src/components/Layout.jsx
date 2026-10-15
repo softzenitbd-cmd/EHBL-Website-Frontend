@@ -97,6 +97,24 @@ const NavItem = ({ item, isMobileMenuOpen, setIsMobileMenuOpen }) => {
 
 const Layout = () => {
   const { user, logout, theme, toggleTheme, fetchAllData } = useStore();
+  const loadServerCart = useStore((st) => st.loadServerCart);
+
+  // Same account on several PCs share one cart: read it when the app opens,
+  // when this window comes back into focus, and every 20 s while visible.
+  useEffect(() => {
+    if (!user) return undefined;
+    loadServerCart();
+    const onFocus = () => loadServerCart();
+    const onVisible = () => { if (document.visibilityState === 'visible') loadServerCart(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    const poll = setInterval(() => { if (document.visibilityState === 'visible') loadServerCart(); }, 20000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(poll);
+    };
+  }, [user, loadServerCart]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);

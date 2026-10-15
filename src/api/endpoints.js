@@ -33,6 +33,7 @@ export const ENDPOINTS = {
   SALE_PAY: (id) => `/sales/invoices/${id}/pay/`,
   SALE_PAY_DAY: '/sales/invoices/pay-day/',
   DRAFTS: '/sales/drafts/',
+  CART: '/sales/cart/',
   DRAFT_DETAILS: (id) => `/sales/drafts/${id}/`,
   
   // Purchases

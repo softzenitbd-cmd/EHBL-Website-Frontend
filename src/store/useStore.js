@@ -46,6 +46,22 @@ const legacyTransactions = (() => {
   }
 })();
 
+// ---- Server-side cart ---------------------------------------------------
+// The counter cart is saved to the logged-in account so any PC signed in as
+// that user sees the same cart. Edits are pushed 600 ms after they stop;
+// while a push is waiting or in flight, pulls are skipped so a slower read
+// can never overwrite what was just typed.
+let cartPushTimer = null;
+let cartPushInFlight = false;
+const CART_PUSH_DELAY = 600;
+// Only what the cart needs to be rebuilt elsewhere - not the whole product.
+const cartForServer = (cart) => (cart || []).map((it) => ({
+  id: it.id, product_code: it.product_code, name: it.name, variant: it.variant,
+  unit: it.unit, category: it.category, stock: it.stock,
+  price: it.price, purchasePrice: it.purchasePrice, cost_price: it.cost_price,
+  quantity: it.quantity, isGift: !!it.isGift, itemDiscount: it.itemDiscount || 0,
+}));
+
 let srMutationChain = Promise.resolve();
 const queueSrMutation = (run) => {
   const next = srMutationChain.then(run, run);
@@ -187,6 +203,8 @@ const useStore = create(
           };
 
           set({ user: userData, token, lastError: null });
+          // Pick up whatever this account left in the cart on another PC.
+          get().loadServerCart();
           await get().fetchAllData();
           return { success: true, user: userData };
         } catch (err) {
@@ -257,6 +275,9 @@ const useStore = create(
       logout: () => {
         localStorage.removeItem('ehbl_token');
         localStorage.removeItem('token');
+        // Local only: the cart stays on the server for this account's next login.
+        clearTimeout(cartPushTimer);
+        cartPushTimer = null;
         set({ user: null, token: null, cart: [], lastError: null });
       },
 
@@ -347,7 +368,38 @@ const useStore = create(
       // POS cart (client-side only until checkout)
       // ---------------------------------------------------------------
       cart: [],
-      addToCart: (product) => set((state) => {
+
+      /** Queue a save of the cart to the server (debounced). */
+      scheduleCartPush: () => {
+        if (!get().token) return;
+        clearTimeout(cartPushTimer);
+        cartPushTimer = setTimeout(async () => {
+          cartPushTimer = null;
+          cartPushInFlight = true;
+          try {
+            await apiClient.put(ENDPOINTS.CART, { items: cartForServer(get().cart) });
+          } catch {
+            // Offline or server down: the cart is still in this browser and
+            // goes up with the next change.
+          } finally {
+            cartPushInFlight = false;
+          }
+        }, CART_PUSH_DELAY);
+      },
+
+      /** Replace the local cart with this account's server cart. */
+      loadServerCart: async () => {
+        if (!get().token || cartPushTimer || cartPushInFlight) return;
+        try {
+          const res = await apiClient.get(ENDPOINTS.CART);
+          if (cartPushTimer || cartPushInFlight) return; // edited meanwhile
+          if (Array.isArray(res?.items)) set({ cart: res.items });
+        } catch {
+          // Keep whatever this browser has.
+        }
+      },
+
+      addToCart: (product) => { set((state) => {
         const existing = state.cart.find((item) => item.id === product.id);
         if (existing) {
           return {
@@ -357,14 +409,18 @@ const useStore = create(
           };
         }
         return { cart: [...state.cart, { ...product, quantity: 1, isGift: false, itemDiscount: 0 }] };
-      }),
-      removeFromCart: (productId) => set((state) => ({
-        cart: state.cart.filter((item) => item.id !== productId),
-      })),
-      updateCartItem: (productId, updates) => set((state) => ({
-        cart: state.cart.map((item) => (item.id === productId ? { ...item, ...updates } : item)),
-      })),
-      clearCart: () => set({ cart: [] }),
+      }); get().scheduleCartPush(); },
+      removeFromCart: (productId) => {
+        set((state) => ({ cart: state.cart.filter((item) => item.id !== productId) }));
+        get().scheduleCartPush();
+      },
+      updateCartItem: (productId, updates) => {
+        set((state) => ({
+          cart: state.cart.map((item) => (item.id === productId ? { ...item, ...updates } : item)),
+        }));
+        get().scheduleCartPush();
+      },
+      clearCart: () => { set({ cart: [] }); get().scheduleCartPush(); },
 
       // ---------------------------------------------------------------
       // Catalogue
@@ -699,6 +755,7 @@ const useStore = create(
         try {
           const res = await apiClient.post(ENDPOINTS.SALES, salePayload);
           set({ cart: [], lastError: null });
+          get().scheduleCartPush();
           await get().fetchAllData();
           return { success: true, data: res };
         } catch (err) {
