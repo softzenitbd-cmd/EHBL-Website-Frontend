@@ -1827,7 +1827,20 @@ const POS = () => {
                         <td>{idx + 1}</td>
                         <td>
                           <strong>{item.name}</strong>
-                          <div className="text-muted text-xs">Code: {item.product_code}</div>
+                          {(() => {
+                            // Saved invoice lines carry no cost, so read it (and the size) off the product.
+                            const prod = inventory.find(p => String(p.id) === String(item.product_code))
+                              || inventory.find(p => (p.name || '').toLowerCase() === (item.name || '').toLowerCase());
+                            const size = item.variant || prod?.variant;
+                            const buy = prod ? Number(prod.purchasePrice ?? prod.cost_price ?? 0) : null;
+                            return (
+                              <div className="text-muted text-xs">
+                                Code {item.product_code}
+                                {size ? ` · ${size}` : ''}
+                                {buy !== null ? ` · Buy ৳${buy.toLocaleString()}` : ''}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', justifyContent: 'flex-end' }}>
