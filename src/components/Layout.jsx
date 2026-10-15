@@ -140,7 +140,8 @@ const Layout = () => {
         { path: '/pos', search: '', name: 'Invoice List' },
         { path: '/returns?action=add', search: '?action=add', name: 'Return' },
         { path: '/returns', search: '', name: 'Return List' },
-        // { path: '/sr-settlements', search: '', name: 'Order Process' },
+        // The Order Process page is Admin-only (see App.jsx), so only Admins see the link.
+        ...(user?.role === 'Admin' ? [{ path: '/sr-settlements', search: '', name: 'Order Process' }] : []),
       ]
     },
     { 
