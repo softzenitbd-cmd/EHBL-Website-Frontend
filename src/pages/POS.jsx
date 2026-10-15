@@ -370,6 +370,13 @@ const POS = () => {
       return;
     }
 
+    // An empty rate is a mistake, not a free item (gifts are marked as such).
+    const noRate = cart.find(it => !it.isGift && (it.price === '' || it.price === null || it.price === undefined));
+    if (noRate) {
+      showToast(`Enter a rate for "${noRate.name}" before saving.`, 'error');
+      return;
+    }
+
     const salesmanObj = currentSalesman;
     const saleData = {
       // The typed-in rate is what the line sells at; a blank box that was
@@ -459,7 +466,7 @@ const POS = () => {
     );
 
     if (existingIdx !== -1) {
-      updateEditItemQty(existingIdx, editItems[existingIdx].quantity + 1);
+      updateEditItemQty(existingIdx, (Number(editItems[existingIdx].quantity) || 0) + 1);
       showToast(`Increased quantity of "${product.name}" in invoice`, 'success');
     } else {
       const newItem = {
@@ -500,14 +507,16 @@ const POS = () => {
     }
   };
 
+  // A cleared box stays empty (no auto 0 / 1) so the next digit typed is the
+  // whole value. An empty quantity is saved as 1; an empty rate blocks saving.
   const updateEditItemQty = (idx, newQty) => {
-    const qty = Math.max(1, parseInt(newQty, 10) || 1);
+    const qty = newQty === '' ? '' : Math.max(1, parseInt(newQty, 10) || 1);
     setEditItems(prev => prev.map((item, i) => {
       if (i === idx) {
         return {
           ...item,
           quantity: qty,
-          total_price: qty * item.price
+          total_price: (Number(qty) || 0) * (Number(item.price) || 0)
         };
       }
       return item;
@@ -515,13 +524,13 @@ const POS = () => {
   };
 
   const updateEditItemPrice = (idx, newPrice) => {
-    const price = Math.max(0, parseFloat(newPrice) || 0);
+    const price = newPrice === '' ? '' : Math.max(0, parseFloat(newPrice) || 0);
     setEditItems(prev => prev.map((item, i) => {
       if (i === idx) {
         return {
           ...item,
           price,
-          total_price: item.quantity * price
+          total_price: (Number(item.quantity) || 0) * (Number(price) || 0)
         };
       }
       return item;
@@ -536,7 +545,7 @@ const POS = () => {
     setEditItems(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const editSubtotal = editItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const editSubtotal = editItems.reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.price) || 0)), 0);
   const editTotal = Math.max(0, editSubtotal - (parseFloat(editDiscount) || 0));
 
   const handleSaveEditedInvoice = async (e) => {
@@ -544,6 +553,12 @@ const POS = () => {
     if (!editingInvoice) return;
     if (editItems.length === 0) {
       showToast('Invoice must have at least one product.', 'error');
+      return;
+    }
+    // A rate left empty is a mistake, not a free item - stop and say which.
+    const noRate = editItems.find(it => it.price === '' || it.price === null || it.price === undefined);
+    if (noRate) {
+      showToast(`Enter a rate for "${noRate.name}" before saving.`, 'error');
       return;
     }
 
@@ -582,6 +597,12 @@ const POS = () => {
     if (!editingInvoice) return;
     if (editItems.length === 0) {
       showToast('Invoice must have at least one product.', 'error');
+      return;
+    }
+    // A rate left empty is a mistake, not a free item - stop and say which.
+    const noRate = editItems.find(it => it.price === '' || it.price === null || it.price === undefined);
+    if (noRate) {
+      showToast(`Enter a rate for "${noRate.name}" before saving.`, 'error');
       return;
     }
 
@@ -862,17 +883,12 @@ const POS = () => {
                           type="number"
                           min="1"
                           className="qty-input"
+                          placeholder="1"
                           value={item.quantity}
                           onChange={(e) => {
-                            // Let the box go empty while retyping; it is put back
-                            // to a real quantity on blur.
+                            // Left empty it stays empty; an empty quantity is saved as 1.
                             const v = e.target.value;
                             updateCartItem(item.id, { quantity: v === '' ? '' : Math.max(1, parseInt(v, 10) || 1) });
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value === '' || !(parseInt(e.target.value, 10) > 0)) {
-                              updateCartItem(item.id, { quantity: 1 });
-                            }
                           }}
                           onFocus={(e) => e.target.select()}
                         />
@@ -896,14 +912,12 @@ const POS = () => {
                           min="0"
                           step="0.01"
                           className="rate-input"
+                          placeholder="Rate"
                           value={item.price}
                           disabled={item.isGift}
                           onChange={(e) => {
                             const v = e.target.value;
                             updateCartItem(item.id, { price: v === '' ? '' : Math.max(0, parseFloat(v) || 0) });
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value === '') updateCartItem(item.id, { price: 0 });
                           }}
                           onFocus={(e) => e.target.select()}
                           title="Unit price for this invoice"
@@ -1692,6 +1706,8 @@ const POS = () => {
                               min="0"
                               step="any"
                               value={item.price}
+                              placeholder="Rate"
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) => updateEditItemPrice(idx, e.target.value)}
                               style={{
                                 width: '85px',
@@ -1713,7 +1729,7 @@ const POS = () => {
                               type="button"
                               className="btn-icon"
                               style={{ padding: '0.2rem', width: '24px', height: '24px' }}
-                              onClick={() => updateEditItemQty(idx, item.quantity - 1)}
+                              onClick={() => updateEditItemQty(idx, Math.max(1, (Number(item.quantity) || 1) - 1))}
                             >
                               <Minus size={14} />
                             </button>
@@ -1721,6 +1737,8 @@ const POS = () => {
                               type="number"
                               min="1"
                               value={item.quantity}
+                              placeholder="1"
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) => updateEditItemQty(idx, e.target.value)}
                               style={{ width: '55px', textAlign: 'center', padding: '0.15rem 0.25rem', border: 'none', background: 'transparent', fontWeight: 'bold', fontSize: '0.95rem' }}
                             />
@@ -1728,14 +1746,14 @@ const POS = () => {
                               type="button"
                               className="btn-icon"
                               style={{ padding: '0.2rem', width: '24px', height: '24px' }}
-                              onClick={() => updateEditItemQty(idx, item.quantity + 1)}
+                              onClick={() => updateEditItemQty(idx, (Number(item.quantity) || 0) + 1)}
                             >
                               <Plus size={14} />
                             </button>
                           </div>
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                          ৳{(item.quantity * item.price).toLocaleString()}
+                          ৳{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString()}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
