@@ -290,7 +290,8 @@ body:not(.light-mode) .rt-modal-overlay {
 
 @media (min-width: 640px) {
   .rt-grid > .rt-f-date { grid-column: span 4; }
-  .rt-grid > .rt-f-party { grid-column: span 8; }
+  .rt-grid > .rt-f-party { grid-column: span 4; }
+  .rt-grid > .rt-f-ref { grid-column: span 4; }
   .rt-grid > .rt-f-product { grid-column: span 12; }
   .rt-grid > .rt-f-qty { grid-column: span 4; }
   .rt-grid > .rt-f-rate { grid-column: span 4; }
@@ -299,8 +300,9 @@ body:not(.light-mode) .rt-modal-overlay {
 
 @media (min-width: 1024px) {
   .rt-grid > .rt-f-date { grid-column: span 2; }
-  .rt-grid > .rt-f-party { grid-column: span 4; }
-  .rt-grid > .rt-f-product { grid-column: span 6; }
+  .rt-grid > .rt-f-party { grid-column: span 3; }
+  .rt-grid > .rt-f-ref { grid-column: span 2; }
+  .rt-grid > .rt-f-product { grid-column: span 5; }
   .rt-grid > .rt-f-qty { grid-column: span 2; }
   .rt-grid > .rt-f-rate { grid-column: span 3; }
   .rt-grid > .rt-f-total { grid-column: span 7; }

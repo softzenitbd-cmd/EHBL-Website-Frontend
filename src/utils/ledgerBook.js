@@ -43,7 +43,10 @@ export const particularsFor = (row, isCustomer) => {
       : { head: 'TO PURCHASE', detail: `PURCHASE- BILL NO-${cleanBill}` };
   }
   if (row.type === 'return') {
-    return { head: 'TO Sales Return', detail: 'SALE RETURN' };
+    const ref = row.reference ? ` BILL NO-${String(row.reference).replace(/^(INV|PUR)-?/i, '')}` : '';
+    return isCustomer
+      ? { head: 'TO Sales Return', detail: `SALE RETURN${ref}` }
+      : { head: 'BY Purchase Return', detail: `SUPPLIER REJECT${ref}` };
   }
   const method = methodOf(row.description);
   const methodUpper = method.toUpperCase();

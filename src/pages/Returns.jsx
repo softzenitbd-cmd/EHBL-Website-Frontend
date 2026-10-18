@@ -28,7 +28,7 @@ const money = (value) => Number(value || 0).toLocaleString('en-US', {
 const lineAmount = (r) => Number(r.rate || 0) * Number(r.quantity || 0);
 
 const Returns = () => {
-  const { inventory, processReturn, returns, showToast, deleteReturn, user, customers, suppliers } = useStore();
+  const { inventory, processReturn, returns, showToast, deleteReturn, user, customers, suppliers, sales = [], purchases = [] } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   // The number of the document just saved. A toast fades, but the shop needs
   // to copy this onto the paper slip, so it stays on screen until the next one.
@@ -63,7 +63,27 @@ const Returns = () => {
   // by who they were with, not by the invoice number.
   const [partyName, setPartyName] = useState('');
 
+  // The invoice (or purchase) the goods came off. Optional: given, the
+  // return's value also comes off that document's due.
+  const [referenceId, setReferenceId] = useState('');
+
   const partyOptions = (returnType === 'Customer' ? customers : suppliers) || [];
+
+  // The chosen party's documents, newest first; everything when no party yet.
+  const docOptions = useMemo(() => {
+    const who = partyName.trim().toLowerCase();
+    const docs = returnType === 'Customer'
+      ? sales.filter((d) => d.status !== 'Cancelled').map((d) => ({
+          id: d.id, party: d.customerName || '', date: d.date, due: Number(d.due_amount || 0),
+        }))
+      : purchases.map((d) => ({
+          id: d.id, party: d.supplierName || '', date: d.date, due: Number(d.dueAmount || 0),
+        }));
+    return docs
+      .filter((d) => !who || d.party.toLowerCase() === who)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      .slice(0, 200);
+  }, [returnType, partyName, sales, purchases]);
 
   const selectedProduct = inventory.find((i) => i.id === product);
   const defaultRateFor = (item, type) => {
@@ -81,6 +101,7 @@ const Returns = () => {
 
   const handleReturnTypeChange = (type) => {
     setReturnType(type);
+    setReferenceId('');
     // The two sides of the counter value the same goods differently, so the
     // suggested rate follows the switch.
     setRate(defaultRateFor(inventory.find((i) => i.id === product), type));
@@ -139,7 +160,8 @@ const Returns = () => {
       quantity,
       rate,
       reason,
-      partyName: partyName.trim()
+      partyName: partyName.trim(),
+      referenceId: referenceId.trim(),
     });
 
     if (!result.success) {
@@ -162,6 +184,7 @@ const Returns = () => {
     setRate('');
     setReason('');
     setPartyName('');
+    setReferenceId('');
     setEntryDate(new Date().toISOString().split('T')[0]);
   };
 
@@ -306,6 +329,27 @@ const Returns = () => {
                       ))}
                     </datalist>
                     <span className="rt-hint">Optional. A name not on file is still kept on the record.</span>
+                  </div>
+
+                  <div className="rt-field rt-f-ref">
+                    <label htmlFor="rt-ref">{returnType === 'Customer' ? 'Invoice No' : 'Purchase No'}</label>
+                    <input
+                      id="rt-ref"
+                      type="text"
+                      list="return-doc-list"
+                      placeholder="Optional"
+                      value={referenceId}
+                      onChange={(e) => setReferenceId(e.target.value)}
+                      autoComplete="off"
+                    />
+                    <datalist id="return-doc-list">
+                      {docOptions.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.party}{` · ${String(d.date || '').slice(0, 10)} · due ${d.due.toFixed(2)}`}
+                        </option>
+                      ))}
+                    </datalist>
+                    <span className="rt-hint">Value comes off this {returnType === 'Customer' ? 'invoice' : 'purchase'}&rsquo;s due.</span>
                   </div>
 
                   <div className="rt-field rt-f-product">

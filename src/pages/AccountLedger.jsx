@@ -256,6 +256,7 @@ const AccountLedger = () => {
 
   const totalBilled = Number(statement?.totalBilled || 0);
   const totalPaid = Number(statement?.totalPaid || 0);
+  const totalReturned = Number(statement?.totalReturned || 0);
 
   const book = statement ? buildLedgerBook(statement, isCustomer, bookFrom, bookTo, itemsMap) : null;
   const printedBy = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.username || '';
@@ -414,6 +415,12 @@ const AccountLedger = () => {
                 <dt>Total {isCustomer ? 'Received' : 'Paid'}</dt>
                 <dd className="is-good">{money(totalPaid)}</dd>
               </div>
+              {totalReturned > 0 && (
+                <div>
+                  <dt>{isCustomer ? 'Total Returned' : 'Total Rejected'}</dt>
+                  <dd className="is-good">{money(totalReturned)}</dd>
+                </div>
+              )}
               <div>
                 <dt>Opening Due</dt>
                 <dd>{money(entity.openingDue)}</dd>
