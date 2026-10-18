@@ -217,8 +217,8 @@ const PrintableInvoice = ({ sale, customers }) => {
             <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 6px' : isLarge ? '5px 6px' : '8px 8px', textAlign: 'left', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Item Description (পণ্যের বিবরণ)</th>
             <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '55px' : '65px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Size</th>
             <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 3px' : isLarge ? '5px 4px' : '8px 4px', textAlign: 'center', width: isCompact ? '50px' : '55px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem' }}>Qty</th>
-            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 4px' : isLarge ? '5px 4px' : '8px 5px', textAlign: 'right', width: isCompact ? '55px' : '62px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem', whiteSpace: 'nowrap' }}>Rate (৳)</th>
-            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 5px' : isLarge ? '5px 5px' : '8px 6px', textAlign: 'right', width: isCompact ? '75px' : '85px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem', whiteSpace: 'nowrap' }}>Total (৳)</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 4px' : isLarge ? '5px 4px' : '8px 5px', textAlign: 'right', width: isCompact ? '55px' : '62px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem', whiteSpace: 'nowrap' }}>Rate</th>
+            <th style={{ border: '1px solid #4b5563', padding: isCompact ? '3px 5px' : isLarge ? '5px 5px' : '8px 6px', textAlign: 'right', width: isCompact ? '75px' : '85px', color: '#ffffff', fontWeight: '800', fontSize: isCompact ? '0.78rem' : '0.95rem', whiteSpace: 'nowrap' }}>Total</th>
           </tr>
         </thead>
         <tbody>
@@ -240,8 +240,8 @@ const PrintableInvoice = ({ sale, customers }) => {
                 </td>
                 <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', fontSize: isCompact ? '0.7rem' : '0.82rem', color: '#000000', fontWeight: '600' }}>{size}</td>
                 <td style={{ border: '1px solid #000000', padding: cellPad, textAlign: 'center', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.73rem' : 'inherit' }}>{itemQty} {item.unit || 'pcs'}</td>
-                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 3px' : '5px 5px', textAlign: 'right', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.73rem' : 'inherit', whiteSpace: 'nowrap' }}>৳{itemPrice.toLocaleString()}</td>
-                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 5px' : '5px 8px', textAlign: 'right', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.75rem' : 'inherit' }}>৳{itemTotal.toLocaleString()}</td>
+                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 3px' : '5px 5px', textAlign: 'right', color: '#000000', fontWeight: '600', fontSize: isCompact ? '0.73rem' : 'inherit', whiteSpace: 'nowrap' }}>{itemPrice.toLocaleString()}</td>
+                <td style={{ border: '1px solid #000000', padding: isCompact ? '2.5px 5px' : '5px 8px', textAlign: 'right', color: '#000000', fontWeight: '800', fontSize: isCompact ? '0.75rem' : 'inherit' }}>{itemTotal.toLocaleString()}</td>
               </tr>
             );
           })}
@@ -255,7 +255,7 @@ const PrintableInvoice = ({ sale, customers }) => {
             </td>
             <td style={{ border: '1px solid #000000' }} />
             <td style={{ border: '1px solid #000000', padding: isCompact ? '3px 6px' : '6px 8px', textAlign: 'right', color: '#000000', fontWeight: '900', fontSize: isCompact ? '0.78rem' : 'inherit' }}>
-              ৳{subtotal.toLocaleString()}
+              {subtotal.toLocaleString()}
             </td>
           </tr>
         </tbody>
@@ -269,15 +269,15 @@ const PrintableInvoice = ({ sale, customers }) => {
             <tbody>
               <tr>
                 <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', color: '#000000', fontWeight: '700' }}>Previous Due (পূর্বের বকেয়া):</td>
-                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', fontWeight: '800', color: '#000000' }}>৳{actualPreviousDue.toLocaleString()}</td>
+                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', fontWeight: '800', color: '#000000' }}>{actualPreviousDue.toLocaleString()}</td>
               </tr>
               <tr>
                 <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', color: '#000000', fontWeight: '700' }}>Current Invoice Due (এই চালানে বাকি):</td>
-                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', fontWeight: '800', color: '#000000' }}>৳{currentDue.toLocaleString()}</td>
+                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', fontWeight: '800', color: '#000000' }}>{currentDue.toLocaleString()}</td>
               </tr>
               <tr style={{ borderTop: '1px solid #000000' }}>
                 <td style={{ padding: isCompact ? '2.5px 0' : '5px 0', fontWeight: '900', color: '#b91c1c' }}>Total Net Due (সর্বমোট বাকি):</td>
-                <td style={{ padding: isCompact ? '2.5px 0' : '5px 0', textAlign: 'right', fontWeight: '900', color: '#b91c1c', fontSize: isCompact ? '0.85rem' : '1rem' }}>৳{overallDue.toLocaleString()}</td>
+                <td style={{ padding: isCompact ? '2.5px 0' : '5px 0', textAlign: 'right', fontWeight: '900', color: '#b91c1c', fontSize: isCompact ? '0.85rem' : '1rem' }}>{overallDue.toLocaleString()}</td>
               </tr>
             </tbody>
           </table>
@@ -289,25 +289,25 @@ const PrintableInvoice = ({ sale, customers }) => {
             <tbody>
               <tr>
                 <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', color: '#000000', fontWeight: '700' }}>Subtotal:</td>
-                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', fontWeight: '800', color: '#000000' }}>৳{subtotal.toLocaleString()}</td>
+                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', fontWeight: '800', color: '#000000' }}>{subtotal.toLocaleString()}</td>
               </tr>
               {Number(sale.invoiceDiscount || 0) > 0 && (
                 <tr>
                   <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', color: '#000000', fontWeight: '700' }}>Discount:</td>
-                  <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', color: '#16a34a', fontWeight: '700' }}>-৳{Number(sale.invoiceDiscount).toLocaleString()}</td>
+                  <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', color: '#16a34a', fontWeight: '700' }}>-{Number(sale.invoiceDiscount).toLocaleString()}</td>
                 </tr>
               )}
               <tr>
                 <td style={{ padding: isCompact ? '2px 0' : '5px 0', fontWeight: '800', color: '#000000' }}>Total Invoice Bill:</td>
-                <td style={{ padding: isCompact ? '2px 0' : '5px 0', textAlign: 'right', fontWeight: '900', fontSize: isCompact ? '0.82rem' : '0.95rem', color: '#000000' }}>৳{total.toLocaleString()}</td>
+                <td style={{ padding: isCompact ? '2px 0' : '5px 0', textAlign: 'right', fontWeight: '900', fontSize: isCompact ? '0.82rem' : '0.95rem', color: '#000000' }}>{total.toLocaleString()}</td>
               </tr>
               <tr>
                 <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', color: '#15803d', fontWeight: '800' }}>Paid Amount (পরিশোধ):</td>
-                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', color: '#15803d', fontWeight: '900' }}>৳{paidAmount.toLocaleString()}</td>
+                <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', color: '#15803d', fontWeight: '900' }}>{paidAmount.toLocaleString()}</td>
               </tr>
               <tr style={{ borderTop: '1px solid #000000' }}>
                 <td style={{ padding: isCompact ? '2px 0' : '5px 0', fontWeight: '800', color: '#c2410c' }}>Current Due (এই বিলে বাকি):</td>
-                <td style={{ padding: isCompact ? '2px 0' : '5px 0', textAlign: 'right', fontWeight: '900', color: '#c2410c', fontSize: isCompact ? '0.82rem' : '0.95rem' }}>৳{currentDue.toLocaleString()}</td>
+                <td style={{ padding: isCompact ? '2px 0' : '5px 0', textAlign: 'right', fontWeight: '900', color: '#c2410c', fontSize: isCompact ? '0.82rem' : '0.95rem' }}>{currentDue.toLocaleString()}</td>
               </tr>
             </tbody>
           </table>
