@@ -83,9 +83,9 @@ const Purchase = () => {
       html: `
         <div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
           <div><strong>Supplier:</strong> ${purchase.supplierName || 'N/A'}</div>
-          <div><strong>Total:</strong> ৳${Number(purchase.total || 0).toLocaleString()}</div>
+          <div><strong>Total:</strong> ${Number(purchase.total || 0).toLocaleString()}</div>
           <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
-            The received items will be deducted back out of stock${dueVal > 0 ? ` and ৳${dueVal.toLocaleString()} will be removed from supplier's due.` : '.'}
+            The received items will be deducted back out of stock${dueVal > 0 ? ` and ${dueVal.toLocaleString()} will be removed from supplier's due.` : '.'}
           </div>
           <div style="margin-top: 0.35rem; color: #ef4444; font-weight: 600; font-size: 0.85rem;">
             This cannot be undone. If any goods were already sold, deletion will be rejected.
@@ -495,7 +495,7 @@ const Purchase = () => {
                     <div className="pur-field pur-f-linetotal">
                       <label>Line Total</label>
                       <output className="pur-linetotal">
-                        &#2547;{money((Number(tempQty) || 0) * (Number(tempPrice) || 0))}
+                        {money((Number(tempQty) || 0) * (Number(tempPrice) || 0))}
                       </output>
                     </div>
 
@@ -562,7 +562,7 @@ const Purchase = () => {
                           <td colSpan={3}>{items.length} item{items.length === 1 ? '' : 's'}</td>
                           <td className="is-num">{totalQtyAdded}</td>
                           <td />
-                          <td className="is-num">&#2547;{money(currentTotal)}</td>
+                          <td className="is-num">{money(currentTotal)}</td>
                           <td />
                         </tr>
                       </tfoot>
@@ -619,15 +619,15 @@ const Purchase = () => {
               <div className="pur-summary__money">
                 <div className="pur-summary__row">
                   <span>Total</span>
-                  <strong>&#2547;{money(currentTotal)}</strong>
+                  <strong>{money(currentTotal)}</strong>
                 </div>
                 <div className="pur-summary__row is-paid">
                   <span>Paid</span>
-                  <strong>&#2547;{money(previewPaid)}</strong>
+                  <strong>{money(previewPaid)}</strong>
                 </div>
                 <div className="pur-summary__row is-due">
                   <span>Due</span>
-                  <strong>&#2547;{money(previewDue)}</strong>
+                  <strong>{money(previewDue)}</strong>
                 </div>
               </div>
 
@@ -694,15 +694,15 @@ const Purchase = () => {
               </div>
               <div>
                 <dt>Total</dt>
-                <dd>&#2547;{money(historyTotals.total)}</dd>
+                <dd>{money(historyTotals.total)}</dd>
               </div>
               <div>
                 <dt>Paid</dt>
-                <dd>&#2547;{money(historyTotals.paid)}</dd>
+                <dd>{money(historyTotals.paid)}</dd>
               </div>
               <div>
                 <dt>Due</dt>
-                <dd>&#2547;{money(historyTotals.due)}</dd>
+                <dd>{money(historyTotals.due)}</dd>
               </div>
             </dl>
           </div>
@@ -731,8 +731,8 @@ const Purchase = () => {
                           <strong>{party}</strong>
                           <span>
                             {rows.length} purchase{rows.length === 1 ? '' : 's'}
-                            &nbsp;&middot;&nbsp; Total &#2547;{money(rows.reduce((n, x) => n + Number(x.total || 0), 0))}
-                            &nbsp;&middot;&nbsp; Due &#2547;{money(rows.reduce((n, x) => n + Number(x.dueAmount || x.due || 0), 0))}
+                            &nbsp;&middot;&nbsp; Total {money(rows.reduce((n, x) => n + Number(x.total || 0), 0))}
+                            &nbsp;&middot;&nbsp; Due {money(rows.reduce((n, x) => n + Number(x.dueAmount || x.due || 0), 0))}
                           </span>
                         </td>
                       </tr>,
@@ -756,9 +756,9 @@ const Purchase = () => {
                       <td>{purchase.supplierName || 'N/A'}</td>
                       <td className="is-num">{itemsCount}</td>
                       <td><span className={`pur-badge pur-badge--${badge}`}>{purchase.paymentType}</span></td>
-                      <td className="is-num is-strong">&#2547;{money(totalCost)}</td>
-                      <td className="is-num">&#2547;{money(paidVal)}</td>
-                      <td className="is-num">&#2547;{money(dueVal)}</td>
+                      <td className="is-num is-strong">{money(totalCost)}</td>
+                      <td className="is-num">{money(paidVal)}</td>
+                      <td className="is-num">{money(dueVal)}</td>
                       <td className="is-center">
                         <div className="pur-rowactions">
                           <button
@@ -804,9 +804,9 @@ const Purchase = () => {
                 <tfoot>
                   <tr>
                     <td colSpan={6}>Total of {filteredPurchases.length} purchase{filteredPurchases.length === 1 ? '' : 's'}</td>
-                    <td className="is-num">&#2547;{money(historyTotals.total)}</td>
-                    <td className="is-num">&#2547;{money(historyTotals.paid)}</td>
-                    <td className="is-num">&#2547;{money(historyTotals.due)}</td>
+                    <td className="is-num">{money(historyTotals.total)}</td>
+                    <td className="is-num">{money(historyTotals.paid)}</td>
+                    <td className="is-num">{money(historyTotals.due)}</td>
                     <td />
                   </tr>
                 </tfoot>
@@ -857,17 +857,17 @@ const Purchase = () => {
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>{item.name}</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'center' }}>{item.unit || 'Pcs'}</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'center' }}>{item.quantity}</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(item.price)}</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(Number(item.price || 0) * Number(item.quantity || 0))}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(item.price)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(Number(item.price || 0) * Number(item.quantity || 0))}</td>
                           </tr>
                         ))}
                         <tr style={{ background: '#f8fafc' }}>
                           <td colSpan="8" style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', fontWeight: 'bold' }}>
-                            {purchase.id} Total &nbsp;|&nbsp; Paid &#2547;{money(purchase.paidAmount || purchase.paid || 0)} &nbsp;|&nbsp; Due &#2547;{money(purchase.dueAmount ?? purchase.due ?? 0)}
+                            {purchase.id} Total &nbsp;|&nbsp; Paid {money(purchase.paidAmount || purchase.paid || 0)} &nbsp;|&nbsp; Due {money(purchase.dueAmount ?? purchase.due ?? 0)}
                             {purchase.notes ? ` | Note: ${purchase.notes}` : ''}
                           </td>
                           <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', fontWeight: 'bold' }}>
-                            &#2547;{money(purchase.total)}
+                            {money(purchase.total)}
                           </td>
                         </tr>
                       </React.Fragment>
@@ -876,10 +876,10 @@ const Purchase = () => {
                   <tr style={{ background: '#f1f5f9', fontWeight: 'bold' }}>
                     <td colSpan="8" style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right' }}>
                       Grand Total ({filteredPurchases.length} purchase{filteredPurchases.length === 1 ? '' : 's'}) &nbsp;|&nbsp;
-                      Paid &#2547;{money(historyTotals.paid)} &nbsp;|&nbsp; Due &#2547;{money(historyTotals.due)}
+                      Paid {money(historyTotals.paid)} &nbsp;|&nbsp; Due {money(historyTotals.due)}
                     </td>
                     <td style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right' }}>
-                      &#2547;{money(historyTotals.total)}
+                      {money(historyTotals.total)}
                     </td>
                   </tr>
                 </tbody>

@@ -63,7 +63,7 @@ const OrderProcess = () => {
       return;
     }
     const { count, total } = result.data || {};
-    showToast(`Collected ৳${money(total)} on ${count} invoice${count === 1 ? '' : 's'}.`, 'success');
+    showToast(`Collected ${money(total)} on ${count} invoice${count === 1 ? '' : 's'}.`, 'success');
     setPayOpen(false);
     setNote('');
   };
@@ -103,7 +103,7 @@ const OrderProcess = () => {
           disabled={dueRows.length === 0}
           title={dueRows.length === 0 ? 'Nothing due on this day' : 'Collect every remaining due of this day'}
         >
-          <Wallet size={16} /> Pay {dueRows.length > 0 ? `৳${money(totalDue)}` : ''}
+          <Wallet size={16} /> Pay {dueRows.length > 0 ? `${money(totalDue)}` : ''}
         </button>
       </section>
 
@@ -116,15 +116,15 @@ const OrderProcess = () => {
         </div>
         <div className="op-card">
           <span>Total Billed</span>
-          <strong>&#2547;{money(totalBilled)}</strong>
+          <strong>{money(totalBilled)}</strong>
         </div>
         <div className="op-card is-good">
           <span>Paid</span>
-          <strong>&#2547;{money(totalPaid)}</strong>
+          <strong>{money(totalPaid)}</strong>
         </div>
         <div className={`op-card ${totalDue > 0 ? 'is-bad' : 'is-good'}`}>
           <span>Due</span>
-          <strong>&#2547;{money(totalDue)}</strong>
+          <strong>{money(totalDue)}</strong>
         </div>
       </div>
 
@@ -157,9 +157,9 @@ const OrderProcess = () => {
                     <td className="is-strong">{r.customerName || 'Walk-in Customer'}</td>
                     <td>{r.salesmanName || '-'}</td>
                     <td className="is-num">{(r.items || []).length}</td>
-                    <td className="is-num is-strong">&#2547;{money(r.total)}</td>
-                    <td className="is-num is-good">&#2547;{money(r.paid)}</td>
-                    <td className={`is-num ${r.due > 0 ? 'is-bad' : ''}`}>&#2547;{money(r.due)}</td>
+                    <td className="is-num is-strong">{money(r.total)}</td>
+                    <td className="is-num is-good">{money(r.paid)}</td>
+                    <td className={`is-num ${r.due > 0 ? 'is-bad' : ''}`}>{money(r.due)}</td>
                     <td><span className={`op-badge op-badge--${status}`}>{status === 'paid' ? 'Paid' : status === 'partial' ? 'Partial' : 'Due'}</span></td>
                   </tr>
                 );
@@ -172,9 +172,9 @@ const OrderProcess = () => {
               <tfoot>
                 <tr>
                   <td colSpan={6}>Total of {rows.length} invoice{rows.length === 1 ? '' : 's'}</td>
-                  <td className="is-num">&#2547;{money(totalBilled)}</td>
-                  <td className="is-num">&#2547;{money(totalPaid)}</td>
-                  <td className="is-num">&#2547;{money(totalDue)}</td>
+                  <td className="is-num">{money(totalBilled)}</td>
+                  <td className="is-num">{money(totalPaid)}</td>
+                  <td className="is-num">{money(totalDue)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -194,7 +194,7 @@ const OrderProcess = () => {
             <div className="op-modal__body">
               <div className="op-duebar">
                 <div><span>Invoices with due</span><strong>{dueRows.length}</strong></div>
-                <div><span>Amount to collect</span><strong>&#2547;{money(totalDue)}</strong></div>
+                <div><span>Amount to collect</span><strong>{money(totalDue)}</strong></div>
               </div>
 
               <div className="op-tablewrap op-tablewrap--boxed">
@@ -207,7 +207,7 @@ const OrderProcess = () => {
                       <tr key={r.id}>
                         <td className="is-code">{r.id}</td>
                         <td>{r.customerName || 'Walk-in Customer'}</td>
-                        <td className="is-num is-strong">&#2547;{money(r.due)}</td>
+                        <td className="is-num is-strong">{money(r.due)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -239,7 +239,7 @@ const OrderProcess = () => {
             <div className="op-modal__foot">
               <button type="button" className="op-btn" onClick={() => setPayOpen(false)} disabled={isPaying}>Cancel</button>
               <button type="button" className="op-btn op-btn--primary" onClick={handlePay} disabled={isPaying}>
-                <Wallet size={15} /> {isPaying ? 'Collecting…' : `Collect ৳${money(totalDue)}`}
+                <Wallet size={15} /> {isPaying ? 'Collecting…' : `Collect ${money(totalDue)}`}
               </button>
             </div>
           </div>

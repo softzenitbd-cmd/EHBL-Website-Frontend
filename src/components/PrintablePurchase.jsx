@@ -146,7 +146,7 @@ const PrintablePurchase = ({ purchase, supplier }) => {
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '65px' }}>Unit</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '55px' }}>Qty</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'right', width: '85px' }}>Rate</th>
-            <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right', width: '105px' }}>Total (৳)</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right', width: '105px' }}>Total</th>
           </tr>
         </thead>
         <tbody>
@@ -162,8 +162,8 @@ const PrintablePurchase = ({ purchase, supplier }) => {
                 </td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center' }}>{item.unit || 'Pcs'}</td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontWeight: 'bold' }}>{qty}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>৳{money(rate)}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', fontWeight: 'bold' }}>৳{money(rate * qty)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>{money(rate)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', fontWeight: 'bold' }}>{money(rate * qty)}</td>
               </tr>
             );
           })}
@@ -173,7 +173,7 @@ const PrintablePurchase = ({ purchase, supplier }) => {
             </td>
             <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center' }}>{totalQty}</td>
             <td style={{ border: '1px solid #94a3b8', padding: '6px 6px' }} />
-            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>৳{money(total)}</td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>{money(total)}</td>
           </tr>
         </tbody>
       </table>
@@ -188,15 +188,15 @@ const PrintablePurchase = ({ purchase, supplier }) => {
             <tbody>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#475569' }}>Previous Due (পূর্বের বকেয়া):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{money(previousDue)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{money(previousDue)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#475569' }}>This Voucher Due (এই চালানে বাকি):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{money(due)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{money(due)}</td>
               </tr>
               <tr style={{ borderTop: '1px solid #cbd5e1', backgroundColor: '#fef2f2' }}>
                 <td style={{ padding: '6px 10px', fontWeight: '800', color: '#b91c1c' }}>Total Payable (সর্বমোট বাকি):</td>
-                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: '#b91c1c', fontSize: '1rem' }}>৳{money(overallDue)}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: '#b91c1c', fontSize: '1rem' }}>{money(overallDue)}</td>
               </tr>
             </tbody>
           </table>
@@ -210,15 +210,15 @@ const PrintablePurchase = ({ purchase, supplier }) => {
             <tbody>
               <tr style={{ backgroundColor: '#f8fafc' }}>
                 <td style={{ padding: '4px 10px', fontWeight: '700' }}>Total Purchase Bill:</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '700', fontSize: '0.95rem' }}>৳{money(total)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '700', fontSize: '0.95rem' }}>{money(total)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#15803d', fontWeight: '600' }}>Paid Amount (পরিশোধ):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', color: '#15803d', fontWeight: '700' }}>৳{money(paid)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', color: '#15803d', fontWeight: '700' }}>{money(paid)}</td>
               </tr>
               <tr style={{ borderTop: '1px dashed #cbd5e1', backgroundColor: '#fff7ed' }}>
                 <td style={{ padding: '5px 10px', fontWeight: '700', color: '#c2410c' }}>Due (এই চালানে বাকি):</td>
-                <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: '800', color: '#c2410c', fontSize: '0.95rem' }}>৳{money(due)}</td>
+                <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: '800', color: '#c2410c', fontSize: '0.95rem' }}>{money(due)}</td>
               </tr>
             </tbody>
           </table>
@@ -228,7 +228,7 @@ const PrintablePurchase = ({ purchase, supplier }) => {
       {/* Amount in words */}
       <div style={{ padding: '4px 0', fontSize: '0.82rem', marginBottom: purchase.notes ? '0.6rem' : '1.5rem' }}>
         <strong style={{ color: '#475569' }}>In Words : </strong>
-        <span style={{ fontWeight: '700', color: '#0f172a' }}>৳{money(total)} Taka Only</span>
+        <span style={{ fontWeight: '700', color: '#0f172a' }}>{money(total)} Taka Only</span>
       </div>
 
       {purchase.notes && (

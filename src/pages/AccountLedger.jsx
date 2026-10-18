@@ -364,7 +364,7 @@ const AccountLedger = () => {
                   </div>
                   <div className="lg-combo__side">
                     <span className="lg-code">{p.id}</span>
-                    {Number(p.due) > 0 && <span className="lg-combo__due">due &#2547;{money(p.due)}</span>}
+                    {Number(p.due) > 0 && <span className="lg-combo__due">due {money(p.due)}</span>}
                   </div>
                 </li>
               ))}
@@ -408,19 +408,19 @@ const AccountLedger = () => {
             <dl className="lg-figures">
               <div>
                 <dt>Total {isCustomer ? 'Billed' : 'Purchased'}</dt>
-                <dd>&#2547;{money(totalBilled)}</dd>
+                <dd>{money(totalBilled)}</dd>
               </div>
               <div>
                 <dt>Total {isCustomer ? 'Received' : 'Paid'}</dt>
-                <dd className="is-good">&#2547;{money(totalPaid)}</dd>
+                <dd className="is-good">{money(totalPaid)}</dd>
               </div>
               <div>
                 <dt>Opening Due</dt>
-                <dd>&#2547;{money(entity.openingDue)}</dd>
+                <dd>{money(entity.openingDue)}</dd>
               </div>
               <div className="is-due">
                 <dt>Current Due</dt>
-                <dd className={currentDue > 0 ? 'is-bad' : 'is-good'}>&#2547;{money(currentDue)}</dd>
+                <dd className={currentDue > 0 ? 'is-bad' : 'is-good'}>{money(currentDue)}</dd>
               </div>
             </dl>
 
@@ -514,8 +514,8 @@ const AccountLedger = () => {
                             <div style={{ marginTop: '5px', padding: '4px 6px', background: 'var(--lg-bg-head)', borderRadius: '4px', border: '1px dashed var(--lg-border)' }}>
                               {r.items.map((it, iIdx) => (
                                 <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.78rem', color: 'var(--lg-text)', margin: '2px 0' }}>
-                                  <span>&bull; <strong>{it.name}</strong>{it.variant ? ` (${it.variant})` : ''} &mdash; {it.quantity} {it.unit || 'pcs'} &times; &#2547;{money(it.price)}</span>
-                                  <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>&#2547;{money(it.total || (it.quantity * it.price))}</span>
+                                  <span>&bull; <strong>{it.name}</strong>{it.variant ? ` (${it.variant})` : ''} &mdash; {it.quantity} {it.unit || 'pcs'} &times; {money(it.price)}</span>
+                                  <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{money(it.total || (it.quantity * it.price))}</span>
                                 </div>
                               ))}
                             </div>
@@ -587,7 +587,7 @@ const AccountLedger = () => {
                   <div>
                     <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--lg-muted)' }}>Total Value</span>
                     <strong style={{ fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums', color: 'var(--lg-accent)' }}>
-                      &#2547;{money(filteredProducts.reduce((sum, p) => sum + p.total, 0))}
+                      {money(filteredProducts.reduce((sum, p) => sum + p.total, 0))}
                     </strong>
                   </div>
                 </div>
@@ -617,8 +617,8 @@ const AccountLedger = () => {
                           {p.variant ? <span style={{ marginLeft: '4px', fontSize: '0.78rem', color: 'var(--lg-muted)' }}>({p.variant})</span> : ''}
                         </td>
                         <td className="is-num">{p.quantity} {p.unit || 'pcs'}</td>
-                        <td className="is-num">&#2547;{money(p.price)}</td>
-                        <td className="is-num is-strong">&#2547;{money(p.total)}</td>
+                        <td className="is-num">{money(p.price)}</td>
+                        <td className="is-num is-strong">{money(p.total)}</td>
                       </tr>
                     ))}
                     {filteredProducts.length === 0 && (
@@ -635,7 +635,7 @@ const AccountLedger = () => {
                         <td colSpan={4}>Total of {filteredProducts.length} purchase line{filteredProducts.length === 1 ? '' : 's'}</td>
                         <td className="is-num">{filteredProducts.reduce((sum, p) => sum + p.quantity, 0)}</td>
                         <td />
-                        <td className="is-num is-strong">&#2547;{money(filteredProducts.reduce((sum, p) => sum + p.total, 0))}</td>
+                        <td className="is-num is-strong">{money(filteredProducts.reduce((sum, p) => sum + p.total, 0))}</td>
                       </tr>
                     </tfoot>
                   )}
@@ -669,9 +669,9 @@ const AccountLedger = () => {
                         <td className="is-code">{d.id}</td>
                         <td className="is-num">{d.items}</td>
                         <td>{d.paymentType}</td>
-                        <td className="is-num is-strong">&#2547;{money(d.total)}</td>
-                        <td className="is-num is-good">&#2547;{money(d.paid)}</td>
-                        <td className={`is-num ${Number(d.due) > 0 ? 'is-bad' : ''}`}>&#2547;{money(d.due)}</td>
+                        <td className="is-num is-strong">{money(d.total)}</td>
+                        <td className="is-num is-good">{money(d.paid)}</td>
+                        <td className={`is-num ${Number(d.due) > 0 ? 'is-bad' : ''}`}>{money(d.due)}</td>
                         <td><span className={`lg-badge lg-badge--${d.status.toLowerCase()}`}>{d.status}</span></td>
                       </tr>
                     ))}
@@ -683,9 +683,9 @@ const AccountLedger = () => {
                     <tfoot>
                       <tr>
                         <td colSpan={5}>Total of {documents.length} {isCustomer ? 'invoice' : 'purchase'}{documents.length === 1 ? '' : 's'}</td>
-                        <td className="is-num">&#2547;{money(documents.reduce((n, d) => n + Number(d.total), 0))}</td>
-                        <td className="is-num">&#2547;{money(documents.reduce((n, d) => n + Number(d.paid), 0))}</td>
-                        <td className="is-num">&#2547;{money(documents.reduce((n, d) => n + Number(d.due), 0))}</td>
+                        <td className="is-num">{money(documents.reduce((n, d) => n + Number(d.total), 0))}</td>
+                        <td className="is-num">{money(documents.reduce((n, d) => n + Number(d.paid), 0))}</td>
+                        <td className="is-num">{money(documents.reduce((n, d) => n + Number(d.due), 0))}</td>
                         <td />
                       </tr>
                     </tfoot>
@@ -719,9 +719,9 @@ const AccountLedger = () => {
                         <td>{day(p.date)}</td>
                         <td className="is-code">{p.id}</td>
                         <td>{p.paymentMethod}</td>
-                        <td className="is-num is-strong is-good">&#2547;{money(p.amount)}</td>
-                        <td className="is-num">&#2547;{money(p.previousDue)}</td>
-                        <td className="is-num">&#2547;{money(p.remainingDue)}</td>
+                        <td className="is-num is-strong is-good">{money(p.amount)}</td>
+                        <td className="is-num">{money(p.previousDue)}</td>
+                        <td className="is-num">{money(p.remainingDue)}</td>
                         <td className="lg-note" title={p.notes}>{p.notes || '-'}</td>
                         <td className="is-center">
                           <button type="button" className="lg-iconbtn" title="Print receipt" onClick={() => reprint(p)}>
@@ -738,7 +738,7 @@ const AccountLedger = () => {
                     <tfoot>
                       <tr>
                         <td colSpan={4}>Total of {payments.length} payment{payments.length === 1 ? '' : 's'}</td>
-                        <td className="is-num">&#2547;{money(payments.reduce((n, p) => n + Number(p.amount), 0))}</td>
+                        <td className="is-num">{money(payments.reduce((n, p) => n + Number(p.amount), 0))}</td>
                         <td colSpan={4} />
                       </tr>
                     </tfoot>
@@ -776,7 +776,7 @@ const AccountLedger = () => {
 
             <div className="lg-modal__body">
               <div className="lg-duebar">
-                <div><span>Outstanding Due</span><strong>&#2547;{money(currentDue)}</strong></div>
+                <div><span>Outstanding Due</span><strong>{money(currentDue)}</strong></div>
                 <div><span>Unpaid {isCustomer ? 'Invoices' : 'Vouchers'}</span><strong>{outstanding.length}</strong></div>
               </div>
 
@@ -842,16 +842,16 @@ const AccountLedger = () => {
                             <tr key={r.id}>
                               <td className="is-code">{r.id}</td>
                               <td>{r.date}</td>
-                              <td className="is-num">&#2547;{money(r.total)}</td>
-                              <td className="is-num is-strong">&#2547;{money(r.applied)}</td>
-                              <td className="is-num">&#2547;{money(r.remaining)}</td>
+                              <td className="is-num">{money(r.total)}</td>
+                              <td className="is-num is-strong">{money(r.applied)}</td>
+                              <td className="is-num">{money(r.remaining)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                     {preview.unapplied > 0 && (
-                      <p className="lg-hint">&#2547;{money(preview.unapplied)} goes against the opening balance rather than a document.</p>
+                      <p className="lg-hint">{money(preview.unapplied)} goes against the opening balance rather than a document.</p>
                     )}
                   </>
                 );
@@ -860,7 +860,7 @@ const AccountLedger = () => {
 
             <div className="lg-modal__foot">
               <span className="lg-foot-note">
-                Due after: <strong>&#2547;{money(Math.max(0, currentDue - (parseFloat(payForm.amount) || 0)))}</strong>
+                Due after: <strong>{money(Math.max(0, currentDue - (parseFloat(payForm.amount) || 0)))}</strong>
               </span>
               <button type="button" className="lg-btn" onClick={() => setPayOpen(false)}>Cancel</button>
               <button type="submit" form="lg-pay-form" className="lg-btn lg-btn--primary" disabled={isPaying}>

@@ -145,9 +145,9 @@ const Customers = () => {
       html: `
         <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
           <div><strong>${activeTab}:</strong> ${target.name} (${target.id})</div>
-          <div><strong>Current Due:</strong> ৳${Number(target.due || 0).toLocaleString()}</div>
+          <div><strong>Current Due:</strong> ${Number(target.due || 0).toLocaleString()}</div>
           <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; color: #15803d; font-weight: bold;">
-            Settlement Amount: ৳${amount.toLocaleString()}
+            Settlement Amount: ${amount.toLocaleString()}
           </div>
           ${activeTab === 'Customer' ? `
             <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; color: #0369a1; font-size: 0.82rem;">
@@ -155,7 +155,7 @@ const Customers = () => {
             </div>
           ` : ''}
           <div style="margin-top: 0.5rem; color: #64748b; font-size: 0.85rem;">
-            Remaining Due after settlement: ৳${Math.max(0, Number(target.due || 0) - amount).toLocaleString()}
+            Remaining Due after settlement: ${Math.max(0, Number(target.due || 0) - amount).toLocaleString()}
           </div>
         </div>
       `,
@@ -174,7 +174,7 @@ const Customers = () => {
       return;
     }
 
-    showToast(`Successfully settled ৳${amount.toLocaleString()} for ${activeTab}: ${target.name}`, 'success');
+    showToast(`Successfully settled ${amount.toLocaleString()} for ${activeTab}: ${target.name}`, 'success');
     setSettleModal({ show: false, target: null, amount: '', date: '' });
   };
 
@@ -253,8 +253,8 @@ const Customers = () => {
                     <td><strong>{person.name}</strong></td>
                     <td className="flex-align-gap"><Phone size={14} className="text-muted" /> {person.phone || 'N/A'}</td>
                     <td>{person.location || 'N/A'}</td>
-                    <td>৳{Number(person.opening_due || 0).toLocaleString()}</td>
-                    <td><span className={Number(person.due || 0) > 0 ? "text-danger font-bold" : "text-success font-bold"}>৳{Number(person.due || 0).toLocaleString()}</span></td>
+                    <td>{Number(person.opening_due || 0).toLocaleString()}</td>
+                    <td><span className={Number(person.due || 0) > 0 ? "text-danger font-bold" : "text-success font-bold"}>{Number(person.due || 0).toLocaleString()}</span></td>
                     <td>
                       <div className="action-buttons flex-align-gap" style={{flexWrap:'nowrap'}}>
                         <button type="button" className="btn-icon" title="Edit" onClick={(e) => { e.stopPropagation(); handleEditClick(person); }}>
@@ -472,10 +472,10 @@ const Customers = () => {
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>{new Date(tx.date).toLocaleDateString()}</td>
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>{tx.description}</td>
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', color: tx.type === 'charge' ? 'red' : 'inherit' }}>
-                             {tx.type === 'charge' ? `৳${tx.amount.toLocaleString()}` : '-'}
+                             {tx.type === 'charge' ? `${tx.amount.toLocaleString()}` : '-'}
                            </td>
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', color: tx.type === 'payment' ? 'green' : 'inherit' }}>
-                             {tx.type === 'payment' ? `৳${tx.amount.toLocaleString()}` : '-'}
+                             {tx.type === 'payment' ? `${tx.amount.toLocaleString()}` : '-'}
                            </td>
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', fontWeight: 'bold' }}>
                              {Math.max(0, tx.balance).toLocaleString()}

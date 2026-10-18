@@ -106,11 +106,11 @@ const PrintableInventory = ({ items = [], filters = {} }) => {
               </tr>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#475569' }}>At Purchase Rate:</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{money(totalCost)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{money(totalCost)}</td>
               </tr>
               <tr style={{ borderTop: '1px solid #cbd5e1', backgroundColor: '#f8fafc' }}>
                 <td style={{ padding: '6px 10px', fontWeight: '800' }}>At Sale Rate:</td>
-                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', fontSize: '1rem' }}>৳{money(totalSale)}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', fontSize: '1rem' }}>{money(totalSale)}</td>
               </tr>
             </tbody>
           </table>
@@ -148,9 +148,9 @@ const PrintableInventory = ({ items = [], filters = {} }) => {
                 <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                   {stock} {item.unit || 'Pcs'}
                 </td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right' }}>৳{money(item.purchasePrice)}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right' }}>৳{money(sale)}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>৳{money(stock * sale)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right' }}>{money(item.purchasePrice)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right' }}>{money(sale)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{money(stock * sale)}</td>
               </tr>
             );
           })}
@@ -166,9 +166,9 @@ const PrintableInventory = ({ items = [], filters = {} }) => {
               Total Products: {items.length} &nbsp;|&nbsp; Total Quantity:
             </td>
             <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center' }}>{totalStock}</td>
-            <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'right' }}>৳{money(totalCost)}</td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'right' }}>{money(totalCost)}</td>
             <td style={{ border: '1px solid #94a3b8', padding: '6px 6px' }} />
-            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>৳{money(totalSale)}</td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>{money(totalSale)}</td>
           </tr>
         </tbody>
       </table>

@@ -150,7 +150,7 @@ const PrintableReturn = ({ record, product }) => {
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '85px' }}>Code</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'right', width: '85px' }}>Rate</th>
             <th style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center', width: '60px' }}>Qty</th>
-            <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right', width: '105px' }}>Amount (৳)</th>
+            <th style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right', width: '105px' }}>Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -158,16 +158,16 @@ const PrintableReturn = ({ record, product }) => {
             <td style={{ border: '1px solid #cbd5e1', padding: '5px 4px', textAlign: 'center' }}>1</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px' }}><strong>{productName}</strong></td>
             <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontSize: '0.8rem', color: '#475569' }}>{productCode}</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>৳{money(rate)}</td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>{money(rate)}</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontWeight: 'bold' }}>{qty} {unit}</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', fontWeight: 'bold' }}>৳{money(amount)}</td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', fontWeight: 'bold' }}>{money(amount)}</td>
           </tr>
           <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid #64748b' }}>
             <td colSpan="4" style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>
               Total Quantity:
             </td>
             <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center' }}>{qty}</td>
-            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>৳{money(amount)}</td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>{money(amount)}</td>
           </tr>
         </tbody>
       </table>
@@ -196,7 +196,7 @@ const PrintableReturn = ({ record, product }) => {
             <tbody>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#475569' }}>Rate (দর):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{money(rate)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{money(rate)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#475569' }}>Quantity (পরিমাণ):</td>
@@ -210,7 +210,7 @@ const PrintableReturn = ({ record, product }) => {
               </tr>
               <tr style={{ borderTop: '1px solid #cbd5e1', backgroundColor: '#f8fafc' }}>
                 <td style={{ padding: '6px 10px', fontWeight: '800' }}>Total Return Value:</td>
-                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', fontSize: '1rem' }}>৳{money(amount)}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', fontSize: '1rem' }}>{money(amount)}</td>
               </tr>
             </tbody>
           </table>
@@ -220,7 +220,7 @@ const PrintableReturn = ({ record, product }) => {
       {/* Amount in words banner */}
       <div style={{ padding: '4px 0', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
         <strong style={{ color: '#475569' }}>In Words : </strong>
-        <span style={{ fontWeight: '700', color: '#0f172a' }}>৳{money(amount)} Taka Only</span>
+        <span style={{ fontWeight: '700', color: '#0f172a' }}>{money(amount)} Taka Only</span>
       </div>
 
       {/* Signatures */}

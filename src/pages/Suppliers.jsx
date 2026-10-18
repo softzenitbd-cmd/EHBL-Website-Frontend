@@ -511,7 +511,7 @@ const Suppliers = () => {
               <div className="sup-duebar">
                 <div>
                   <span>Outstanding Due</span>
-                  <strong>&#2547;{money(payTarget.due)}</strong>
+                  <strong>{money(payTarget.due)}</strong>
                 </div>
                 <div>
                   <span>Unpaid Vouchers</span>
@@ -617,9 +617,9 @@ const Suppliers = () => {
                             <tr key={r.id}>
                               <td className="is-code">{r.id}</td>
                               <td>{r.date}</td>
-                              <td className="is-num">&#2547;{money(r.total)}</td>
-                              <td className="is-num is-strong">&#2547;{money(r.applied)}</td>
-                              <td className="is-num">&#2547;{money(r.remaining)}</td>
+                              <td className="is-num">{money(r.total)}</td>
+                              <td className="is-num is-strong">{money(r.applied)}</td>
+                              <td className="is-num">{money(r.remaining)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -627,7 +627,7 @@ const Suppliers = () => {
                     </div>
                     {preview.unapplied > 0 && (
                       <p className="sup-hint">
-                        &#2547;{money(preview.unapplied)} of this payment goes against the opening
+                        {money(preview.unapplied)} of this payment goes against the opening
                         balance rather than a voucher.
                       </p>
                     )}
@@ -655,7 +655,7 @@ const Suppliers = () => {
                             <td className="is-code">{x.id}</td>
                             <td>{String(x.date).slice(0, 10)}</td>
                             <td>{x.paymentMethod || x.payment_method || 'Cash'}</td>
-                            <td className="is-num is-strong">&#2547;{money(x.amount)}</td>
+                            <td className="is-num is-strong">{money(x.amount)}</td>
                             <td className="is-center">
                               <button
                                 type="button"
@@ -679,7 +679,7 @@ const Suppliers = () => {
               <span className="sup-foot-note">
                 Due after payment:{' '}
                 <strong>
-                  &#2547;{money(Math.max(0, Number(payTarget.due || 0) - (parseFloat(payForm.amount) || 0)))}
+                  {money(Math.max(0, Number(payTarget.due || 0) - (parseFloat(payForm.amount) || 0)))}
                 </strong>
               </span>
               <button type="button" className="sup-btn" onClick={() => setPayTarget(null)}>Cancel</button>

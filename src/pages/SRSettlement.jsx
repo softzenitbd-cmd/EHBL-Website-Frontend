@@ -24,7 +24,7 @@ const SRSettlement = () => {
           <div><strong>Status:</strong> ${settlement.status}</div>
           <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
             ${stillOut > 0 ? `<div>${stillOut} item(s) still with SR will return to stock.</div>` : ''}
-            ${due > 0 ? `<div>৳${due.toLocaleString()} will be removed from SR's due.</div>` : ''}
+            ${due > 0 ? `<div>${due.toLocaleString()} will be removed from SR's due.</div>` : ''}
           </div>
           <div style="margin-top: 0.35rem; color: #ef4444; font-weight: 600; font-size: 0.85rem;">
             This cannot be undone.
@@ -350,10 +350,10 @@ const SRSettlement = () => {
             <tr style={{ backgroundColor: '#f8f9fa', color: '#64748b', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
               <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700' }}>Salesman / SR</th>
               <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Total Items Issued</th>
-              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Issued Value (৳)</th>
-              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Final Sales (৳)</th>
-              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Cash Received (৳)</th>
-              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Due (৳)</th>
+              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Issued Value</th>
+              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Final Sales</th>
+              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Cash Received</th>
+              <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Due</th>
               <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Status</th>
               <th style={{ textTransform: 'uppercase', padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Actions</th>
             </tr>
@@ -363,10 +363,10 @@ const SRSettlement = () => {
               <tr key={settlement.id}>
                 <td className="font-bold">{settlement.salesmanName}</td>
                 <td style={{ textAlign: 'center' }}>{settlement.items.reduce((acc, i) => acc + i.quantity, 0)} Pcs</td>
-                <td style={{ textAlign: 'right' }}>৳{settlement.totalIssuedValue.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }} className="text-info font-bold">৳{settlement.totalSalesValue.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }} className="text-success font-bold">৳{(settlement.cashReceived || 0).toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }} className="text-danger font-bold">৳{Math.max(0, settlement.totalSalesValue - (settlement.cashReceived || 0)).toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{settlement.totalIssuedValue.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }} className="text-info font-bold">{settlement.totalSalesValue.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }} className="text-success font-bold">{(settlement.cashReceived || 0).toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }} className="text-danger font-bold">{Math.max(0, settlement.totalSalesValue - (settlement.cashReceived || 0)).toLocaleString()}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span className={`badge ${settlement.status === 'Settled' ? 'bg-success' : 'bg-warning'}`}>
                     {settlement.status}
@@ -464,8 +464,8 @@ const SRSettlement = () => {
                  <tr style={{ background: '#f8f9fa' }}>
                    <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Product</th>
                    <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>Qty</th>
-                   <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>Price (৳)</th>
-                   <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>Total (৳)</th>
+                   <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>Price</th>
+                   <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>Total</th>
                  </tr>
                </thead>
                <tbody>
@@ -479,7 +479,7 @@ const SRSettlement = () => {
                  ))}
                  <tr>
                    <td colSpan="3" style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>Total Value</td>
-                   <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>৳{activePrintSettlement.totalIssuedValue}</td>
+                   <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>{activePrintSettlement.totalIssuedValue}</td>
                  </tr>
                </tbody>
              </table>
@@ -545,9 +545,9 @@ const SRSettlement = () => {
                   {issueItems.map((item, idx) => (
                     <tr key={idx}>
                       <td>{item.name}</td>
-                      <td>৳{item.price}</td>
+                      <td>{item.price}</td>
                       <td style={{ textAlign: 'center' }}>{item.quantity}</td>
-                      <td style={{ textAlign: 'right' }}>৳{item.price * item.quantity}</td>
+                      <td style={{ textAlign: 'right' }}>{item.price * item.quantity}</td>
                       <td>
                         <button className="btn-icon text-danger" onClick={() => setIssueItems(issueItems.filter((_, i) => i !== idx))}>
                           <Trash2 size={16} />
@@ -559,7 +559,7 @@ const SRSettlement = () => {
                 </tbody>
               </table>
               <div style={{ textAlign: 'right', marginTop: '1rem', fontWeight: 'bold' }}>
-                Total Value: ৳{issueItems.reduce((acc, item) => acc + (item.quantity * item.price), 0)}
+                Total Value: {issueItems.reduce((acc, item) => acc + (item.quantity * item.price), 0)}
               </div>
             </div>
             <div className="drawer-footer">
@@ -593,7 +593,7 @@ const SRSettlement = () => {
                     <th style={{ textAlign: 'center' }}>Issued</th>
                     <th style={{ textAlign: 'center', width: '100px' }}>Returned (Unsold)</th>
                     <th style={{ textAlign: 'center' }}>Sold</th>
-                    <th style={{ textAlign: 'right' }}>Sales (৳)</th>
+                    <th style={{ textAlign: 'right' }}>Sales</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -624,7 +624,7 @@ const SRSettlement = () => {
                           />
                         </td>
                         <td style={{ textAlign: 'center', color: soldQty > 0 ? '#16a34a' : 'inherit' }}>{soldQty}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>৳{soldQty * item.price}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{soldQty * item.price}</td>
                       </tr>
                     );
                   })}
@@ -635,7 +635,7 @@ const SRSettlement = () => {
                 <div style={{ textAlign: 'right' }}>
                   <div className="text-muted text-sm uppercase">Total Sales</div>
                   <div className="text-xl font-bold text-info">
-                    ৳{returnItems.reduce((acc, item) => acc + ((item.issuedQty - item.returnQty) * item.price), 0).toLocaleString()}
+                    {returnItems.reduce((acc, item) => acc + ((item.issuedQty - item.returnQty) * item.price), 0).toLocaleString()}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -656,7 +656,7 @@ const SRSettlement = () => {
                 <div style={{ textAlign: 'right' }}>
                   <div className="text-muted text-sm uppercase">Due Amount</div>
                   <div className={`text-xl font-bold ${returnItems.reduce((acc, item) => acc + ((item.issuedQty - item.returnQty) * item.price), 0) - cashReceived > 0 ? 'text-danger' : 'text-success'}`}>
-                    ৳{(returnItems.reduce((acc, item) => acc + ((item.issuedQty - item.returnQty) * item.price), 0) - cashReceived).toLocaleString()}
+                    {(returnItems.reduce((acc, item) => acc + ((item.issuedQty - item.returnQty) * item.price), 0) - cashReceived).toLocaleString()}
                   </div>
                 </div>
               </div>

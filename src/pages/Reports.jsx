@@ -770,17 +770,17 @@ const Reports = () => {
             </div>
             <div className="pp-card">
               <span>Net Revenue</span>
-              <strong>&#2547;{money(ppTotalRevenue)}</strong>
+              <strong>{money(ppTotalRevenue)}</strong>
               <small>after returns</small>
             </div>
             <div className="pp-card">
               <span>Total Cost</span>
-              <strong>&#2547;{money(ppTotalCost)}</strong>
+              <strong>{money(ppTotalCost)}</strong>
               <small>COGS basis</small>
             </div>
             <div className={`pp-card ${ppTotalProfit >= 0 ? 'is-good' : 'is-bad'}`}>
               <span>Gross Profit</span>
-              <strong>&#2547;{money(ppTotalProfit)}</strong>
+              <strong>{money(ppTotalProfit)}</strong>
               <small>{ppOverallMargin.toFixed(1)}% overall margin</small>
             </div>
           </div>
@@ -996,7 +996,7 @@ const Reports = () => {
                         Stock: {selectedProductReport.product.stock} {selectedProductReport.product.unit || 'Pcs'}
                       </span>
                       <span className="pp-tag">
-                        Sale Rate: &#2547;{money(selectedProductReport.product.price)}
+                        Sale Rate: {money(selectedProductReport.product.price)}
                       </span>
                     </div>
                   </div>
@@ -1028,22 +1028,22 @@ const Reports = () => {
                     </div>
                     <div className="pp-card">
                       <span>Total Sell</span>
-                      <strong>&#2547;{money(selectedProductReport.salesValue)}</strong>
+                      <strong>{money(selectedProductReport.salesValue)}</strong>
                       <small>before returns</small>
                     </div>
                     <div className="pp-card is-good">
                       <span>Payment Received</span>
-                      <strong>&#2547;{money(selectedProductReport.received)}</strong>
+                      <strong>{money(selectedProductReport.received)}</strong>
                       <small>allocated share</small>
                     </div>
                     <div className="pp-card is-bad">
                       <span>Due</span>
-                      <strong>&#2547;{money(selectedProductReport.due)}</strong>
+                      <strong>{money(selectedProductReport.due)}</strong>
                       <small>allocated share</small>
                     </div>
                     <div className={`pp-card ${selectedProductReport.profit >= 0 ? 'is-good' : 'is-bad'}`}>
                       <span>Gross Profit</span>
-                      <strong>&#2547;{money(selectedProductReport.profit)}</strong>
+                      <strong>{money(selectedProductReport.profit)}</strong>
                       <small>{selectedProductReport.margin.toFixed(1)}% margin</small>
                     </div>
                   </div>

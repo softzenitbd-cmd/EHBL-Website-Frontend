@@ -342,9 +342,9 @@ const POS = () => {
       html: `
         <div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
           <div><strong>Customer:</strong> ${sale.customerName || 'N/A'}</div>
-          <div><strong>Total:</strong> ৳${Number(sale.total || 0).toLocaleString()}</div>
+          <div><strong>Total:</strong> ${Number(sale.total || 0).toLocaleString()}</div>
           <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
-            The sold items will return to stock${Number(sale.due_amount || 0) > 0 ? ` and ৳${Number(sale.due_amount).toLocaleString()} will be removed from customer due.` : '.'}
+            The sold items will return to stock${Number(sale.due_amount || 0) > 0 ? ` and ${Number(sale.due_amount).toLocaleString()} will be removed from customer due.` : '.'}
           </div>
           <div style="margin-top: 0.35rem; color: #ef4444; font-weight: 600; font-size: 0.85rem;">
             This action cannot be undone.
@@ -810,7 +810,7 @@ const POS = () => {
       : (inv.paymentType === 'Cash' ? 0 : invTotal);
 
     if (amount > currentDue) {
-      showToast(`Amount (৳${amount.toLocaleString()}) cannot exceed remaining invoice due (৳${currentDue.toLocaleString()}).`, 'error');
+      showToast(`Amount (${amount.toLocaleString()}) cannot exceed remaining invoice due (${currentDue.toLocaleString()}).`, 'error');
       return;
     }
 
@@ -820,12 +820,12 @@ const POS = () => {
       html: `
         <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
           <div><strong>Customer:</strong> ${inv.customerName || 'N/A'}</div>
-          <div><strong>Current Due:</strong> ৳${currentDue.toLocaleString()}</div>
+          <div><strong>Current Due:</strong> ${currentDue.toLocaleString()}</div>
           <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; color: #15803d; font-weight: bold;">
-            Collecting: ৳${amount.toLocaleString()} (${paymentModal.method})
+            Collecting: ${amount.toLocaleString()} (${paymentModal.method})
           </div>
           <div style="margin-top: 0.5rem; color: #64748b; font-size: 0.85rem;">
-            Remaining after this payment: ৳${Math.max(0, currentDue - amount).toLocaleString()}
+            Remaining after this payment: ${Math.max(0, currentDue - amount).toLocaleString()}
           </div>
         </div>
       `,
@@ -849,7 +849,7 @@ const POS = () => {
       return;
     }
 
-    showToast(`Successfully collected ৳${amount.toLocaleString()} for Invoice ${targetId}!`, 'success');
+    showToast(`Successfully collected ${amount.toLocaleString()} for Invoice ${targetId}!`, 'success');
     setPaymentModal({ show: false, invoice: null, amount: '', method: 'Cash', date: '', notes: '' });
   };
 
@@ -952,7 +952,7 @@ const POS = () => {
                           </div>
                         </div>
                         <div className="search-item-right">
-                          <div className="search-item-price">৳{Number(product.price || 0).toLocaleString()}</div>
+                          <div className="search-item-price">{Number(product.price || 0).toLocaleString()}</div>
                           <div className={`search-item-stock ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}`}>
                             {product.stock > 0 ? `${product.stock} ${product.unit || 'pcs'} in stock` : 'Out of stock'}
                           </div>
@@ -987,7 +987,7 @@ const POS = () => {
                         <span className="item-meta">
                           Code {item.id}
                           {item.variant ? ` · ${item.variant}` : ''}
-                          {' · '}Buy ৳{Number(item.purchasePrice || 0).toLocaleString()}
+                          {' · '}Buy {Number(item.purchasePrice || 0).toLocaleString()}
                           {item.isGift ? ' · Gift' : ''}
                         </span>
                       </div>
@@ -1029,7 +1029,6 @@ const POS = () => {
                           negotiated price can be typed in without touching the
                           product's list price. */}
                       <div className="rate-control">
-                        <span className="rate-prefix">৳</span>
                         <input
                           type="number"
                           min="0"
@@ -1048,7 +1047,7 @@ const POS = () => {
                       </div>
 
                       <div className="item-price">
-                        ৳{item.isGift ? '0' : (rate * qty).toLocaleString()}
+                        {item.isGift ? '0' : (rate * qty).toLocaleString()}
                       </div>
 
                       <div className="item-btns">
@@ -1145,10 +1144,10 @@ const POS = () => {
                         </div>
                         <div className="customer-item-right" style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '0.72rem', color: 'var(--pos-muted, #64748b)', marginBottom: '2px' }}>
-                            Opening: ৳{Number(c.opening_due || 0).toLocaleString()}
+                            Opening: {Number(c.opening_due || 0).toLocaleString()}
                           </div>
                           <span className={`customer-due-badge ${Number(c.due || 0) > 0 ? 'bg-danger text-white' : 'bg-success text-white'}`}>
-                            Due: ৳{Number(c.due || 0).toLocaleString()}
+                            Due: {Number(c.due || 0).toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -1170,11 +1169,11 @@ const POS = () => {
                 </div>
                 <div className="text-right">
                   <div style={{ fontSize: '0.75rem', color: 'var(--pos-muted, #64748b)' }}>
-                    Opening: <strong style={{ color: 'var(--pos-text)' }}>৳{Number(selectedCustomerObj.opening_due || 0).toLocaleString()}</strong>
+                    Opening: <strong style={{ color: 'var(--pos-text)' }}>{Number(selectedCustomerObj.opening_due || 0).toLocaleString()}</strong>
                   </div>
                   <div>
                     <span className="text-muted text-xs">Previous Due: </span>
-                    <span className="text-danger font-bold">৳{Number(selectedCustomerObj.due || 0).toLocaleString()}</span>
+                    <span className="text-danger font-bold">{Number(selectedCustomerObj.due || 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -1247,12 +1246,11 @@ const POS = () => {
           <div className="checkout-section summary-section">
             <div className="summary-row">
               <span>Subtotal</span>
-              <span>৳{subtotal.toLocaleString()}</span>
+              <span>{subtotal.toLocaleString()}</span>
             </div>
             <div className="summary-row" style={{ alignItems: 'center' }}>
               <span>Discount</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', maxWidth: '140px' }}>
-                <span style={{ fontWeight: '700', color: 'var(--pos-text)' }}>৳</span>
                 <input
                   type="number"
                   min="0"
@@ -1277,7 +1275,7 @@ const POS = () => {
             </div>
             <div className="summary-row total-row">
               <span>Total Payable (Due)</span>
-              <span className="text-primary text-xl font-bold">৳{total.toLocaleString()}</span>
+              <span className="text-primary text-xl font-bold">{total.toLocaleString()}</span>
             </div>
           </div>
 
@@ -1373,7 +1371,7 @@ const POS = () => {
                         {party}
                         <span className="text-muted" style={{ fontWeight: 400, marginLeft: '0.75rem' }}>
                           {rows.length} invoice{rows.length === 1 ? '' : 's'} &middot; Total{' '}
-                          ৳{rows.reduce((n, x) => n + Number(x.total || 0), 0).toLocaleString()}
+                          {rows.reduce((n, x) => n + Number(x.total || 0), 0).toLocaleString()}
                         </span>
                       </td>
                     </tr>,
@@ -1399,12 +1397,12 @@ const POS = () => {
                           {isPaid ? (
                             <span className="badge bg-success">Paid</span>
                           ) : isPartial ? (
-                            <span className="badge bg-info" title={`Paid: ৳${invPaid.toLocaleString()} | Due: ৳${invDue.toLocaleString()}`}>
-                              Partial (Due: ৳{invDue.toLocaleString()})
+                            <span className="badge bg-info" title={`Paid: ${invPaid.toLocaleString()} | Due: ${invDue.toLocaleString()}`}>
+                              Partial (Due: {invDue.toLocaleString()})
                             </span>
                           ) : (
                             <span className="badge bg-warning">
-                              Due (৳{invDue.toLocaleString()})
+                              Due ({invDue.toLocaleString()})
                             </span>
                           )}
                           {(s.status === 'Locked' || s.isLocked) && (
@@ -1415,10 +1413,10 @@ const POS = () => {
                         </div>
                       </td>
                       <td className="text-primary font-bold">
-                        <div>৳{invTotal.toLocaleString()}</div>
+                        <div>{invTotal.toLocaleString()}</div>
                         {invDue > 0 && invPaid > 0 && (
                           <div className="text-muted text-xs" style={{ fontWeight: 'normal' }}>
-                            Due: <span className="text-danger">৳{invDue.toLocaleString()}</span>
+                            Due: <span className="text-danger">{invDue.toLocaleString()}</span>
                           </div>
                         )}
                       </td>
@@ -1503,13 +1501,13 @@ const POS = () => {
                           )}
                           <td style={{border: '1px solid #cbd5e1', padding: '5px'}}>{item.name}</td>
                           <td style={{border: '1px solid #cbd5e1', padding: '5px', textAlign: 'center'}}>{item.quantity}</td>
-                          <td style={{border: '1px solid #cbd5e1', padding: '5px', textAlign: 'right'}}>৳{Number(item.price || 0).toLocaleString()}</td>
-                          <td style={{border: '1px solid #cbd5e1', padding: '5px', textAlign: 'right', fontWeight: '600'}}>৳{Number((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
+                          <td style={{border: '1px solid #cbd5e1', padding: '5px', textAlign: 'right'}}>{Number(item.price || 0).toLocaleString()}</td>
+                          <td style={{border: '1px solid #cbd5e1', padding: '5px', textAlign: 'right', fontWeight: '600'}}>{Number((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
                         </tr>
                       ))}
                       <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
                         <td colSpan="7" style={{border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right'}}>Invoice {sale.id} Total:</td>
-                        <td style={{border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', color: '#0f172a'}}>৳{Number(sale.total || 0).toLocaleString()}</td>
+                        <td style={{border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', color: '#0f172a'}}>{Number(sale.total || 0).toLocaleString()}</td>
                       </tr>
                     </React.Fragment>
                   ))}
@@ -1517,7 +1515,7 @@ const POS = () => {
               </table>
 
               <div style={{ textAlign: 'right', marginTop: '1.5rem', fontSize: '1.1rem', fontWeight: '800', padding: '8px 12px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-                Grand Total: ৳{filteredSales.reduce((acc, s) => acc + Number(s.total || 0), 0).toLocaleString()}
+                Grand Total: {filteredSales.reduce((acc, s) => acc + Number(s.total || 0), 0).toLocaleString()}
               </div>
               <PrintFooter />
             </div>
@@ -1653,10 +1651,10 @@ const POS = () => {
                             </div>
                             <div className="customer-item-right" style={{ textAlign: 'right' }}>
                               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                Opening: ৳{Number(c.opening_due || 0).toLocaleString()}
+                                Opening: {Number(c.opening_due || 0).toLocaleString()}
                               </div>
                               <span className={`customer-due-badge ${Number(c.due || 0) > 0 ? 'bg-danger text-white' : 'bg-success text-white'}`} style={{ fontSize: '0.72rem', padding: '2px 6px', borderRadius: '4px' }}>
-                                Due: ৳{Number(c.due || 0).toLocaleString()}
+                                Due: {Number(c.due || 0).toLocaleString()}
                               </span>
                             </div>
                           </div>
@@ -1791,7 +1789,7 @@ const POS = () => {
                               </div>
                             </div>
                             <div className="search-item-right" style={{ textAlign: 'right' }}>
-                              <div className="search-item-price">৳{Number(product.price || 0).toLocaleString()}</div>
+                              <div className="search-item-price">{Number(product.price || 0).toLocaleString()}</div>
                               <div className={`search-item-stock ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}`}>
                                 {product.stock > 0 ? `${product.stock} ${product.unit || 'pcs'} in stock` : 'Out of stock'}
                               </div>
@@ -1815,7 +1813,7 @@ const POS = () => {
                     <tr>
                       <th style={{ width: '40px' }}>#</th>
                       <th>Product</th>
-                      <th style={{ textAlign: 'right', width: '130px' }}>Unit Price (৳)</th>
+                      <th style={{ textAlign: 'right', width: '130px' }}>Unit Price</th>
                       <th style={{ textAlign: 'center', width: '150px' }}>Quantity</th>
                       <th style={{ textAlign: 'right', width: '110px' }}>Total</th>
                       <th style={{ textAlign: 'center', width: '60px' }}>Action</th>
@@ -1837,14 +1835,13 @@ const POS = () => {
                               <div className="text-muted text-xs">
                                 Code {item.product_code}
                                 {size ? ` · ${size}` : ''}
-                                {buy !== null ? ` · Buy ৳${buy.toLocaleString()}` : ''}
+                                {buy !== null ? ` · Buy ${buy.toLocaleString()}` : ''}
                               </div>
                             );
                           })()}
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', justifyContent: 'flex-end' }}>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>৳</span>
                             <input
                               type="number"
                               min="0"
@@ -1897,7 +1894,7 @@ const POS = () => {
                           </div>
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                          ৳{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString()}
+                          {((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString()}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
@@ -1928,7 +1925,7 @@ const POS = () => {
                   <div className="font-bold text-warning">Only Due (Baki)</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span className="text-muted text-sm" style={{ fontWeight: '600' }}>Discount (৳):</span>
+                  <span className="text-muted text-sm" style={{ fontWeight: '600' }}>Discount:</span>
                   <input
                     type="number"
                     min="0"
@@ -1952,7 +1949,7 @@ const POS = () => {
                 <div style={{ textAlign: 'right' }}>
                   <span className="text-muted text-sm">Updated Total Payable:</span>
                   <div style={{ fontSize: '1.35rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                    ৳{editTotal.toLocaleString()}
+                    {editTotal.toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -2057,16 +2054,16 @@ const POS = () => {
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                     <span className="text-muted text-sm">Invoice Total:</span>
-                    <span>৳{Number(paymentModal.invoice.total || 0).toLocaleString()}</span>
+                    <span>{Number(paymentModal.invoice.total || 0).toLocaleString()}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                     <span className="text-muted text-sm">Already Paid:</span>
-                    <span className="text-success">৳{Number(paymentModal.invoice.paid_amount || 0).toLocaleString()}</span>
+                    <span className="text-success">{Number(paymentModal.invoice.paid_amount || 0).toLocaleString()}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem', borderTop: '1px dashed var(--border-color)', fontWeight: 'bold' }}>
                     <span>Remaining Due:</span>
                     <span className="text-danger" style={{ fontSize: '1.15rem' }}>
-                      ৳{Number(
+                      {Number(
                         paymentModal.invoice.due_amount !== undefined
                           ? paymentModal.invoice.due_amount
                           : (paymentModal.invoice.paymentType === 'Cash' ? 0 : paymentModal.invoice.total)
@@ -2228,10 +2225,10 @@ const POS = () => {
                           <td><strong>{c.name}</strong></td>
                           <td>{c.phone || 'N/A'}</td>
                           <td>{c.location || 'N/A'}</td>
-                          <td style={{ textAlign: 'right' }}>৳{Number(c.opening_due || 0).toLocaleString()}</td>
+                          <td style={{ textAlign: 'right' }}>{Number(c.opening_due || 0).toLocaleString()}</td>
                           <td style={{ textAlign: 'right' }}>
                             <span className={Number(c.due || 0) > 0 ? 'text-danger font-bold' : 'text-success font-bold'}>
-                              ৳{Number(c.due || 0).toLocaleString()}
+                              {Number(c.due || 0).toLocaleString()}
                             </span>
                           </td>
                           <td style={{ textAlign: 'center' }}>

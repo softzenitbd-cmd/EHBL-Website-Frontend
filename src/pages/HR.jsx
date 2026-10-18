@@ -143,7 +143,7 @@ const HR = () => {
       bonus,
       netPay
     });
-    showToast(`Payslip generated for ${staffMember.name}. Amount: ৳${netPay.toLocaleString()}`, 'success');
+    showToast(`Payslip generated for ${staffMember.name}. Amount: ${netPay.toLocaleString()}`, 'success');
   };
 
   const handleResetAttendanceFilters = () => {
@@ -969,7 +969,7 @@ const HR = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="text-muted text-sm block mb-1">Base Salary (৳)</label>
+                      <label className="text-muted text-sm block mb-1">Base Salary</label>
                       <input type="number" className="w-full" value={newStaff.baseSalary} onChange={e => setNewStaff({ ...newStaff, baseSalary: e.target.value })} placeholder="e.g. 15000" />
                     </div>
                   </div>
@@ -1045,7 +1045,7 @@ const HR = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="text-muted text-sm block mb-1">Base Salary (৳)</label>
+                      <label className="text-muted text-sm block mb-1">Base Salary</label>
                       <input type="number" className="w-full" value={editingStaff.baseSalary} onChange={e => setEditingStaff({ ...editingStaff, baseSalary: e.target.value })} />
                     </div>
                   </div>

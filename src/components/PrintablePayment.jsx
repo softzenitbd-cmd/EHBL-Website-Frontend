@@ -155,9 +155,9 @@ const PrintablePayment = ({ settlement, party, allocations = [] }) => {
                 <td style={{ border: '1px solid #cbd5e1', padding: '5px 4px', textAlign: 'center' }}>{idx + 1}</td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px' }}><strong>{a.id}</strong></td>
                 <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center' }}>{a.date}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>৳{money(a.total)}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right', fontWeight: 'bold' }}>৳{money(a.applied)}</td>
-                <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right' }}>৳{money(a.remaining)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>{money(a.total)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right', fontWeight: 'bold' }}>{money(a.applied)}</td>
+                <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right' }}>{money(a.remaining)}</td>
               </tr>
             ))}
             <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid #64748b' }}>
@@ -165,7 +165,7 @@ const PrintablePayment = ({ settlement, party, allocations = [] }) => {
                 Applied to {allocations.length} {docsLabel.toLowerCase()}{allocations.length === 1 ? '' : 's'}:
               </td>
               <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'right' }}>
-                ৳{money(allocations.reduce((n, a) => n + Number(a.applied || 0), 0))}
+                {money(allocations.reduce((n, a) => n + Number(a.applied || 0), 0))}
               </td>
               <td style={{ border: '1px solid #94a3b8', padding: '6px 8px' }} />
             </tr>
@@ -183,15 +183,15 @@ const PrintablePayment = ({ settlement, party, allocations = [] }) => {
             <tbody>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#475569' }}>Due Before (পূর্বের বকেয়া):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>৳{money(previousDue)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{money(previousDue)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#15803d', fontWeight: '600' }}>This Payment (এই পরিশোধ):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', color: '#15803d', fontWeight: '700' }}>&minus; ৳{money(amount)}</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', color: '#15803d', fontWeight: '700' }}>&minus; {money(amount)}</td>
               </tr>
               <tr style={{ borderTop: '1px solid #cbd5e1', backgroundColor: isCleared ? '#f0fdf4' : '#fef2f2' }}>
                 <td style={{ padding: '6px 10px', fontWeight: '800', color: isCleared ? '#15803d' : '#b91c1c' }}>Due After (অবশিষ্ট বকেয়া):</td>
-                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: isCleared ? '#15803d' : '#b91c1c', fontSize: '1rem' }}>৳{money(remainingDue)}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: isCleared ? '#15803d' : '#b91c1c', fontSize: '1rem' }}>{money(remainingDue)}</td>
               </tr>
             </tbody>
           </table>
@@ -203,7 +203,7 @@ const PrintablePayment = ({ settlement, party, allocations = [] }) => {
           </div>
           <div style={{ padding: '0.9rem 10px', textAlign: 'center' }}>
             <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#0f172a', lineHeight: 1.1 }}>
-              ৳{money(amount)}
+              {money(amount)}
             </div>
             <div style={{ marginTop: '4px', fontSize: '0.78rem', color: '#64748b' }}>
               by {settlement.paymentMethod || settlement.payment_method || 'Cash'}
@@ -215,7 +215,7 @@ const PrintablePayment = ({ settlement, party, allocations = [] }) => {
       {/* Amount in words */}
       <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.82rem', marginBottom: settlement.notes ? '0.6rem' : '1.5rem' }}>
         <strong style={{ color: '#475569' }}>In Words : </strong>
-        <span style={{ fontWeight: '700', color: '#0f172a' }}>৳{money(amount)} Taka Only</span>
+        <span style={{ fontWeight: '700', color: '#0f172a' }}>{money(amount)} Taka Only</span>
       </div>
 
       {settlement.notes && (

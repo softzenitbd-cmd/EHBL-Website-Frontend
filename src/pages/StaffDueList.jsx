@@ -70,7 +70,7 @@ const StaffDueList = () => {
               <DollarSign size={20} />
             </div>
           </div>
-          <div className="stat-value text-danger">৳{totalDues.toLocaleString()}</div>
+          <div className="stat-value text-danger">{totalDues.toLocaleString()}</div>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ const StaffDueList = () => {
               <th>ID</th>
               <th>Staff Name</th>
               <th>Role</th>
-              <th style={{ textAlign: 'right' }}>Due Amount (৳)</th>
+              <th style={{ textAlign: 'right' }}>Due Amount</th>
               <th style={{ textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
@@ -92,7 +92,7 @@ const StaffDueList = () => {
                 <td className="font-bold">{s.name}</td>
                 <td>{s.role}</td>
                 <td style={{ textAlign: 'right' }} className="text-danger font-bold">
-                  ৳{(s.due || 0).toLocaleString()}
+                  {(s.due || 0).toLocaleString()}
                 </td>
                 <td style={{ textAlign: 'center' }}>
                   <button className="btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }} onClick={() => openPayModal(s)}>
@@ -122,7 +122,7 @@ const StaffDueList = () => {
             <div className="modal-body">
               <div className="form-group">
                 <label>Total Due</label>
-                <div className="text-xl font-bold text-danger mb-4">৳{selectedStaff.due.toLocaleString()}</div>
+                <div className="text-xl font-bold text-danger mb-4">{selectedStaff.due.toLocaleString()}</div>
               </div>
               
               <div className="form-group">
@@ -130,7 +130,7 @@ const StaffDueList = () => {
                 <input type="date" className="w-full" value={payDate} onChange={e => setPayDate(e.target.value)} />
               </div>
               <div className="form-group">
-                <label>Amount Received (৳)</label>
+                <label>Amount Received</label>
                 <input 
                   type="number" 
                   className="w-full" 

@@ -567,7 +567,7 @@ const Inventory = () => {
                         </span>
                       </div>
                       <div className="inv-suggest__side">
-                        <strong>&#2547;{Number(p.price || 0).toLocaleString()}</strong>
+                        <strong>{Number(p.price || 0).toLocaleString()}</strong>
                         <span className={Number(p.stock) > 0 ? 'is-in' : 'is-out'}>
                           {Number(p.stock) > 0 ? `${p.stock} ${p.unit || 'Pcs'}` : 'Out of stock'}
                         </span>
@@ -698,7 +698,7 @@ const Inventory = () => {
             </div>
             <div>
               <dt>Stock Value</dt>
-              <dd>&#2547;{money(totalValue)}</dd>
+              <dd>{money(totalValue)}</dd>
             </div>
           </dl>
         </div>
@@ -796,7 +796,7 @@ const Inventory = () => {
                 <tr>
                   <td colSpan={7}>Total of {sortedInventory.length} product{sortedInventory.length === 1 ? '' : 's'}</td>
                   <td className="is-num">{totalItems}</td>
-                  <td colSpan={2} className="is-num">&#2547;{money(totalValue)}</td>
+                  <td colSpan={2} className="is-num">{money(totalValue)}</td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>

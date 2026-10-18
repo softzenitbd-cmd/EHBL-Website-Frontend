@@ -370,7 +370,7 @@ const Expenses = () => {
               <button className="btn-primary flex-align-gap w-full center-content" onClick={() => {
                  const printContents = document.getElementById('printable-monthly-expense').innerHTML;
                  const originalContents = document.body.innerHTML;
-                 document.body.innerHTML = `<div style="padding:2rem;color:#000;"><h2>Expense Report: ${reportMonth}</h2>৳{printContents}</div>`;
+                 document.body.innerHTML = `<div style="padding:2rem;color:#000;"><h2>Expense Report: ${reportMonth}</h2>{printContents}</div>`;
                  window.print();
                  document.body.innerHTML = originalContents;
                  window.location.reload(); 

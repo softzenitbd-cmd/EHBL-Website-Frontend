@@ -361,7 +361,7 @@ const Returns = () => {
 
                   <div className="rt-field rt-f-total">
                     <span className="rt-total__label">Total Amount</span>
-                    <output className="rt-total">&#2547;{money(formAmount)}</output>
+                    <output className="rt-total">{money(formAmount)}</output>
                   </div>
                 </div>
               </fieldset>
@@ -440,7 +440,7 @@ const Returns = () => {
               </div>
               <div>
                 <dt>Value</dt>
-                <dd>&#2547;{money(totalValue)}</dd>
+                <dd>{money(totalValue)}</dd>
               </div>
             </dl>
           </div>
@@ -471,7 +471,7 @@ const Returns = () => {
                           <span>
                             {rows.length} return{rows.length === 1 ? '' : 's'}
                             &nbsp;&middot;&nbsp; {rows.reduce((n, x) => n + Number(x.quantity || 0), 0)} pcs
-                            &nbsp;&middot;&nbsp; &#2547;{money(rows.reduce((n, x) => n + lineAmount(x), 0))}
+                            &nbsp;&middot;&nbsp; {money(rows.reduce((n, x) => n + lineAmount(x), 0))}
                           </span>
                         </td>
                       </tr>,
@@ -492,8 +492,8 @@ const Returns = () => {
                     </td>
                     <td>{getProductName(r.productId)}</td>
                     <td className="is-num">{r.quantity}</td>
-                    <td className="is-num">&#2547;{money(r.rate)}</td>
-                    <td className="is-num is-strong">&#2547;{money(lineAmount(r))}</td>
+                    <td className="is-num">{money(r.rate)}</td>
+                    <td className="is-num is-strong">{money(lineAmount(r))}</td>
                     <td className="rt-reason" title={r.reason}><span>{r.reason}</span></td>
                     <td className="is-center">
                       <div className="rt-rowactions">
@@ -524,7 +524,7 @@ const Returns = () => {
                     <td colSpan={6}>Total of {filteredReturns.length} record{filteredReturns.length === 1 ? '' : 's'}</td>
                     <td className="is-num">{totalQty}</td>
                     <td />
-                    <td className="is-num">&#2547;{money(totalValue)}</td>
+                    <td className="is-num">{money(totalValue)}</td>
                     <td colSpan={2} />
                   </tr>
                 </tfoot>
@@ -562,8 +562,8 @@ const Returns = () => {
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{r.returnType}</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{getProductName(r.productId)} (ID: {r.productId})</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'center', verticalAlign: 'top'}}>{r.quantity}</td>
-                       <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', verticalAlign: 'top'}}>&#2547;{money(r.rate)}</td>
-                       <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold'}}>&#2547;{money(lineAmount(r))}</td>
+                       <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', verticalAlign: 'top'}}>{money(r.rate)}</td>
+                       <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold'}}>{money(lineAmount(r))}</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{r.reason}</td>
                        <td style={{border: '1px solid #ccc', padding: '0.4rem', verticalAlign: 'top'}}>{r.notes || '-'}</td>
                      </tr>
@@ -577,7 +577,7 @@ const Returns = () => {
                     </td>
                     <td style={{border: '1px solid #ccc', padding: '0.4rem'}}></td>
                     <td style={{border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right'}}>
-                      &#2547;{money(totalValue)}
+                      {money(totalValue)}
                     </td>
                     <td colSpan={2} style={{border: '1px solid #ccc', padding: '0.4rem'}}></td>
                   </tr>

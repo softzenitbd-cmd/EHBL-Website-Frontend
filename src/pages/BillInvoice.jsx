@@ -95,9 +95,9 @@ const BillInvoice = () => {
       html: `
         <div style="text-align: left; font-size: 0.9rem; line-height: 1.6;">
           <div><strong>Customer:</strong> ${sale.customerName || 'N/A'}</div>
-          <div><strong>Total:</strong> ৳${Number(sale.total || 0).toLocaleString()}</div>
+          <div><strong>Total:</strong> ${Number(sale.total || 0).toLocaleString()}</div>
           <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
-            The invoiced items will return to stock${Number(sale.due_amount || 0) > 0 ? ` and ৳${Number(sale.due_amount).toLocaleString()} will be removed from customer due.` : '.'}
+            The invoiced items will return to stock${Number(sale.due_amount || 0) > 0 ? ` and ${Number(sale.due_amount).toLocaleString()} will be removed from customer due.` : '.'}
           </div>
           <div style="margin-top: 0.35rem; color: #ef4444; font-weight: 600; font-size: 0.85rem;">
             This action cannot be undone.
