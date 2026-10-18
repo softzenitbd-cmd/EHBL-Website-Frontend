@@ -406,7 +406,8 @@ body:not(.light-mode) .pp-modal {
 
 .pp-filtergrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  /* From, To, Search, Company, Category, Sales status, Sort */
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 0.75rem;
   align-items: flex-end;
   width: 100%;
@@ -803,4 +804,15 @@ body.light-mode .pp-modal .pp-card.is-bad {
   border-color: var(--pp-accent);
   color: var(--pp-accent);
   background: var(--pp-accent-bg);
+}
+
+/* Date boxes in the filter row match the selects beside them. */
+.pp-report .pp-filtergrid .pp-field input[type="date"] {
+  padding: 0.5rem 0.65rem;
+  font-size: 0.875rem;
+  color: var(--pp-text);
+  background: var(--pp-bg);
+  border: 1px solid var(--pp-border);
+  border-radius: var(--pp-radius);
+  box-shadow: none;
 }

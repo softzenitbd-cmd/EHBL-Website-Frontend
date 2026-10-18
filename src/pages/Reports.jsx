@@ -258,6 +258,10 @@ const Reports = () => {
     const totalCost = avgCost * Math.max(0, netQty);
     const profit = netRevenue - totalCost;
     const margin = netRevenue > 0 ? (profit / netRevenue) * 100 : 0;
+    // Per-unit view for the table: average rate actually sold at, cost per
+    // unit, and the profit on one unit. Qty x unit profit = total profit.
+    const unitSale = netQty > 0 ? netRevenue / netQty : Number(prod.price || 0);
+    const unitProfit = unitSale - avgCost;
 
     const byCustomer = new Map();
     rows.forEach((r) => {
@@ -290,6 +294,7 @@ const Reports = () => {
       returnedQty, returnedValue,
       netQty, netRevenue,
       avgCost, costBasis, totalCost, profit, margin,
+      unitSale, unitProfit,
       invoiceCount: new Set(rows.map((r) => r.invoiceId)).size,
     };
   };
@@ -335,6 +340,7 @@ const Reports = () => {
   });
 
   const ppTotalSoldQty = sortedProductProfits.reduce((acc, i) => acc + i.soldQty, 0);
+  const ppTotalNetQty = sortedProductProfits.reduce((acc, i) => acc + i.netQty, 0);
   const ppTotalRevenue = sortedProductProfits.reduce((acc, i) => acc + i.netRevenue, 0);
   const ppTotalCost = sortedProductProfits.reduce((acc, i) => acc + i.totalCost, 0);
   const ppTotalProfit = sortedProductProfits.reduce((acc, i) => acc + i.profit, 0);
@@ -577,15 +583,15 @@ const Reports = () => {
                       <td>{new Date(item.date).toLocaleDateString()}</td>
                       <td style={{ fontWeight: '500' }}>{item.type}</td>
                       <td style={{ textAlign: 'right', color: '#10b981', fontWeight: item.isRevenue ? 'bold' : 'normal' }}>
-                        {item.isRevenue ? `+৳${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                        {item.isRevenue ? `+${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                       </td>
                       <td style={{ textAlign: 'right', color: '#ef4444', fontWeight: !item.isRevenue ? 'bold' : 'normal' }}>
-                        {!item.isRevenue ? `-৳${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                        {!item.isRevenue ? `-${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold', color: item.balance >= 0 ? '#10b981' : '#ef4444' }}>
                         {item.balance >= 0 
-                          ? `৳${Number(item.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                          : `-৳${Number(Math.abs(item.balance)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          ? `${Number(item.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                          : `-${Number(Math.abs(item.balance)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       </td>
                     </tr>
                   ))
@@ -783,6 +789,23 @@ const Reports = () => {
           <div className="pp-toolbar-card">
             <div className="pp-filtergrid">
               <div className="pp-field">
+                <label>From</label>
+                <input
+                  type="date"
+                  value={dateFilter === 'Custom' ? startDate : ''}
+                  onChange={(e) => { setDateFilter('Custom'); setStartDate(e.target.value); }}
+                />
+              </div>
+              <div className="pp-field">
+                <label>To</label>
+                <input
+                  type="date"
+                  value={dateFilter === 'Custom' ? endDate : ''}
+                  onChange={(e) => { setDateFilter('Custom'); setEndDate(e.target.value); }}
+                />
+              </div>
+
+              <div className="pp-field">
                 <label>Search Product</label>
                 <input
                   type="text"
@@ -836,7 +859,6 @@ const Reports = () => {
                   <option value="profit_asc">Profit (Low to High)</option>
                   <option value="revenue_desc">Revenue (High to Low)</option>
                   <option value="sold_desc">Sales Qty (High to Low)</option>
-                  <option value="margin_desc">Margin % (High to Low)</option>
                   <option value="name_asc">Product Name (A - Z)</option>
                 </select>
               </div>
@@ -877,11 +899,11 @@ const Reports = () => {
                     <th>Product Name</th>
                     <th>Company</th>
                     <th>Category</th>
-                    <th className="is-num">Sales Qty</th>
                     <th className="is-num">Sales Price</th>
                     <th className="is-num">Purchase Price</th>
                     <th className="is-num">Gross Profit</th>
-                    <th className="is-center">Margin</th>
+                    <th className="is-num">Sales Qty</th>
+                    <th className="is-num">Total Profit</th>
                     <th className="is-center">Action</th>
                   </tr>
                 </thead>
@@ -904,16 +926,14 @@ const Reports = () => {
                         <td>
                           <span className="pp-tag">{p.category || p.category_name || 'General'}</span>
                         </td>
-                        <td className="is-num is-strong">{item.soldQty}</td>
-                        <td className="is-num">&#2547;{money(item.netRevenue)}</td>
-                        <td className="is-num">&#2547;{money(item.totalCost)}</td>
-                        <td className="is-num is-strong" style={{ color: item.profit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
-                          &#2547;{money(item.profit)}
+                        <td className="is-num">{money(item.unitSale)}</td>
+                        <td className="is-num">{money(item.avgCost)}</td>
+                        <td className="is-num" style={{ color: item.unitProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
+                          {money(item.unitProfit)}
                         </td>
-                        <td className="is-center">
-                          <span className={`pp-margin-badge ${item.profit >= 0 ? 'is-good' : 'is-bad'}`}>
-                            {item.margin.toFixed(1)}%
-                          </span>
+                        <td className="is-num is-strong">{item.netQty}</td>
+                        <td className="is-num is-strong" style={{ color: item.profit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
+                          {money(item.profit)}
                         </td>
                         <td className="is-center">
                           <button
@@ -939,17 +959,10 @@ const Reports = () => {
                 {sortedProductProfits.length > 0 && (
                   <tfoot>
                     <tr>
-                      <td colSpan={5} style={{ fontWeight: 'bold' }}>Grand Total ({sortedProductProfits.length} Products)</td>
-                      <td className="is-num">{ppTotalSoldQty}</td>
-                      <td className="is-num">&#2547;{money(ppTotalRevenue)}</td>
-                      <td className="is-num">&#2547;{money(ppTotalCost)}</td>
+                      <td colSpan={8} style={{ fontWeight: 'bold' }}>Grand Total ({sortedProductProfits.length} Products)</td>
+                      <td className="is-num">{ppTotalNetQty}</td>
                       <td className="is-num" style={{ color: ppTotalProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
-                        &#2547;{money(ppTotalProfit)}
-                      </td>
-                      <td className="is-center">
-                        <span className={`pp-margin-badge ${ppTotalProfit >= 0 ? 'is-good' : 'is-bad'}`}>
-                          {ppOverallMargin.toFixed(1)}%
-                        </span>
+                        {money(ppTotalProfit)}
                       </td>
                       <td></td>
                     </tr>
@@ -1042,26 +1055,26 @@ const Reports = () => {
                         <tbody>
                           <tr>
                             <td>Sales value ({selectedProductReport.soldQty} sold)</td>
-                            <td className="is-num">&#2547;{money(selectedProductReport.salesValue)}</td>
+                            <td className="is-num">{money(selectedProductReport.salesValue)}</td>
                           </tr>
                           <tr>
                             <td>Less customer returns ({selectedProductReport.returnedQty} returned)</td>
-                            <td className="is-num">&minus; &#2547;{money(selectedProductReport.returnedValue)}</td>
+                            <td className="is-num">&minus; {money(selectedProductReport.returnedValue)}</td>
                           </tr>
                           <tr className="is-subtotal">
                             <td>Net revenue ({selectedProductReport.netQty} net)</td>
-                            <td className="is-num">&#2547;{money(selectedProductReport.netRevenue)}</td>
+                            <td className="is-num">{money(selectedProductReport.netRevenue)}</td>
                           </tr>
                           <tr>
                             <td>
-                              Cost of goods sold &mdash; {selectedProductReport.netQty} &times; &#2547;{money(selectedProductReport.avgCost)}
+                              Cost of goods sold &mdash; {selectedProductReport.netQty} &times; {money(selectedProductReport.avgCost)}
                               <small className="pp-basis">{selectedProductReport.costBasis}</small>
                             </td>
-                            <td className="is-num">&minus; &#2547;{money(selectedProductReport.totalCost)}</td>
+                            <td className="is-num">&minus; {money(selectedProductReport.totalCost)}</td>
                           </tr>
                           <tr className="is-total">
                             <td>Gross profit</td>
-                            <td className="is-num">&#2547;{money(selectedProductReport.profit)}</td>
+                            <td className="is-num">{money(selectedProductReport.profit)}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -1092,9 +1105,9 @@ const Reports = () => {
                               <td>{c.phone || '-'}</td>
                               <td className="is-num">{c.invoiceCount}</td>
                               <td className="is-num">{c.qty}</td>
-                              <td className="is-num">&#2547;{money(c.value)}</td>
-                              <td className="is-num">&#2547;{money(c.paid)}</td>
-                              <td className="is-num is-strong">&#2547;{money(c.due)}</td>
+                              <td className="is-num">{money(c.value)}</td>
+                              <td className="is-num">{money(c.paid)}</td>
+                              <td className="is-num is-strong">{money(c.due)}</td>
                             </tr>
                           ))}
                           {selectedProductReport.customerRows.length === 0 && (
@@ -1106,9 +1119,9 @@ const Reports = () => {
                             <tr>
                               <td colSpan={4}>Total</td>
                               <td className="is-num">{selectedProductReport.soldQty}</td>
-                              <td className="is-num">&#2547;{money(selectedProductReport.salesValue)}</td>
-                              <td className="is-num">&#2547;{money(selectedProductReport.received)}</td>
-                              <td className="is-num">&#2547;{money(selectedProductReport.due)}</td>
+                              <td className="is-num">{money(selectedProductReport.salesValue)}</td>
+                              <td className="is-num">{money(selectedProductReport.received)}</td>
+                              <td className="is-num">{money(selectedProductReport.due)}</td>
                             </tr>
                           </tfoot>
                         )}
@@ -1141,10 +1154,10 @@ const Reports = () => {
                               <td className="is-code">{r.invoiceId}</td>
                               <td>{r.customerName}{r.isGift && <span className="pp-gift">Gift</span>}</td>
                               <td className="is-num">{r.qty}</td>
-                              <td className="is-num">&#2547;{money(r.rate)}</td>
-                              <td className="is-num is-strong">&#2547;{money(r.value)}</td>
-                              <td className="is-num">&#2547;{money(r.paid)}</td>
-                              <td className="is-num">&#2547;{money(r.due)}</td>
+                              <td className="is-num">{money(r.rate)}</td>
+                              <td className="is-num is-strong">{money(r.value)}</td>
+                              <td className="is-num">{money(r.paid)}</td>
+                              <td className="is-num">{money(r.due)}</td>
                             </tr>
                           ))}
                           {selectedProductReport.rows.length === 0 && (
@@ -1178,7 +1191,7 @@ const Reports = () => {
                                 <td className="is-code">{r.id}</td>
                                 <td>{r.party}</td>
                                 <td className="is-num">{r.qty}</td>
-                                <td className="is-num is-strong">&#2547;{money(r.value)}</td>
+                                <td className="is-num is-strong">{money(r.value)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1210,26 +1223,26 @@ const Reports = () => {
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Quantity Sold</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{selectedProductReport.soldQty}</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Total Sell</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.salesValue)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(selectedProductReport.salesValue)}</td>
                           </tr>
                           <tr>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Payment Received</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.received)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(selectedProductReport.received)}</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Due</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.due)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(selectedProductReport.due)}</td>
                           </tr>
                           <tr>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Returned ({selectedProductReport.returnedQty})</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.returnedValue)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(selectedProductReport.returnedValue)}</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Net Revenue</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.netRevenue)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(selectedProductReport.netRevenue)}</td>
                           </tr>
                           <tr>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Cost ({selectedProductReport.netQty} &times; &#2547;{money(selectedProductReport.avgCost)})</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.totalCost)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem' }}>Cost ({selectedProductReport.netQty} &times; {money(selectedProductReport.avgCost)})</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right' }}>{money(selectedProductReport.totalCost)}</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem', fontWeight: 'bold' }}>Gross Profit</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', fontWeight: 'bold' }}>
-                              &#2547;{money(selectedProductReport.profit)} ({selectedProductReport.margin.toFixed(1)}%)
+                              {money(selectedProductReport.profit)} ({selectedProductReport.margin.toFixed(1)}%)
                             </td>
                           </tr>
                         </tbody>
@@ -1255,17 +1268,17 @@ const Reports = () => {
                               <td style={{ border: '1px solid #ccc', padding: '0.35rem' }}>{c.name}</td>
                               <td style={{ border: '1px solid #ccc', padding: '0.35rem' }}>{c.phone || '-'}</td>
                               <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'center' }}>{c.qty}</td>
-                              <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(c.value)}</td>
-                              <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(c.paid)}</td>
-                              <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(c.due)}</td>
+                              <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>{money(c.value)}</td>
+                              <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>{money(c.paid)}</td>
+                              <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>{money(c.due)}</td>
                             </tr>
                           ))}
                           <tr style={{ background: '#f1f5f9', fontWeight: 'bold' }}>
                             <td colSpan="3" style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>Total</td>
                             <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'center' }}>{selectedProductReport.soldQty}</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.salesValue)}</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.received)}</td>
-                            <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>&#2547;{money(selectedProductReport.due)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>{money(selectedProductReport.salesValue)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>{money(selectedProductReport.received)}</td>
+                            <td style={{ border: '1px solid #ccc', padding: '0.35rem', textAlign: 'right' }}>{money(selectedProductReport.due)}</td>
                           </tr>
                         </tbody>
                       </table>
