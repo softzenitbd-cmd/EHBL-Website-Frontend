@@ -68,7 +68,7 @@ const StockRegister = () => {
         if (endDate && saleDate > endDate) return;
       }
       sale.items?.forEach(saleItem => {
-        if (saleItem.id === item.id) {
+        if ((saleItem.currentCode || saleItem.id) === item.id) {
           stockOut += saleItem.quantity;
         }
       });
@@ -82,8 +82,13 @@ const StockRegister = () => {
         if (endDate && purDate > endDate) return;
       }
       purchase.items?.forEach(purItem => {
-        // Purchases might use name instead of id in earlier versions, match both
-        if (purItem.id === item.id || purItem.name.toLowerCase() === item.name.toLowerCase()) {
+        // By product code; name + size only for an old line with no product
+        // link, since one name covers several sizes.
+        const sameProduct = purItem.productCode
+          ? String(purItem.productCode) === String(item.id)
+          : String(purItem.name || '').toLowerCase() === String(item.name || '').toLowerCase()
+            && String(purItem.variant || '').toLowerCase() === String(item.variant || '').toLowerCase();
+        if (sameProduct) {
           stockIn += purItem.quantity;
         }
       });

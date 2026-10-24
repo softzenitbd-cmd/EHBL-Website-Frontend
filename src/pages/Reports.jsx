@@ -86,17 +86,24 @@ const Reports = () => {
   const totalPurchasesCost = filteredPurchases.reduce((acc, p) => acc + Number(p.total || 0), 0);
   const totalPurchaseInvoices = filteredPurchases.length;
 
+  // A purchase line belongs to a product by code; only an old line with no
+  // product link falls back to name and size (one name covers many sizes).
+  const purchaseLineIs = (line, prod) => {
+    if (line.productCode) return String(line.productCode) === String(prod.id);
+    return String(line.name || '').toLowerCase().trim() === String(prod.name || '').toLowerCase().trim()
+      && String(line.variant || '').toLowerCase().trim() === String(prod.variant || '').toLowerCase().trim();
+  };
+
   // 2. Stock Report Data
   const stockData = inventory.map(item => {
     const stockInPurchases = purchases.reduce((acc, p) => {
-      const pItem = p.items.find(i => i.name.toLowerCase() === item.name.toLowerCase());
-      return acc + (pItem ? pItem.quantity : 0);
+      return acc + (p.items || []).filter((i) => purchaseLineIs(i, item)).reduce((n, i) => n + Number(i.quantity || 0), 0);
     }, 0);
     const stockInReturns = returns.filter(r => r.returnType === 'Customer' && r.productId === item.id).reduce((acc, r) => acc + r.quantity, 0);
     const totalIn = stockInPurchases + stockInReturns;
 
     const stockOutSales = sales.reduce((acc, s) => {
-      const sItem = s.items.find(i => i.id === item.id);
+      const sItem = s.items.find(i => (i.currentCode || i.id) === item.id);
       return acc + (sItem ? sItem.quantity : 0);
     }, 0);
     const stockOutReturns = returns.filter(r => r.returnType === 'Supplier' && r.productId === item.id).reduce((acc, r) => acc + r.quantity, 0);
@@ -190,10 +197,17 @@ const Reports = () => {
     if (!prod) return null;
     const pid = String(prod.id || '').trim();
     const pname = String(prod.name || '').toLowerCase().trim();
+    // The code decides. Several sizes share one name ("Padlock : 3 Star:
+    // Golden" in 32mm, 38mm, 50mm...), so matching by name pulled the other
+    // sizes' sales - and their higher rates - into this one. The name is only
+    // a fallback for an old line that carries no code.
+    const pvariant = String(prod.variant || '').toLowerCase().trim();
     const matchesLine = (it) => {
-      const itId = String(it.id || '').trim();
+      const itId = String(it.currentCode || it.id || it.product_code || '').trim();
+      if (itId) return pid !== '' && itId === pid;
       const itName = String(it.name || '').toLowerCase().trim();
-      return (pid && itId === pid) || (pname && itName === pname);
+      const itVariant = String(it.variant || '').toLowerCase().trim();
+      return pname !== '' && itName === pname && itVariant === pvariant;
     };
 
     const rows = [];
@@ -231,7 +245,7 @@ const Reports = () => {
     });
 
     const returnRows = returns
-      .filter((r) => (r.productId === prod.id || String(r.productName || '').toLowerCase().trim() === pname) && r.returnType === 'Customer' && isWithinFilter(r.date))
+      .filter((r) => (r.productId ? String(r.productId) === pid : String(r.productName || '').toLowerCase().trim() === pname) && r.returnType === 'Customer' && isWithinFilter(r.date))
       .map((r) => ({
         id: r.id,
         date: String(r.date || '').split('T')[0],
