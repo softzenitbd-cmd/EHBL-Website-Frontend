@@ -6,6 +6,8 @@ import useStore from '../store/useStore';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 import PrintableReturn from '../components/PrintableReturn';
+import SearchSelect from '../components/SearchSelect';
+import { searchProducts } from '../utils/productSearch';
 import { confirmDialog } from '../utils/swal';
 import { printElement } from '../utils/printElement';
 import './Returns.css';
@@ -66,6 +68,7 @@ const Returns = () => {
   // The invoice (or purchase) the goods came off. Optional: given, the
   // return's value also comes off that document's due.
   const [referenceId, setReferenceId] = useState('');
+  const [partyPickedId, setPartyPickedId] = useState('');
 
   const partyOptions = (returnType === 'Customer' ? customers : suppliers) || [];
 
@@ -85,6 +88,41 @@ const Returns = () => {
       .slice(0, 200);
   }, [returnType, partyName, sales, purchases]);
 
+  const docSelectOptions = docOptions.map((d) => ({
+    value: d.id,
+    label: d.id,
+    party: d.party,
+    sub: `${d.party || 'No party'} · ${String(d.date || '').slice(0, 10)}`,
+    side: `Due ${d.due.toFixed(2)}`,
+    muted: d.due > 0,
+  }));
+
+  const productOptions = useMemo(() => inventory.map((item) => ({
+    value: item.id,
+    label: item.name,
+    sub: [item.id, item.variant].filter(Boolean).join(' · '),
+    side: `Stock ${item.stock}`,
+    muted: Number(item.stock) <= 0,
+    item,
+  })), [inventory]);
+  // Same ranked search as the invoice screen, every match shown.
+  const searchProductOptions = (opts, q) => {
+    const byId = new Map(opts.map((o) => [o.value, o]));
+    return searchProducts(opts.map((o) => o.item), q, 0).map((p) => byId.get(p.id)).filter(Boolean);
+  };
+
+  const partySelectOptions = partyOptions.map((pt) => ({
+    value: pt.id,
+    label: pt.name,
+    sub: [pt.phone, pt.company].filter(Boolean).join(' · '),
+    side: Number(pt.due || 0) > 0 ? `Due ${Number(pt.due).toFixed(2)}` : '',
+    muted: Number(pt.due || 0) > 0,
+  }));
+  const searchParties = (opts, q) => {
+    const t = q.trim().toLowerCase();
+    return opts.filter((o) => o.label.toLowerCase().includes(t) || String(o.sub).toLowerCase().includes(t));
+  };
+
   const selectedProduct = inventory.find((i) => i.id === product);
   const defaultRateFor = (item, type) => {
     if (!item) return '';
@@ -102,6 +140,8 @@ const Returns = () => {
   const handleReturnTypeChange = (type) => {
     setReturnType(type);
     setReferenceId('');
+    setPartyName('');
+    setPartyPickedId('');
     // The two sides of the counter value the same goods differently, so the
     // suggested rate follows the switch.
     setRate(defaultRateFor(inventory.find((i) => i.id === product), type));
@@ -172,11 +212,15 @@ const Returns = () => {
     // The number is what the shop writes on the paper slip, so it has to be
     // on screen the moment the return is saved, not only in the history list.
     const returnNo = result.data?.return_code || result.data?.id || '';
+    // Say whether it reached the party's ledger: only a party on file has one.
+    const credited = Number(result.data?.credit_amount || 0);
+    const who = result.data?.partyName || partyName.trim();
+    const doc = result.data?.credit_doc;
     showToast(
-      returnNo
-        ? `${returnType} Return saved. Number: ${returnNo}`
-        : `${returnType} Return/Reject processed successfully! Stock has been adjusted.`,
-      'success'
+      credited > 0
+        ? `${returnType} Return ${returnNo} saved. ${credited.toFixed(2)} put on ${who}'s ledger${doc ? ` and taken off ${doc}` : ''}.`
+        : `${returnType} Return ${returnNo} saved and stock adjusted. Not on any ledger: no ${returnType === 'Customer' ? 'customer' : 'supplier'} on file was chosen.`,
+      credited > 0 ? 'success' : 'warning'
     );
     setLastSaved(returnNo ? { number: returnNo, type: returnType } : null);
     setProduct('');
@@ -184,6 +228,7 @@ const Returns = () => {
     setRate('');
     setReason('');
     setPartyName('');
+    setPartyPickedId('');
     setReferenceId('');
     setEntryDate(new Date().toISOString().split('T')[0]);
   };
@@ -312,59 +357,54 @@ const Returns = () => {
 
                   <div className="rt-field rt-f-party">
                     <label htmlFor="rt-party">{returnType === 'Customer' ? 'Customer' : 'Supplier'}</label>
-                    <input
+                    <SearchSelect
                       id="rt-party"
-                      type="text"
-                      list="return-party-list"
-                      placeholder={returnType === 'Customer' ? 'Search or type customer name' : 'Search or type supplier name'}
-                      value={partyName}
-                      onChange={(e) => setPartyName(e.target.value)}
-                      autoComplete="off"
+                      options={partySelectOptions}
+                      value={partyPickedId}
+                      text={partyName}
+                      freeText
+                      onText={setPartyName}
+                      onSelect={(o) => setPartyPickedId(o ? o.value : '')}
+                      search={searchParties}
+                      placeholder={returnType === 'Customer' ? 'Search customer by name or phone' : 'Search supplier by name or phone'}
+                      emptyText="Not on file"
                     />
-                    <datalist id="return-party-list">
-                      {partyOptions.map(p => (
-                        <option key={p.id} value={p.name}>
-                          {p.name}{p.phone ? ` (${p.phone})` : ''}
-                        </option>
-                      ))}
-                    </datalist>
-                    <span className="rt-hint">Optional. A name not on file is still kept on the record.</span>
+                    <span className="rt-hint">Pick one on file to put the return on their ledger.</span>
                   </div>
 
                   <div className="rt-field rt-f-ref">
                     <label htmlFor="rt-ref">{returnType === 'Customer' ? 'Invoice No' : 'Purchase No'}</label>
-                    <input
+                    <SearchSelect
                       id="rt-ref"
-                      type="text"
-                      list="return-doc-list"
-                      placeholder="Optional"
+                      options={docSelectOptions}
                       value={referenceId}
-                      onChange={(e) => setReferenceId(e.target.value)}
-                      autoComplete="off"
+                      text={referenceId}
+                      freeText
+                      onText={setReferenceId}
+                      onSelect={(o) => {
+                        if (!o) return;
+                        setReferenceId(o.value);
+                        // The document names its party, so fill it when empty.
+                        if (!partyName.trim() && o.party) setPartyName(o.party);
+                      }}
+                      placeholder="Optional"
+                      emptyText="No matching document"
                     />
-                    <datalist id="return-doc-list">
-                      {docOptions.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.party}{` · ${String(d.date || '').slice(0, 10)} · due ${d.due.toFixed(2)}`}
-                        </option>
-                      ))}
-                    </datalist>
                     <span className="rt-hint">Value comes off this {returnType === 'Customer' ? 'invoice' : 'purchase'}&rsquo;s due.</span>
                   </div>
 
                   <div className="rt-field rt-f-product">
                     <label htmlFor="rt-product">Product</label>
-                    <select
+                    <SearchSelect
                       id="rt-product"
+                      options={productOptions}
                       value={product}
-                      onChange={(e) => handleProductChange(e.target.value)}
+                      onSelect={(o) => handleProductChange(o ? o.value : '')}
+                      search={searchProductOptions}
+                      placeholder="Search by name, code or size"
+                      emptyText="No product matches"
                       required
-                    >
-                      <option value="">Select a product</option>
-                      {inventory.map(item => (
-                        <option key={item.id} value={item.id}>{item.name} (Stock: {item.stock})</option>
-                      ))}
-                    </select>
+                    />
                     {selectedProduct && (
                       <span className="rt-hint">
                         Code {selectedProduct.id} &middot; In stock {selectedProduct.stock} {selectedProduct.unit || 'pcs'}

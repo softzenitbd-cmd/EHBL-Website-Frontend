@@ -457,7 +457,7 @@ const Customers = () => {
                        <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'left' }}>Date</th>
                        <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'left' }}>Description</th>
                        <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right' }}>Charge (Baki)</th>
-                       <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right' }}>Payment (Settle)</th>
+                       <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right' }}>Payment / Return</th>
                        <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'right' }}>Balance</th>
                      </tr>
                    </thead>
@@ -474,11 +474,11 @@ const Customers = () => {
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', color: tx.type === 'charge' ? 'red' : 'inherit' }}>
                              {tx.type === 'charge' ? `${tx.amount.toLocaleString()}` : '-'}
                            </td>
-                           <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', color: tx.type === 'payment' ? 'green' : 'inherit' }}>
-                             {tx.type === 'payment' ? `${tx.amount.toLocaleString()}` : '-'}
+                           <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', color: tx.type !== 'charge' ? 'green' : 'inherit' }}>
+                             {tx.type !== 'charge' ? `${tx.amount.toLocaleString()}` : '-'}
                            </td>
                            <td style={{ border: '1px solid #ccc', padding: '0.4rem', textAlign: 'right', fontWeight: 'bold' }}>
-                             {Math.max(0, tx.balance).toLocaleString()}
+                             {tx.balance < 0 ? `${Math.abs(tx.balance).toLocaleString()} adv` : tx.balance.toLocaleString()}
                            </td>
                          </tr>
                        ))

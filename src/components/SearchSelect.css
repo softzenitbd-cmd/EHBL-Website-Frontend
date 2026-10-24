@@ -1,0 +1,115 @@
+/*
+ * SearchSelect: a typeable dropdown. Colours come from the host page's
+ * tokens (--rt-* on Returns) with neutral fallbacks, so it sits in any form.
+ */
+
+.ss {
+  position: relative;
+  width: 100%;
+}
+
+.ss__box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ss__box input {
+  width: 100%;
+  padding-right: 2rem !important;
+}
+
+.ss__icon {
+  position: absolute;
+  right: 0.45rem;
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  color: var(--rt-muted, #64748b);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ss__icon--muted {
+  pointer-events: none;
+}
+
+.ss__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--rt-bg, #ffffff);
+  border: 1px solid var(--rt-border, #d8dee7);
+  border-radius: var(--rt-radius, 6px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.ss__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rt-border-soft, #e6eaf0);
+  color: var(--rt-text, #0f172a);
+}
+
+.ss__item:last-child {
+  border-bottom: none;
+}
+
+.ss__item.is-active {
+  background: var(--rt-accent-bg, #fff7ed);
+}
+
+.ss__item.is-selected strong {
+  color: var(--rt-accent, #b45309);
+}
+
+.ss__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ss__main strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ss__main span {
+  font-size: 0.75rem;
+  color: var(--rt-muted, #64748b);
+}
+
+.ss__side {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--rt-in, #15803d);
+}
+
+.ss__side.is-muted {
+  color: var(--rt-danger, #dc2626);
+}
+
+.ss__empty {
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--rt-muted, #64748b);
+  text-align: center;
+}
