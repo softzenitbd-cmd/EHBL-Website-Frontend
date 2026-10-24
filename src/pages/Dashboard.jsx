@@ -16,7 +16,7 @@ const emptyWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((name) =
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const { user, sales = [], expenses = [], inventory = [], customers = [], suppliers = [], purchases = [], fetchAllData } = useStore();
+  const { user, sales = [], expenses = [], inventory = [], customers = [], suppliers = [], purchases = [], returns = [], fetchAllData } = useStore();
 
   const [chartData, setChartData] = useState(emptyWeek);
 
@@ -50,7 +50,9 @@ const Dashboard = () => {
   }, []);
 
   // Calculate dynamic stats
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Local calendar day (toISOString is UTC, which is yesterday before 6am here).
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const currentMonthStr = todayStr.substring(0, 7);
 
   // Helper for safe numeric conversion
@@ -64,9 +66,28 @@ const Dashboard = () => {
   const dailyExpenses = expenses.filter(e => e.date && e.date.startsWith(todayStr)).reduce((acc, exp) => acc + num(exp.amount), 0);
   const monthlyExpenses = expenses.filter(e => e.date && e.date.startsWith(currentMonthStr)).reduce((acc, exp) => acc + num(exp.amount), 0);
 
-  // Profit/Loss
-  const dailyProfit = dailySales - dailyExpenses;
-  const monthlyProfit = monthlySales - monthlyExpenses;
+  // Profit = sale price - purchase price on what was sold. Each line earns
+  // its total less qty x the product's purchase price; a customer return
+  // takes back its own margin. Expenses are shown separately, not taken off.
+  const costOf = new Map(inventory.map((p) => [String(p.id), num(p.purchasePrice ?? p.cost_price ?? p.costPrice)]));
+  const profitWhere = (inPeriod) => {
+    let profit = 0;
+    sales.forEach((s) => {
+      if (!s.date || s.status === 'Cancelled' || !inPeriod(s.date)) return;
+      (s.items || []).forEach((it) => {
+        const qty = num(it.quantity);
+        const value = it.total_price !== undefined ? num(it.total_price) : num(it.price) * qty;
+        profit += value - (costOf.get(String(it.currentCode || it.id)) || 0) * qty;
+      });
+    });
+    returns.forEach((r) => {
+      if (r.returnType !== 'Customer' || !r.date || !inPeriod(r.date)) return;
+      profit -= (num(r.rate) - (costOf.get(String(r.productId)) || 0)) * num(r.quantity);
+    });
+    return profit;
+  };
+  const dailyProfit = profitWhere((d) => d.startsWith(todayStr));
+  const monthlyProfit = profitWhere((d) => d.startsWith(currentMonthStr));
 
   // Cash Balance Calculation
   const allTimeCashSales = sales.filter(s => s.paymentType === 'Cash').reduce((acc, sale) => acc + num(sale.total), 0);
@@ -101,8 +122,8 @@ const Dashboard = () => {
     { label: "Total Balance (Net)", value: `${netBalance.toLocaleString()}`, icon: DollarSign, color: netBalance >= 0 ? "var(--success)" : "var(--danger)", highlight: true },
     { label: "Today's Sales", value: `${dailySales.toLocaleString()}`, icon: ShoppingCart, color: "var(--primary)" },
     { label: "Today's Expense", value: `${dailyExpenses.toLocaleString()}`, icon: TrendingDown, color: "var(--danger)" },
-    { label: "Today's Net Profit", value: `${dailyProfit.toLocaleString()}`, icon: TrendingUp, color: dailyProfit >= 0 ? "#10b981" : "var(--danger)" },
-    { label: "Monthly Profit", value: `${monthlyProfit.toLocaleString()}`, icon: TrendingUp, color: monthlyProfit >= 0 ? "#10b981" : "var(--danger)" },
+    { label: "Today's Profit", value: `${dailyProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, icon: TrendingUp, color: dailyProfit >= 0 ? "#10b981" : "var(--danger)" },
+    { label: "Monthly Profit", value: `${monthlyProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, icon: TrendingUp, color: monthlyProfit >= 0 ? "#10b981" : "var(--danger)" },
     { label: "Monthly Expense", value: `${monthlyExpenses.toLocaleString()}`, icon: DollarSign, color: "var(--warning)" },
     { label: "Inventory Value", value: `${totalInventoryValue.toLocaleString()}`, icon: Package, color: "var(--info)" },
     { label: "Customer Due (Receivable)", value: `${totalCustomerDue.toLocaleString()}`, icon: Users, color: "var(--warning)" },

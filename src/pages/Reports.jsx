@@ -23,7 +23,6 @@ const Reports = () => {
   const [ppSearchTerm, setPpSearchTerm] = useState('');
   const [ppFilterCategory, setPpFilterCategory] = useState('All');
   const [ppFilterCompany, setPpFilterCompany] = useState('All');
-  const [ppFilterSold, setPpFilterSold] = useState('all'); // 'all' or 'sold_only'
   const [ppSortBy, setPpSortBy] = useState('profit_desc');
   const [selectedProductReport, setSelectedProductReport] = useState(null);
   const { sales = [], inventory = [], purchases = [], expenses = [], customers = [], suppliers = [], staff = [], payrolls = [], returns = [], attendance = [], leaves = [], fetchAllData, loadDummyData } = useStore();
@@ -212,6 +211,7 @@ const Reports = () => {
 
     const rows = [];
     filteredSales.forEach((sale) => {
+      if (sale.status === 'Cancelled') return;
       const items = sale.items || [];
       const matched = items.filter(matchesLine);
       if (matched.length === 0) return;
@@ -336,9 +336,8 @@ const Reports = () => {
       const comp = (item.product.company || item.product.company_name || '').toLowerCase();
       if (comp !== ppFilterCompany.toLowerCase()) return false;
     }
-    if (ppFilterSold === 'sold_only' && item.soldQty <= 0) {
-      return false;
-    }
+    // Only what was sold (or brought back) in the chosen dates.
+    if (item.soldQty <= 0 && item.returnedQty <= 0) return false;
     return true;
   });
 
@@ -858,13 +857,6 @@ const Reports = () => {
                 </select>
               </div>
 
-              <div className="pp-field">
-                <label>Sales Status</label>
-                <select value={ppFilterSold} onChange={(e) => setPpFilterSold(e.target.value)}>
-                  <option value="all">All Products</option>
-                  <option value="sold_only">Sold Products Only</option>
-                </select>
-              </div>
 
               <div className="pp-field">
                 <label>Sort By</label>
@@ -880,7 +872,7 @@ const Reports = () => {
 
             <div className="pp-filterbar-footer">
               <span>Showing <strong>{sortedProductProfits.length}</strong> products</span>
-              {(ppSearchTerm || ppFilterCompany !== 'All' || ppFilterCategory !== 'All' || ppFilterSold !== 'all' || ppSortBy !== 'profit_desc') && (
+              {(ppSearchTerm || ppFilterCompany !== 'All' || ppFilterCategory !== 'All' || ppSortBy !== 'profit_desc') && (
                 <button
                   type="button"
                   className="pp-actionbtn"
@@ -888,7 +880,6 @@ const Reports = () => {
                     setPpSearchTerm('');
                     setPpFilterCompany('All');
                     setPpFilterCategory('All');
-                    setPpFilterSold('all');
                     setPpSortBy('profit_desc');
                   }}
                 >
