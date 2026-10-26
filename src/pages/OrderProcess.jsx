@@ -233,7 +233,8 @@ const OrderProcess = () => {
 
               <p className="op-hint">
                 Each invoice above is marked fully paid. The money comes off each customer&rsquo;s due and
-                shows in their Account Ledger as a payment against that invoice. This cannot be undone from here.
+                shows in their Account Ledger as a payment against that invoice. Editing an invoice&rsquo;s items
+                or total later removes its payment and makes it unpaid again.
               </p>
             </div>
             <div className="op-modal__foot">
