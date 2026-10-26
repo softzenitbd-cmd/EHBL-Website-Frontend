@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Printer, Wallet, X, RefreshCcw, Users, Truck, FileText, Receipt, BookOpen, Eye, Package, Search } from 'lucide-react';
+import { Printer, Wallet, X, RefreshCcw, Users, Truck, FileText, Receipt, BookOpen, Eye, Package, Search, Sparkles } from 'lucide-react';
 import useStore from '../store/useStore';
+import { confirmDialog } from '../utils/swal';
 import PrintablePayment from '../components/PrintablePayment';
 import PrintableStatement from '../components/PrintableStatement';
 import { printElement } from '../utils/printElement';
@@ -24,7 +25,7 @@ const today = () => new Date().toISOString().split('T')[0];
 const AccountLedger = () => {
   const {
     customers, suppliers, sales = [], purchases = [], user,
-    fetchLedgerStatement, settleCustomerDue, settleSupplierDue, showToast,
+    fetchLedgerStatement, settleCustomerDue, settleSupplierDue, adjustPartyAdvance, showToast,
   } = useStore();
 
   const location = useLocation();
@@ -56,6 +57,7 @@ const AccountLedger = () => {
   const [payOpen, setPayOpen] = useState(false);
   const [payForm, setPayForm] = useState({ date: today(), amount: '', method: 'Cash', note: '' });
   const [isPaying, setIsPaying] = useState(false);
+  const [isAdjusting, setIsAdjusting] = useState(false);
   const [receipt, setReceipt] = useState(null);
 
   const isCustomer = kind === 'Customer';
@@ -258,6 +260,73 @@ const AccountLedger = () => {
   const totalPaid = Number(statement?.totalPaid || 0);
   const totalReturned = Number(statement?.totalReturned || 0);
 
+  // Unallocated advance calculation
+  const invoicesPaidSum = React.useMemo(() =>
+    documents.reduce((sum, d) => sum + Number(d.paid || 0), 0),
+    [documents]
+  );
+
+  const unallocatedAdvance = React.useMemo(() => {
+    if (!isCustomer) return 0;
+    return Math.max(0, totalPaid - invoicesPaidSum - Number(entity?.openingDue || 0));
+  }, [isCustomer, totalPaid, invoicesPaidSum, entity]);
+
+  const unpaidDueTotal = React.useMemo(() =>
+    outstanding.reduce((sum, d) => sum + Number(d.due || 0), 0),
+    [outstanding]
+  );
+
+  const advanceToAdjust = React.useMemo(() =>
+    Math.min(unallocatedAdvance, unpaidDueTotal),
+    [unallocatedAdvance, unpaidDueTotal]
+  );
+
+  const hasAdvanceToAdjust = isCustomer && advanceToAdjust > 0.009;
+
+  const handleAdjustAdvance = async () => {
+    if (!hasAdvanceToAdjust) {
+      showToast('No unallocated advance available to adjust.', 'error');
+      return;
+    }
+
+    const isConfirmed = await confirmDialog({
+      title: `Adjust Advance for ${entity?.name}?`,
+      html: `
+        <div style="text-align: left; font-size: 0.92rem; line-height: 1.6;">
+          <div><strong>Customer:</strong> ${entity?.name} (${entity?.id})</div>
+          <div><strong>Available Advance:</strong> <span style="color: #059669; font-weight: 700;">৳${money(unallocatedAdvance)}</span></div>
+          <div style="margin-top: 0.5rem; padding: 0.65rem; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; color: #065f46;">
+            <div><strong>Amount to Adjust:</strong> <span style="font-size: 1.05rem; font-weight: 800;">৳${money(advanceToAdjust)}</span></div>
+            <div style="font-size: 0.8rem; margin-top: 0.35rem; color: #047857;">
+              This will automatically mark unpaid invoice(s) as Paid from the customer's existing advance balance without creating duplicate cash receipts.
+            </div>
+          </div>
+          <div style="margin-top: 0.5rem; font-size: 0.82rem; color: #64748b;">
+            Unpaid Invoices to be adjusted: <strong>${outstanding.map(d => d.id).join(', ')}</strong>
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      confirmButtonText: 'Yes, Confirm Adjustment',
+      confirmButtonColor: '#059669',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!isConfirmed) return;
+
+    setIsAdjusting(true);
+    const result = await adjustPartyAdvance(kind, entity.id);
+    setIsAdjusting(false);
+
+    if (!result.success) {
+      showToast(result.error || 'Failed to adjust advance.', 'error');
+      return;
+    }
+
+    showToast(result.message || 'Advance successfully adjusted against unpaid invoices!', 'success');
+    await load(kind, partyId);
+  };
+
   const book = statement ? buildLedgerBook(statement, isCustomer, bookFrom, bookTo, itemsMap) : null;
   const printedBy = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.username || '';
 
@@ -429,12 +498,29 @@ const AccountLedger = () => {
                 <dt>Current Due</dt>
                 <dd className={currentDue > 0 ? 'is-bad' : 'is-good'}>{money(currentDue)}</dd>
               </div>
+              {unallocatedAdvance > 0 && (
+                <div style={{ background: 'var(--lg-good-bg)', borderColor: 'var(--lg-good)' }}>
+                  <dt style={{ color: 'var(--lg-good)' }}>Unallocated Advance</dt>
+                  <dd className="is-good">৳{money(unallocatedAdvance)}</dd>
+                </div>
+              )}
             </dl>
 
             <div className="lg-party__actions">
               <button type="button" className="lg-btn lg-btn--primary" onClick={openPay} disabled={!(currentDue > 0)}>
                 <Wallet size={15} /> {isCustomer ? 'Receive Payment' : 'Pay Supplier'}
               </button>
+              {hasAdvanceToAdjust && (
+                <button
+                  type="button"
+                  className="lg-btn lg-btn--adjust"
+                  onClick={handleAdjustAdvance}
+                  disabled={isAdjusting}
+                  title="Adjust advance against unpaid invoices"
+                >
+                  <Sparkles size={15} /> {isAdjusting ? 'Adjusting...' : `Adjust Advance (৳${money(advanceToAdjust)})`}
+                </button>
+              )}
               <button type="button" className="lg-btn" onClick={() => setPreviewOpen(true)}>
                 <Eye size={15} /> Preview Ledger
               </button>
@@ -653,6 +739,26 @@ const AccountLedger = () => {
 
           {activeTab === 'documents' && (
             <section className="lg-panel">
+              {hasAdvanceToAdjust && (
+                <div className="lg-advance-banner">
+                  <div className="lg-advance-banner__text">
+                    <Sparkles size={18} className="lg-advance-banner__icon" />
+                    <div>
+                      <strong>Advance Payment Available:</strong> This {kind.toLowerCase()} has{' '}
+                      <span className="lg-advance-highlight">৳{money(unallocatedAdvance)}</span> in unallocated advance payment.{' '}
+                      <span className="lg-advance-highlight">৳{money(advanceToAdjust)}</span> can be adjusted to pay off {outstanding.length} unpaid {isCustomer ? 'invoice' : 'purchase'}{outstanding.length === 1 ? '' : 's'}.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="lg-btn--adjust-sm"
+                    onClick={handleAdjustAdvance}
+                    disabled={isAdjusting}
+                  >
+                    <Sparkles size={14} /> {isAdjusting ? 'Adjusting...' : 'Adjust Advance Now'}
+                  </button>
+                </div>
+              )}
               <div className="lg-tablewrap">
                 <table className="lg-table">
                   <thead>

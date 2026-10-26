@@ -46,6 +46,7 @@ export const ENDPOINTS = {
 
   // Ledger & Dues
   SETTLE_DUE: '/ledger/settle-due/',
+  ADJUST_ADVANCE: '/ledger/adjust-advance/',
   TRANSACTIONS: '/ledger/transactions/',
   TRANSACTION_DETAILS: (id) => `/ledger/transactions/${id}/`,
   LEDGER_STATEMENT: (type, id) => `/ledger/statement/${type}/${id}/`,
