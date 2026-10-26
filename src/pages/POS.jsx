@@ -10,6 +10,7 @@ import { confirmDialog } from '../utils/swal';
 import { printElement } from '../utils/printElement';
 import { searchProducts } from '../utils/productSearch';
 import './POS.css';
+import { roundTaka } from '../utils/money';
 
 const POS = () => {
   const {
@@ -334,7 +335,8 @@ const POS = () => {
     return acc + (effectivePrice * (Number(item.quantity) || 0));
   }, 0);
 
-  const total = Math.max(0, subtotal - (parseFloat(invoiceDiscount) || 0));
+  // Whole taka, as the server stores it: .01-.49 down, .50-.99 up.
+  const total = roundTaka(Math.max(0, subtotal - (parseFloat(invoiceDiscount) || 0)));
 
   const handleDeleteSale = async (sale) => {
     const isConfirmed = await confirmDialog({
@@ -665,7 +667,7 @@ const POS = () => {
   };
 
   const editSubtotal = editItems.reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.price) || 0)), 0);
-  const editTotal = Math.max(0, editSubtotal - (parseFloat(editDiscount) || 0));
+  const editTotal = roundTaka(Math.max(0, editSubtotal - (parseFloat(editDiscount) || 0)));
 
   const handleSaveEditedInvoice = async (e) => {
     if (e) e.preventDefault();

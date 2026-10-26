@@ -269,13 +269,16 @@ const Reports = () => {
     const avgCost = Number(prod.purchasePrice ?? prod.cost_price ?? prod.costPrice ?? 0);
     const costBasis = 'Product purchase price';
 
-    const totalCost = avgCost * Math.max(0, netQty);
-    const profit = netRevenue - totalCost;
-    const margin = netRevenue > 0 ? (profit / netRevenue) * 100 : 0;
-    // Per-unit view for the table: average rate actually sold at, cost per
-    // unit, and the profit on one unit. Qty x unit profit = total profit.
-    const unitSale = netQty > 0 ? netRevenue / netQty : Number(prod.price || 0);
+    // Pure sales metrics for table row display
+    const totalCost = avgCost * soldQty;
+    const salesProfit = salesValue - totalCost;
+    const unitSale = soldQty > 0 ? salesValue / soldQty : Number(prod.price || 0);
     const unitProfit = unitSale - avgCost;
+
+    // Net metrics after returns (used in detailed product modal)
+    const netCost = avgCost * Math.max(0, netQty);
+    const profit = netRevenue - netCost;
+    const margin = salesValue > 0 ? (salesProfit / salesValue) * 100 : 0;
 
     const byCustomer = new Map();
     rows.forEach((r) => {
@@ -307,7 +310,7 @@ const Reports = () => {
       soldQty, salesValue, received, due,
       returnedQty, returnedValue,
       netQty, netRevenue,
-      avgCost, costBasis, totalCost, profit, margin,
+      avgCost, costBasis, totalCost, salesProfit, profit, margin,
       unitSale, unitProfit,
       invoiceCount: new Set(rows.map((r) => r.invoiceId)).size,
     };
@@ -336,29 +339,66 @@ const Reports = () => {
       const comp = (item.product.company || item.product.company_name || '').toLowerCase();
       if (comp !== ppFilterCompany.toLowerCase()) return false;
     }
-    // Only what was sold (or brought back) in the chosen dates.
-    if (item.soldQty <= 0 && item.returnedQty <= 0) return false;
+    // Only products that were actually sold in the chosen dates (return-only products are excluded from table rows)
+    if (item.soldQty <= 0) return false;
     return true;
   });
 
   const sortedProductProfits = [...filteredProductProfits].sort((a, b) => {
-    if (ppSortBy === 'profit_desc') return b.profit - a.profit;
-    if (ppSortBy === 'profit_asc') return a.profit - b.profit;
+    if (ppSortBy === 'profit_desc') return b.salesProfit - a.salesProfit;
+    if (ppSortBy === 'profit_asc') return a.salesProfit - b.salesProfit;
     if (ppSortBy === 'sold_desc') return b.soldQty - a.soldQty;
-    if (ppSortBy === 'revenue_desc') return b.netRevenue - a.netRevenue;
+    if (ppSortBy === 'revenue_desc') return b.salesValue - a.salesValue;
     if (ppSortBy === 'margin_desc') return b.margin - a.margin;
     if (ppSortBy === 'name_asc') return (a.product.name || '').localeCompare(b.product.name || '');
     if (ppSortBy === 'stock_desc') return (b.product.stock || 0) - (a.product.stock || 0);
     return 0;
   });
 
+  // Calculate customer returns for the period
+  const filteredCustomerReturns = returns.filter((r) => {
+    if (r.returnType !== 'Customer') return false;
+    if (!isWithinFilter(r.date)) return false;
+    if (ppFilterCompany !== 'All' || ppFilterCategory !== 'All' || ppSearchTerm.trim()) {
+      const prod = inventory.find(
+        (p) => String(p.id) === String(r.productId) || (p.name && String(p.name).toLowerCase() === String(r.productName || '').toLowerCase())
+      );
+      if (!prod) return false;
+      if (ppFilterCompany !== 'All') {
+        const comp = (prod.company || prod.company_name || '').toLowerCase();
+        if (comp !== ppFilterCompany.toLowerCase()) return false;
+      }
+      if (ppFilterCategory !== 'All') {
+        const cat = (prod.category || prod.category_name || '').toLowerCase();
+        if (cat !== ppFilterCategory.toLowerCase()) return false;
+      }
+      if (ppSearchTerm.trim()) {
+        const q = ppSearchTerm.toLowerCase().trim();
+        const nameMatch = (prod.name || '').toLowerCase().includes(q);
+        const codeMatch = String(prod.id || '').toLowerCase().includes(q);
+        if (!nameMatch && !codeMatch) return false;
+      }
+    }
+    return true;
+  });
+
+  const ppTotalReturnedQty = filteredCustomerReturns.reduce((acc, r) => acc + Number(r.quantity || 0), 0);
+  const ppTotalReturnedAmount = filteredCustomerReturns.reduce(
+    (acc, r) => acc + Number(r.rate || 0) * Number(r.quantity || 0),
+    0
+  );
+
   const ppTotalSoldQty = sortedProductProfits.reduce((acc, i) => acc + i.soldQty, 0);
-  const ppTotalNetQty = sortedProductProfits.reduce((acc, i) => acc + i.netQty, 0);
-  const ppTotalRevenue = sortedProductProfits.reduce((acc, i) => acc + i.netRevenue, 0);
+  const ppTotalSalesValue = sortedProductProfits.reduce((acc, i) => acc + i.salesValue, 0);
   const ppTotalCost = sortedProductProfits.reduce((acc, i) => acc + i.totalCost, 0);
-  const ppTotalProfit = sortedProductProfits.reduce((acc, i) => acc + i.profit, 0);
-  const ppOverallMargin = ppTotalRevenue > 0 ? (ppTotalProfit / ppTotalRevenue) * 100 : 0;
-  const ppActiveSoldProductsCount = sortedProductProfits.filter((i) => i.soldQty > 0).length;
+  const ppTotalSalesProfit = sortedProductProfits.reduce((acc, i) => acc + i.salesProfit, 0);
+
+  // Grand Net Totals after deducting returned amount
+  const ppNetQty = ppTotalSoldQty - ppTotalReturnedQty;
+  const ppNetProfit = ppTotalSalesProfit - ppTotalReturnedAmount;
+  const ppNetRevenue = ppTotalSalesValue - ppTotalReturnedAmount;
+  const ppOverallMargin = ppNetRevenue > 0 ? (ppNetProfit / ppNetRevenue) * 100 : 0;
+  const ppActiveSoldProductsCount = sortedProductProfits.length;
 
   const productReport = selectedProductReport;
   const profitProduct = selectedProductReport?.product;
@@ -774,27 +814,29 @@ const Reports = () => {
             <div className="pp-card">
               <span>Total Products</span>
               <strong>{sortedProductProfits.length}</strong>
-              <small>{ppActiveSoldProductsCount} active sold</small>
+              <small>{ppTotalSoldQty} units sold</small>
             </div>
             <div className="pp-card">
-              <span>Units Sold</span>
-              <strong>{ppTotalSoldQty}</strong>
-              <small>selected period</small>
+              <span>Sales Value</span>
+              <strong>{money(ppTotalSalesValue)}</strong>
+              <small>gross revenue</small>
             </div>
-            <div className="pp-card">
-              <span>Net Revenue</span>
-              <strong>{money(ppTotalRevenue)}</strong>
-              <small>after returns</small>
-            </div>
+            {ppTotalReturnedAmount > 0 && (
+              <div className="pp-card is-bad">
+                <span>Returned Amount</span>
+                <strong>- {money(ppTotalReturnedAmount)}</strong>
+                <small>{ppTotalReturnedQty} units returned</small>
+              </div>
+            )}
             <div className="pp-card">
               <span>Total Cost</span>
               <strong>{money(ppTotalCost)}</strong>
               <small>COGS basis</small>
             </div>
-            <div className={`pp-card ${ppTotalProfit >= 0 ? 'is-good' : 'is-bad'}`}>
-              <span>Gross Profit</span>
-              <strong>{money(ppTotalProfit)}</strong>
-              <small>{ppOverallMargin.toFixed(1)}% overall margin</small>
+            <div className={`pp-card ${ppNetProfit >= 0 ? 'is-good' : 'is-bad'}`}>
+              <span>Grand Total Profit</span>
+              <strong>{money(ppNetProfit)}</strong>
+              <small>{ppOverallMargin.toFixed(1)}% net margin</small>
             </div>
           </div>
 
@@ -936,9 +978,9 @@ const Reports = () => {
                         <td className="is-num" style={{ color: item.unitProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
                           {money(item.unitProfit)}
                         </td>
-                        <td className="is-num is-strong">{item.netQty}</td>
-                        <td className="is-num is-strong" style={{ color: item.profit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
-                          {money(item.profit)}
+                        <td className="is-num is-strong">{item.soldQty}</td>
+                        <td className="is-num is-strong" style={{ color: item.salesProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
+                          {money(item.salesProfit)}
                         </td>
                         <td className="is-center">
                           <button
@@ -963,11 +1005,44 @@ const Reports = () => {
                 </tbody>
                 {sortedProductProfits.length > 0 && (
                   <tfoot>
-                    <tr>
-                      <td colSpan={8} style={{ fontWeight: 'bold' }}>Grand Total ({sortedProductProfits.length} Products)</td>
-                      <td className="is-num">{ppTotalNetQty}</td>
-                      <td className="is-num" style={{ color: ppTotalProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
-                        {money(ppTotalProfit)}
+                    {/* Row 1: Total Sales */}
+                    <tr className="pp-tfoot-subtotal">
+                      <td colSpan={8} style={{ fontWeight: 'bold' }}>
+                        Total Sales ({sortedProductProfits.length} Products)
+                      </td>
+                      <td className="is-num" style={{ fontWeight: 'bold' }}>{ppTotalSoldQty}</td>
+                      <td className="is-num" style={{ fontWeight: 'bold', color: ppTotalSalesProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
+                        {money(ppTotalSalesProfit)}
+                      </td>
+                      <td></td>
+                    </tr>
+
+                    {/* Row 2: Returned Amount (only if returns exist) */}
+                    {ppTotalReturnedAmount > 0 && (
+                      <tr className="pp-tfoot-returns" style={{ color: 'var(--pp-bad, #c2410c)', background: 'var(--pp-bad-bg, #fff7ed)' }}>
+                        <td colSpan={8} style={{ fontWeight: '600' }}>
+                          Less: Returned Amount ({ppTotalReturnedQty} items returned)
+                        </td>
+                        <td className="is-num" style={{ fontWeight: '600', color: 'var(--pp-bad, #c2410c)' }}>
+                          -{ppTotalReturnedQty}
+                        </td>
+                        <td className="is-num" style={{ fontWeight: '600', color: 'var(--pp-bad, #c2410c)' }}>
+                          -{money(ppTotalReturnedAmount)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    )}
+
+                    {/* Row 3: Grand Total (Net Calculation) */}
+                    <tr className="pp-tfoot-grandtotal" style={{ borderTop: '2px solid var(--pp-border)', fontSize: '0.92rem' }}>
+                      <td colSpan={8} style={{ fontWeight: '800' }}>
+                        Grand Total {ppTotalReturnedAmount > 0 ? `(${money(ppTotalSalesProfit)} - ${money(ppTotalReturnedAmount)})` : `(${sortedProductProfits.length} Products)`}
+                      </td>
+                      <td className="is-num" style={{ fontWeight: '800' }}>
+                        {ppNetQty}
+                      </td>
+                      <td className="is-num" style={{ fontWeight: '800', color: ppNetProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
+                        {money(ppNetProfit)}
                       </td>
                       <td></td>
                     </tr>
@@ -975,6 +1050,38 @@ const Reports = () => {
                 )}
               </table>
             </div>
+
+            {ppTotalReturnedAmount > 0 && (
+              <div className="pp-calc-summary" style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                padding: '0.85rem 1.25rem',
+                background: 'var(--pp-bg-head)',
+                borderTop: '1px solid var(--pp-border)',
+                fontSize: '0.88rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: '600', color: 'var(--pp-muted)' }}>Calculation:</span>
+                  <span style={{ fontWeight: '700', color: 'var(--pp-good)' }}>
+                    Sales Profit: ৳{money(ppTotalSalesProfit)} ({ppTotalSoldQty} pcs)
+                  </span>
+                  <span style={{ color: 'var(--pp-muted)' }}>&minus;</span>
+                  <span style={{ fontWeight: '700', color: 'var(--pp-bad)' }}>
+                    Returned Amount: ৳{money(ppTotalReturnedAmount)} ({ppTotalReturnedQty} pcs)
+                  </span>
+                  <span style={{ color: 'var(--pp-muted)' }}>=</span>
+                  <span style={{ fontWeight: '800', color: ppNetProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
+                    Net Grand Total: ৳{money(ppNetProfit)}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--pp-muted)' }}>
+                  * Returned products are deducted at Grand Total and excluded from product list.
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Details Modal */}

@@ -4,6 +4,7 @@ import InvoiceHeader from './InvoiceHeader';
 import PrintFooter from './PrintFooter';
 import ehblLogo from '../assets/ehbl.jpeg';
 import { numberToWords } from '../utils/numberToWords';
+import { roundTaka } from '../utils/money';
 
 const PrintableInvoice = ({ sale, customers }) => {
   // Hooks first: the early return below must not change how many run.
@@ -42,6 +43,8 @@ const PrintableInvoice = ({ sale, customers }) => {
   
   const subtotal = Number(sale.subtotal || sale.total || 0);
   const total = Number(sale.total || 0);
+  // The stored total is rounded to whole taka; show the paisa that went.
+  const roundOff = Math.round((total - (subtotal - Number(sale.invoiceDiscount || 0))) * 100) / 100;
   const paidAmount = Number(sale.paid_amount || (sale.paymentType === 'Cash' ? sale.total : 0));
   
   const currentDue = sale.due_amount !== undefined 
@@ -255,7 +258,7 @@ const PrintableInvoice = ({ sale, customers }) => {
             </td>
             <td style={{ border: '1px solid #000000' }} />
             <td style={{ border: '1px solid #000000', padding: isCompact ? '3px 6px' : '6px 8px', textAlign: 'right', color: '#000000', fontWeight: '900', fontSize: isCompact ? '0.78rem' : 'inherit' }}>
-              {subtotal.toLocaleString()}
+              {roundTaka(subtotal).toLocaleString()}
             </td>
           </tr>
         </tbody>
@@ -295,6 +298,12 @@ const PrintableInvoice = ({ sale, customers }) => {
                 <tr>
                   <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', color: '#000000', fontWeight: '700' }}>Discount:</td>
                   <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', color: '#16a34a', fontWeight: '700' }}>-{Number(sale.invoiceDiscount).toLocaleString()}</td>
+                </tr>
+              )}
+              {roundOff !== 0 && Math.abs(roundOff) < 1 && (
+                <tr>
+                  <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', color: '#000000', fontWeight: '700' }}>Round Off:</td>
+                  <td style={{ padding: isCompact ? '1.5px 0' : '4px 0', textAlign: 'right', color: '#000000', fontWeight: '700' }}>{roundOff > 0 ? '+' : ''}{roundOff.toFixed(2)}</td>
                 </tr>
               )}
               <tr>
