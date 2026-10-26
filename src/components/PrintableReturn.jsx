@@ -17,9 +17,9 @@ const money = (value) => Number(value || 0).toLocaleString('en-US', {
 
 /**
  * The return slip, laid out like the sales invoice so a party holding both sees
- * the same document. One product per record, so the table is a single row.
+ * the same document. Supports single item or multiple items in one return memo.
  */
-const PrintableReturn = ({ record, product }) => {
+const PrintableReturn = ({ record, product, items }) => {
   if (!record) return null;
 
   const type = record.returnType || record.return_type || 'Customer';
@@ -30,13 +30,31 @@ const PrintableReturn = ({ record, product }) => {
     ? new Date(record.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const productName = product?.name || record.productName || 'Unknown Product';
-  const productCode = record.productId || product?.id || '-';
-  const unit = product?.unit || 'pcs';
+  const rawItems = Array.isArray(record.items) && record.items.length > 0
+    ? record.items
+    : (Array.isArray(items) && items.length > 0 ? items : [record]);
 
-  const qty = Number(record.quantity || 0);
-  const rate = Number(record.rate || 0);
-  const amount = rate * qty;
+  const itemsList = rawItems.map((item, idx) => {
+    const itemProd = item.product || (item.productId === product?.id ? product : null);
+    const pName = item.productName || itemProd?.name || (item.productId ? `Product ${item.productId}` : 'Unknown Product');
+    const pCode = item.productId || itemProd?.id || '-';
+    const pUnit = item.unit || itemProd?.unit || 'pcs';
+    const q = Number(item.quantity || 0);
+    const r = Number(item.rate || 0);
+    return {
+      sl: idx + 1,
+      id: item.id || record.id,
+      name: pName,
+      code: pCode,
+      unit: pUnit,
+      qty: q,
+      rate: r,
+      amount: r * q,
+    };
+  });
+
+  const totalQty = itemsList.reduce((sum, it) => sum + it.qty, 0);
+  const totalAmount = itemsList.reduce((sum, it) => sum + it.amount, 0);
 
   const partyLabel = isCustomer ? 'Returned By (গ্রাহক)' : 'Returned To (সরবরাহকারী)';
   const partyName = record.partyName || record.party_name || (isCustomer ? 'Walk-in Customer' : '-');
@@ -154,20 +172,22 @@ const PrintableReturn = ({ record, product }) => {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 4px', textAlign: 'center' }}>1</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px' }}><strong>{productName}</strong></td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontSize: '0.8rem', color: '#475569' }}>{productCode}</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>{money(rate)}</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontWeight: 'bold' }}>{qty} {unit}</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', fontWeight: 'bold' }}>{money(amount)}</td>
-          </tr>
+          {itemsList.map((item) => (
+            <tr key={item.sl}>
+              <td style={{ border: '1px solid #cbd5e1', padding: '5px 4px', textAlign: 'center' }}>{item.sl}</td>
+              <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px' }}><strong>{item.name}</strong></td>
+              <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontSize: '0.8rem', color: '#475569' }}>{item.code}</td>
+              <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'right' }}>{money(item.rate)}</td>
+              <td style={{ border: '1px solid #cbd5e1', padding: '5px 6px', textAlign: 'center', fontWeight: 'bold' }}>{item.qty} {item.unit}</td>
+              <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', textAlign: 'right', fontWeight: 'bold' }}>{money(item.amount)}</td>
+            </tr>
+          ))}
           <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid #64748b' }}>
             <td colSpan="4" style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>
               Total Quantity:
             </td>
-            <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center' }}>{qty}</td>
-            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>{money(amount)}</td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 6px', textAlign: 'center' }}>{totalQty}</td>
+            <td style={{ border: '1px solid #94a3b8', padding: '6px 8px', textAlign: 'right' }}>{money(totalAmount)}</td>
           </tr>
         </tbody>
       </table>
@@ -195,22 +215,22 @@ const PrintableReturn = ({ record, product }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', margin: '4px 0' }}>
             <tbody>
               <tr>
-                <td style={{ padding: '4px 10px', color: '#475569' }}>Rate (দর):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{money(rate)}</td>
+                <td style={{ padding: '4px 10px', color: '#475569' }}>Total Items (মোট পণ্য):</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{itemsList.length}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 10px', color: '#475569' }}>Quantity (পরিমাণ):</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{qty} {unit}</td>
+                <td style={{ padding: '4px 10px', color: '#475569' }}>Total Quantity (পরিমাণ):</td>
+                <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600' }}>{totalQty}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 10px', color: '#475569' }}>Stock Effect:</td>
                 <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: '600', color: isCustomer ? '#15803d' : '#c2410c' }}>
-                  {isCustomer ? `+${qty}` : `-${qty}`}
+                  {isCustomer ? `+${totalQty}` : `-${totalQty}`}
                 </td>
               </tr>
               <tr style={{ borderTop: '1px solid #cbd5e1', backgroundColor: '#f8fafc' }}>
                 <td style={{ padding: '6px 10px', fontWeight: '800' }}>Total Return Value:</td>
-                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', fontSize: '1rem' }}>{money(amount)}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', fontSize: '1rem' }}>{money(totalAmount)}</td>
               </tr>
             </tbody>
           </table>
@@ -220,7 +240,7 @@ const PrintableReturn = ({ record, product }) => {
       {/* Amount in words banner */}
       <div style={{ padding: '4px 0', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
         <strong style={{ color: '#475569' }}>In Words : </strong>
-        <span style={{ fontWeight: '700', color: '#0f172a' }}>{money(amount)} Taka Only</span>
+        <span style={{ fontWeight: '700', color: '#0f172a' }}>{money(totalAmount)} Taka Only</span>
       </div>
 
       {/* Signatures */}

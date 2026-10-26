@@ -54,6 +54,7 @@ const Returns = () => {
   // New Return State
   const [returnType, setReturnType] = useState('Customer');
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [items, setItems] = useState([]);
   const [product, setProduct] = useState('');
   const [quantity, setQuantity] = useState(1);
   // Unit price the goods come back at. Picking a product fills it in - the
@@ -149,10 +150,85 @@ const Returns = () => {
 
   const formAmount = (Number(rate) || 0) * (Number(quantity) || 0);
 
+  const handleAddItem = () => {
+    if (!product) {
+      showToast('Please select a product first', 'warning');
+      return;
+    }
+    const q = parseInt(quantity, 10);
+    if (!q || q <= 0) {
+      showToast('Quantity must be at least 1', 'warning');
+      return;
+    }
+
+    const itemProd = inventory.find((i) => i.id === product);
+    const existingIndex = items.findIndex((it) => it.productId === product);
+    const rateVal = rate === '' ? defaultRateFor(itemProd, returnType) : rate;
+
+    if (existingIndex >= 0) {
+      const updated = [...items];
+      updated[existingIndex].quantity += q;
+      updated[existingIndex].rate = rateVal;
+      setItems(updated);
+    } else {
+      setItems([
+        ...items,
+        {
+          productId: product,
+          productName: itemProd ? itemProd.name : product,
+          unit: itemProd?.unit || 'pcs',
+          stock: itemProd?.stock ?? 0,
+          quantity: q,
+          rate: rateVal,
+        },
+      ]);
+    }
+
+    setProduct('');
+    setQuantity(1);
+    setRate('');
+  };
+
+  const handleRemoveItem = (index) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateItemQty = (index, val) => {
+    const q = parseInt(val, 10);
+    setItems(items.map((it, i) => i === index ? { ...it, quantity: isNaN(q) ? '' : Math.max(1, q) } : it));
+  };
+
+  const handleUpdateItemRate = (index, val) => {
+    setItems(items.map((it, i) => i === index ? { ...it, rate: val } : it));
+  };
+
+  const totalReturnQty = items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+  const totalReturnAmount = items.reduce((sum, it) => sum + ((Number(it.quantity) || 0) * (Number(it.rate) || 0)), 0);
+
   // History State
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const handleViewMemo = (record) => {
+    const related = record.referenceId
+      ? returns.filter(
+          (r) =>
+            r.referenceId === record.referenceId &&
+            r.returnType === record.returnType &&
+            (r.partyName || '') === (record.partyName || '')
+        )
+      : [record];
+
+    if (related.length > 1) {
+      setSelectedInvoice({
+        ...record,
+        items: related,
+      });
+    } else {
+      setSelectedInvoice(record);
+    }
+  };
 
   const handleDeleteReturn = async (record) => {
     const goesBack = record.returnType === 'Customer'
@@ -188,20 +264,60 @@ const Returns = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!product) {
-      showToast('Please select a product', 'error');
+
+    const validItems = items.map((it) => ({
+      ...it,
+      quantity: parseInt(it.quantity, 10) || 1,
+      rate: it.rate === '' || it.rate === undefined || it.rate === null ? '' : Number(it.rate),
+    })).filter((it) => it.productId && it.quantity > 0);
+
+    // Auto-add product from input row if user forgot to click Add
+    if (product && parseInt(quantity, 10) > 0) {
+      const prod = inventory.find((i) => i.id === product);
+      const rateVal = rate === '' ? defaultRateFor(prod, returnType) : rate;
+      const existingIdx = validItems.findIndex((it) => it.productId === product);
+      if (existingIdx >= 0) {
+        validItems[existingIdx].quantity += parseInt(quantity, 10);
+      } else {
+        validItems.push({
+          productId: product,
+          productName: prod ? prod.name : product,
+          unit: prod?.unit || 'pcs',
+          stock: prod?.stock ?? 0,
+          quantity: parseInt(quantity, 10),
+          rate: rateVal,
+        });
+      }
+    }
+
+    if (validItems.length === 0) {
+      showToast('Please add at least one product to return', 'error');
       return;
+    }
+
+    if (!reason.trim()) {
+      showToast('Please provide a reason for the return', 'error');
+      return;
+    }
+
+    // Pre-check stock for outbound returns (Supplier Reject / Stock Out)
+    if (returnType !== 'Customer') {
+      for (const it of validItems) {
+        const prod = inventory.find((p) => p.id === it.productId);
+        if (prod && Number(prod.stock) < Number(it.quantity)) {
+          showToast(`Not enough stock for ${prod.name}. In stock: ${prod.stock}, requested: ${it.quantity}.`, 'error');
+          return;
+        }
+      }
     }
 
     const result = await processReturn({
       returnType,
       date: entryDate,
-      productId: product,
-      quantity,
-      rate,
-      reason,
       partyName: partyName.trim(),
       referenceId: referenceId.trim(),
+      reason: reason.trim(),
+      items: validItems,
     });
 
     if (!result.success) {
@@ -216,13 +332,16 @@ const Returns = () => {
     const credited = Number(result.data?.credit_amount || 0);
     const who = result.data?.partyName || partyName.trim();
     const doc = result.data?.credit_doc;
+    const count = validItems.length;
+
     showToast(
       credited > 0
-        ? `${returnType} Return ${returnNo} saved. ${credited.toFixed(2)} put on ${who}'s ledger${doc ? ` and taken off ${doc}` : ''}.`
-        : `${returnType} Return ${returnNo} saved and stock adjusted. Not on any ledger: no ${returnType === 'Customer' ? 'customer' : 'supplier'} on file was chosen.`,
+        ? `${returnType} Return (${count} item${count > 1 ? 's' : ''}) saved. ${credited.toFixed(2)} put on ${who}'s ledger${doc ? ` and taken off ${doc}` : ''}.`
+        : `${returnType} Return (${count} item${count > 1 ? 's' : ''}) saved and stock adjusted.${!partyName.trim() ? ` Not on any ledger: no ${returnType === 'Customer' ? 'customer' : 'supplier'} on file was chosen.` : ''}`,
       credited > 0 ? 'success' : 'warning'
     );
-    setLastSaved(returnNo ? { number: returnNo, type: returnType } : null);
+    setLastSaved(returnNo ? { number: returnNo, type: returnType, count } : null);
+    setItems([]);
     setProduct('');
     setQuantity(1);
     setRate('');
@@ -305,7 +424,7 @@ const Returns = () => {
                 <div>
                   <span className="rt-alert__label">Saved</span>
                   <span className="rt-alert__text">
-                    {returnLabel(lastSaved.type)} recorded. Return No: <strong>{lastSaved.number}</strong>
+                    {returnLabel(lastSaved.type)} recorded{lastSaved.count ? ` (${lastSaved.count} item${lastSaved.count > 1 ? 's' : ''})` : ''}. Return No: <strong>{lastSaved.number}</strong>
                   </span>
                 </div>
                 <button type="button" className="rt-alert__close" onClick={() => setLastSaved(null)} aria-label="Dismiss">
@@ -343,7 +462,7 @@ const Returns = () => {
 
               <fieldset className="rt-fieldset">
                 <legend>Details</legend>
-                <div className="rt-grid">
+                <div className="rt-grid rt-grid--meta">
                   <div className="rt-field rt-f-date">
                     <label htmlFor="rt-date">Date</label>
                     <input
@@ -392,62 +511,190 @@ const Returns = () => {
                     />
                     <span className="rt-hint">Value comes off this {returnType === 'Customer' ? 'invoice' : 'purchase'}&rsquo;s due.</span>
                   </div>
+                </div>
+              </fieldset>
 
-                  <div className="rt-field rt-f-product">
-                    <label htmlFor="rt-product">Product</label>
-                    <SearchSelect
-                      id="rt-product"
-                      options={productOptions}
-                      value={product}
-                      onSelect={(o) => handleProductChange(o ? o.value : '')}
-                      search={searchProductOptions}
-                      placeholder="Search by name, code or size"
-                      emptyText="No product matches"
-                      required
-                    />
-                    {selectedProduct && (
-                      <span className="rt-hint">
-                        Code {selectedProduct.id} &middot; In stock {selectedProduct.stock} {selectedProduct.unit || 'pcs'}
-                      </span>
-                    )}
-                  </div>
+              <fieldset className="rt-fieldset">
+                <legend>Items to Return (ফেরতের পণ্যসমূহ)</legend>
+                
+                {/* Quick Add Row */}
+                <div className="rt-entryrow">
+                  <div className="rt-entry-grid">
+                    <div className="rt-field rt-ef-product">
+                      <label htmlFor="rt-product">Product</label>
+                      <SearchSelect
+                        id="rt-product"
+                        options={productOptions}
+                        value={product}
+                        onSelect={(o) => handleProductChange(o ? o.value : '')}
+                        search={searchProductOptions}
+                        placeholder="Search product by name or code"
+                        emptyText="No product matches"
+                      />
+                      {selectedProduct && (
+                        <span className="rt-hint">
+                          Code: {selectedProduct.id} &middot; In stock: {selectedProduct.stock} {selectedProduct.unit || 'pcs'}
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="rt-field rt-f-qty">
-                    <label htmlFor="rt-qty">Quantity</label>
-                    <input
-                      id="rt-qty"
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                      required
-                    />
-                  </div>
+                    <div className="rt-field rt-ef-qty">
+                      <label htmlFor="rt-qty">Quantity</label>
+                      <input
+                        id="rt-qty"
+                        type="number"
+                        min="1"
+                        value={quantity}
+                        onChange={(e) => setQuantity(parseInt(e.target.value, 10) || '')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddItem();
+                          }
+                        }}
+                      />
+                    </div>
 
-                  <div className="rt-field rt-f-rate">
-                    <label htmlFor="rt-rate">Rate (Price) per {selectedProduct?.unit || 'unit'}</label>
-                    <input
-                      id="rt-rate"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={rate}
-                      onChange={(e) => setRate(e.target.value)}
-                      required
-                    />
-                    <span className="rt-hint">
-                      {returnType === 'Customer'
-                        ? 'Filled in from the selling price. Change it if credited at another rate.'
-                        : 'Filled in from the purchase price. Change it if returned at another rate.'}
-                    </span>
-                  </div>
+                    <div className="rt-field rt-ef-rate">
+                      <label htmlFor="rt-rate">Rate ({selectedProduct?.unit || 'unit'})</label>
+                      <input
+                        id="rt-rate"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={rate}
+                        onChange={(e) => setRate(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddItem();
+                          }
+                        }}
+                      />
+                    </div>
 
-                  <div className="rt-field rt-f-total">
-                    <span className="rt-total__label">Total Amount</span>
-                    <output className="rt-total">{money(formAmount)}</output>
+                    <div className="rt-field rt-ef-total">
+                      <label>Line Total</label>
+                      <output className="rt-linetotal">{money(formAmount)}</output>
+                    </div>
+
+                    <div className="rt-field rt-ef-add">
+                      <button
+                        type="button"
+                        className="rt-btn rt-btn--primary rt-btn-add"
+                        onClick={handleAddItem}
+                        disabled={!product}
+                      >
+                        <Plus size={16} /> Add Item
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {/* Items Table */}
+                <div className="rt-itemstable-wrap">
+                  <table className="rt-table rt-table--items">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="is-center" style={{ width: '40px' }}>#</th>
+                        <th scope="col">Product</th>
+                        <th scope="col" className="is-center" style={{ width: '90px' }}>In Stock</th>
+                        <th scope="col" className="is-center" style={{ width: '110px' }}>Return Qty</th>
+                        <th scope="col" className="is-num" style={{ width: '110px' }}>Rate</th>
+                        <th scope="col" className="is-num" style={{ width: '120px' }}>Total</th>
+                        <th scope="col" className="is-center" style={{ width: '50px' }}>&nbsp;</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="rt-empty-items">
+                            <strong>No items added to return list yet</strong>
+                            <span>Select a product, quantity and rate above, then click &ldquo;+ Add Item&rdquo;. You can add multiple products together.</span>
+                          </td>
+                        </tr>
+                      ) : (
+                        items.map((it, idx) => {
+                          const lineTot = (Number(it.quantity) || 0) * (Number(it.rate) || 0);
+                          return (
+                            <tr key={idx}>
+                              <td className="is-center rt-sl">{idx + 1}</td>
+                              <td>
+                                <strong className="rt-item-title">{it.productName}</strong>
+                                <span className="rt-item-meta">Code: {it.productId} &middot; Unit: {it.unit || 'pcs'}</span>
+                              </td>
+                              <td className="is-center">
+                                <span className={`rt-stock-badge ${Number(it.stock) <= 0 ? 'is-out' : ''}`}>
+                                  {it.stock} {it.unit || 'pcs'}
+                                </span>
+                              </td>
+                              <td className="is-center">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  className="rt-inline-input"
+                                  value={it.quantity}
+                                  onChange={(e) => handleUpdateItemQty(idx, e.target.value)}
+                                />
+                              </td>
+                              <td className="is-num">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  className="rt-inline-input rt-inline-input--num"
+                                  value={it.rate}
+                                  onChange={(e) => handleUpdateItemRate(idx, e.target.value)}
+                                />
+                              </td>
+                              <td className="is-num is-strong">{money(lineTot)}</td>
+                              <td className="is-center">
+                                <button
+                                  type="button"
+                                  className="rt-iconbtn rt-iconbtn--danger"
+                                  onClick={() => handleRemoveItem(idx)}
+                                  title="Remove item"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                    {items.length > 0 && (
+                      <tfoot>
+                        <tr>
+                          <td colSpan="3">Total ({items.length} product{items.length > 1 ? 's' : ''})</td>
+                          <td className="is-center is-strong">{totalReturnQty}</td>
+                          <td />
+                          <td className="is-num is-strong">{money(totalReturnAmount)}</td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+
+                {/* Summary Strip */}
+                {items.length > 0 && (
+                  <div className="rt-summary-strip">
+                    <div className="rt-stat">
+                      <span className="rt-stat__label">Total Products</span>
+                      <strong className="rt-stat__value">{items.length}</strong>
+                    </div>
+                    <div className="rt-stat">
+                      <span className="rt-stat__label">Total Return Quantity</span>
+                      <strong className="rt-stat__value">{totalReturnQty}</strong>
+                    </div>
+                    <div className="rt-stat rt-stat--highlight">
+                      <span className="rt-stat__label">Total Return Value</span>
+                      <strong className="rt-stat__value">৳ {money(totalReturnAmount)}</strong>
+                    </div>
+                  </div>
+                )}
               </fieldset>
 
               <fieldset className="rt-fieldset">
@@ -456,8 +703,8 @@ const Returns = () => {
                   <label htmlFor="rt-reason" className="sr-only-label">Reason</label>
                   <textarea
                     id="rt-reason"
-                    rows="3"
-                    placeholder="Why are these goods being returned? e.g. damaged on delivery, wrong item supplied"
+                    rows="2"
+                    placeholder="Why are these goods being returned? e.g. damaged on delivery, expired, wrong item supplied"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     required
@@ -468,11 +715,11 @@ const Returns = () => {
 
               <div className="rt-actions">
                 <span className="rt-actions__note">
-                  Saving adjusts stock immediately and cannot be edited afterwards.
+                  Saving adjusts stock immediately and updates party balance.
                 </span>
                 <button type="submit" className="rt-btn rt-btn--primary">
                   <RefreshCcw size={16} />
-                  Save {returnLabel(returnType)}
+                  Save {returnLabel(returnType)} {totalReturnAmount > 0 ? `(৳ ${money(totalReturnAmount)})` : ''}
                 </button>
               </div>
             </form>
@@ -581,7 +828,7 @@ const Returns = () => {
                     <td className="rt-reason" title={r.reason}><span>{r.reason}</span></td>
                     <td className="is-center">
                       <div className="rt-rowactions">
-                        <button type="button" className="rt-iconbtn" title="View & print memo" onClick={() => setSelectedInvoice(r)}>
+                        <button type="button" className="rt-iconbtn" title="View & print memo" onClick={() => handleViewMemo(r)}>
                           <Eye size={16} />
                         </button>
                         {user?.role === 'Admin' && (
@@ -689,6 +936,7 @@ const Returns = () => {
                 <PrintableReturn
                   record={selectedInvoice}
                   product={inventory.find(i => i.id === selectedInvoice.productId)}
+                  items={selectedInvoice.items}
                 />
               </div>
             </div>
