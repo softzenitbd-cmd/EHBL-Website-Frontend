@@ -691,7 +691,7 @@ const Returns = () => {
                     </div>
                     <div className="rt-stat rt-stat--highlight">
                       <span className="rt-stat__label">Total Return Value</span>
-                      <strong className="rt-stat__value">৳ {money(totalReturnAmount)}</strong>
+                      <strong className="rt-stat__value">{money(totalReturnAmount)}</strong>
                     </div>
                   </div>
                 )}
@@ -719,7 +719,7 @@ const Returns = () => {
                 </span>
                 <button type="submit" className="rt-btn rt-btn--primary">
                   <RefreshCcw size={16} />
-                  Save {returnLabel(returnType)} {totalReturnAmount > 0 ? `(৳ ${money(totalReturnAmount)})` : ''}
+                  Save {returnLabel(returnType)} {totalReturnAmount > 0 ? `(${money(totalReturnAmount)})` : ''}
                 </button>
               </div>
             </form>

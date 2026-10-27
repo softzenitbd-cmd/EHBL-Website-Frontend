@@ -842,7 +842,7 @@ const useStore = create(
 
           return {
             success: true,
-            message: `Successfully adjusted ৳${totalAdjusted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} advance across ${adjustedInvoices.length} invoice(s).`,
+            message: `Successfully adjusted ${totalAdjusted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} advance across ${adjustedInvoices.length} invoice(s).`,
             totalAdjusted,
             adjustedInvoices,
           };

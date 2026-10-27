@@ -294,9 +294,9 @@ const AccountLedger = () => {
       html: `
         <div style="text-align: left; font-size: 0.92rem; line-height: 1.6;">
           <div><strong>Customer:</strong> ${entity?.name} (${entity?.id})</div>
-          <div><strong>Available Advance:</strong> <span style="color: #059669; font-weight: 700;">৳${money(unallocatedAdvance)}</span></div>
+          <div><strong>Available Advance:</strong> <span style="color: #059669; font-weight: 700;">${money(unallocatedAdvance)}</span></div>
           <div style="margin-top: 0.5rem; padding: 0.65rem; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; color: #065f46;">
-            <div><strong>Amount to Adjust:</strong> <span style="font-size: 1.05rem; font-weight: 800;">৳${money(advanceToAdjust)}</span></div>
+            <div><strong>Amount to Adjust:</strong> <span style="font-size: 1.05rem; font-weight: 800;">${money(advanceToAdjust)}</span></div>
             <div style="font-size: 0.8rem; margin-top: 0.35rem; color: #047857;">
               This will automatically mark unpaid invoice(s) as Paid from the customer's existing advance balance without creating duplicate cash receipts.
             </div>
@@ -501,7 +501,7 @@ const AccountLedger = () => {
               {unallocatedAdvance > 0 && (
                 <div style={{ background: 'var(--lg-good-bg)', borderColor: 'var(--lg-good)' }}>
                   <dt style={{ color: 'var(--lg-good)' }}>Unallocated Advance</dt>
-                  <dd className="is-good">৳{money(unallocatedAdvance)}</dd>
+                  <dd className="is-good">{money(unallocatedAdvance)}</dd>
                 </div>
               )}
             </dl>
@@ -518,7 +518,7 @@ const AccountLedger = () => {
                   disabled={isAdjusting}
                   title="Adjust advance against unpaid invoices"
                 >
-                  <Sparkles size={15} /> {isAdjusting ? 'Adjusting...' : `Adjust Advance (৳${money(advanceToAdjust)})`}
+                  <Sparkles size={15} /> {isAdjusting ? 'Adjusting...' : `Adjust Advance (${money(advanceToAdjust)})`}
                 </button>
               )}
               <button type="button" className="lg-btn" onClick={() => setPreviewOpen(true)}>
@@ -745,8 +745,8 @@ const AccountLedger = () => {
                     <Sparkles size={18} className="lg-advance-banner__icon" />
                     <div>
                       <strong>Advance Payment Available:</strong> This {kind.toLowerCase()} has{' '}
-                      <span className="lg-advance-highlight">৳{money(unallocatedAdvance)}</span> in unallocated advance payment.{' '}
-                      <span className="lg-advance-highlight">৳{money(advanceToAdjust)}</span> can be adjusted to pay off {outstanding.length} unpaid {isCustomer ? 'invoice' : 'purchase'}{outstanding.length === 1 ? '' : 's'}.
+                      <span className="lg-advance-highlight">{money(unallocatedAdvance)}</span> in unallocated advance payment.{' '}
+                      <span className="lg-advance-highlight">{money(advanceToAdjust)}</span> can be adjusted to pay off {outstanding.length} unpaid {isCustomer ? 'invoice' : 'purchase'}{outstanding.length === 1 ? '' : 's'}.
                     </div>
                   </div>
                   <button

@@ -387,6 +387,14 @@ const Reports = () => {
     (acc, r) => acc + Number(r.rate || 0) * Number(r.quantity || 0),
     0
   );
+  // A return gives back the money, but the goods go back on the shelf at
+  // their purchase price, so only the profit on them is lost:
+  // (return rate - purchase price) x qty, not the whole returned amount.
+  const ppCostOf = new Map(inventory.map((p) => [String(p.id), Number(p.purchasePrice ?? p.cost_price ?? p.costPrice ?? 0)]));
+  const ppTotalReturnedProfit = filteredCustomerReturns.reduce(
+    (acc, r) => acc + (Number(r.rate || 0) - (ppCostOf.get(String(r.productId)) || 0)) * Number(r.quantity || 0),
+    0
+  );
 
   const ppTotalSoldQty = sortedProductProfits.reduce((acc, i) => acc + i.soldQty, 0);
   const ppTotalSalesValue = sortedProductProfits.reduce((acc, i) => acc + i.salesValue, 0);
@@ -395,7 +403,7 @@ const Reports = () => {
 
   // Grand Net Totals after deducting returned amount
   const ppNetQty = ppTotalSoldQty - ppTotalReturnedQty;
-  const ppNetProfit = ppTotalSalesProfit - ppTotalReturnedAmount;
+  const ppNetProfit = ppTotalSalesProfit - ppTotalReturnedProfit;
   const ppNetRevenue = ppTotalSalesValue - ppTotalReturnedAmount;
   const ppOverallMargin = ppNetRevenue > 0 ? (ppNetProfit / ppNetRevenue) * 100 : 0;
   const ppActiveSoldProductsCount = sortedProductProfits.length;
@@ -1021,13 +1029,13 @@ const Reports = () => {
                     {ppTotalReturnedAmount > 0 && (
                       <tr className="pp-tfoot-returns" style={{ color: 'var(--pp-bad, #c2410c)', background: 'var(--pp-bad-bg, #fff7ed)' }}>
                         <td colSpan={8} style={{ fontWeight: '600' }}>
-                          Less: Returned Amount ({ppTotalReturnedQty} items returned)
+                          Less: Profit on returned goods ({ppTotalReturnedQty} items, value {money(ppTotalReturnedAmount)})
                         </td>
                         <td className="is-num" style={{ fontWeight: '600', color: 'var(--pp-bad, #c2410c)' }}>
                           -{ppTotalReturnedQty}
                         </td>
                         <td className="is-num" style={{ fontWeight: '600', color: 'var(--pp-bad, #c2410c)' }}>
-                          -{money(ppTotalReturnedAmount)}
+                          -{money(ppTotalReturnedProfit)}
                         </td>
                         <td></td>
                       </tr>
@@ -1036,7 +1044,7 @@ const Reports = () => {
                     {/* Row 3: Grand Total (Net Calculation) */}
                     <tr className="pp-tfoot-grandtotal" style={{ borderTop: '2px solid var(--pp-border)', fontSize: '0.92rem' }}>
                       <td colSpan={8} style={{ fontWeight: '800' }}>
-                        Grand Total {ppTotalReturnedAmount > 0 ? `(${money(ppTotalSalesProfit)} - ${money(ppTotalReturnedAmount)})` : `(${sortedProductProfits.length} Products)`}
+                        Grand Total {ppTotalReturnedAmount > 0 ? `(${money(ppTotalSalesProfit)} - ${money(ppTotalReturnedProfit)})` : `(${sortedProductProfits.length} Products)`}
                       </td>
                       <td className="is-num" style={{ fontWeight: '800' }}>
                         {ppNetQty}
@@ -1066,19 +1074,19 @@ const Reports = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: '600', color: 'var(--pp-muted)' }}>Calculation:</span>
                   <span style={{ fontWeight: '700', color: 'var(--pp-good)' }}>
-                    Sales Profit: ৳{money(ppTotalSalesProfit)} ({ppTotalSoldQty} pcs)
+                    Sales Profit: {money(ppTotalSalesProfit)} ({ppTotalSoldQty} pcs)
                   </span>
                   <span style={{ color: 'var(--pp-muted)' }}>&minus;</span>
                   <span style={{ fontWeight: '700', color: 'var(--pp-bad)' }}>
-                    Returned Amount: ৳{money(ppTotalReturnedAmount)} ({ppTotalReturnedQty} pcs)
+                    Profit on returns: {money(ppTotalReturnedProfit)} ({ppTotalReturnedQty} pcs)
                   </span>
                   <span style={{ color: 'var(--pp-muted)' }}>=</span>
                   <span style={{ fontWeight: '800', color: ppNetProfit >= 0 ? 'var(--pp-good)' : 'var(--pp-bad)' }}>
-                    Net Grand Total: ৳{money(ppNetProfit)}
+                    Net Grand Total: {money(ppNetProfit)}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--pp-muted)' }}>
-                  * Returned products are deducted at Grand Total and excluded from product list.
+                  * A return takes off only its profit (return rate &minus; purchase price); the goods go back to stock.
                 </div>
               </div>
             )}
