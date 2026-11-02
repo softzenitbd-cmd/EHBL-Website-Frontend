@@ -20,9 +20,7 @@ const Dashboard = () => {
 
   const [chartData, setChartData] = useState(emptyWeek);
 
-  useEffect(() => {
-    if (fetchAllData) fetchAllData();
-  }, []);
+  // Initial data is loaded once globally by Layout.jsx
 
   // The 7-day sales/profit series is aggregated server-side.
   useEffect(() => {

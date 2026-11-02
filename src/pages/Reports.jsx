@@ -27,9 +27,7 @@ const Reports = () => {
   const [selectedProductReport, setSelectedProductReport] = useState(null);
   const { sales = [], inventory = [], purchases = [], expenses = [], customers = [], suppliers = [], staff = [], payrolls = [], returns = [], attendance = [], leaves = [], fetchAllData, loadDummyData } = useStore();
 
-  React.useEffect(() => {
-    if (fetchAllData) fetchAllData();
-  }, []);
+  // Initial data loaded globally by Layout.jsx
 
   React.useEffect(() => {
     if (!selectedProductReport) return;

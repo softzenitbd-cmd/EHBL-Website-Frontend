@@ -39,11 +39,7 @@ const POS = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (fetchAllData) {
-      fetchAllData();
-    }
-  }, []);
+  // Initial data loaded globally by Layout.jsx
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);

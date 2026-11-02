@@ -69,8 +69,13 @@ const queueSrMutation = (run) => {
   return next;
 };
 
-const asArray = (settled) =>
-  settled.status === 'fulfilled' && Array.isArray(settled.value) ? settled.value : null;
+const asArray = (settled) => {
+  if (settled?.status !== 'fulfilled' || !settled?.value) return null;
+  const val = settled.value;
+  if (Array.isArray(val)) return val;
+  if (Array.isArray(val.results)) return val.results;
+  return null;
+};
 
 const useStore = create(
   persist(
@@ -365,6 +370,45 @@ const useStore = create(
       loadDummyData: () => get().fetchAllData(),
 
       // ---------------------------------------------------------------
+      // Targeted collection refreshes (avoids refetching all 20 endpoints)
+      // ---------------------------------------------------------------
+      refreshCollection: async (key, endpoint, params) => {
+        try {
+          const res = await apiClient.get(endpoint, { params });
+          const items = Array.isArray(res) ? res : (Array.isArray(res?.results) ? res.results : null);
+          if (items !== null) {
+            set({ [key]: items });
+          }
+          return items;
+        } catch (err) {
+          console.error(`Failed to refresh ${key}:`, err);
+          return null;
+        }
+      },
+      refreshSales: async () => get().refreshCollection('sales', ENDPOINTS.SALES),
+      refreshPurchases: async () => get().refreshCollection('purchases', ENDPOINTS.PURCHASES),
+      refreshInventory: async () => get().refreshCollection('inventory', ENDPOINTS.PRODUCTS),
+      refreshCustomers: async () => get().refreshCollection('customers', ENDPOINTS.CUSTOMERS),
+      refreshSuppliers: async () => get().refreshCollection('suppliers', ENDPOINTS.SUPPLIERS),
+      refreshReturns: async () => get().refreshCollection('returns', ENDPOINTS.RETURNS),
+      refreshSettlements: async () => get().refreshCollection('settlements', ENDPOINTS.SETTLEMENTS),
+      refreshExpenses: async () => {
+        await Promise.allSettled([
+          get().refreshCollection('expenses', ENDPOINTS.EXPENSES),
+          get().refreshCollection('expenseCategories', ENDPOINTS.EXPENSE_CATEGORIES),
+        ]);
+      },
+      refreshHR: async () => {
+        await Promise.allSettled([
+          get().refreshCollection('staff', ENDPOINTS.STAFF),
+          get().refreshCollection('attendance', ENDPOINTS.ATTENDANCE),
+          get().refreshCollection('leaves', ENDPOINTS.LEAVES),
+          get().refreshCollection('payrolls', ENDPOINTS.PAYROLLS),
+        ]);
+      },
+      refreshSMS: async () => get().refreshCollection('smsHistory', ENDPOINTS.SMS_HISTORY),
+
+      // ---------------------------------------------------------------
       // POS cart (client-side only until checkout)
       // ---------------------------------------------------------------
       cart: [],
@@ -463,7 +507,7 @@ const useStore = create(
       updateCategory: async (id, name) => {
         try {
           await apiClient.patch(ENDPOINTS.CATEGORY_DETAILS(id), { name });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection("categories", ENDPOINTS.CATEGORIES), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to rename the category.');
@@ -475,7 +519,7 @@ const useStore = create(
       deleteCategory: async (id) => {
         try {
           await apiClient.delete(ENDPOINTS.CATEGORY_DETAILS(id));
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection("categories", ENDPOINTS.CATEGORIES), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the category.');
@@ -487,7 +531,7 @@ const useStore = create(
       updateUnit: async (id, name) => {
         try {
           await apiClient.patch(ENDPOINTS.UNIT_DETAILS(id), { name });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection("units", ENDPOINTS.UNITS), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to rename the unit.');
@@ -499,7 +543,7 @@ const useStore = create(
       deleteUnit: async (id) => {
         try {
           await apiClient.delete(ENDPOINTS.UNIT_DETAILS(id));
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection("units", ENDPOINTS.UNITS), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the unit.');
@@ -526,7 +570,7 @@ const useStore = create(
       updateCompany: async (id, name) => {
         try {
           await apiClient.patch(ENDPOINTS.COMPANY_DETAILS(id), { name });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection("companies", ENDPOINTS.COMPANIES), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to rename the company.');
@@ -538,7 +582,7 @@ const useStore = create(
       deleteCompany: async (id) => {
         try {
           await apiClient.delete(ENDPOINTS.COMPANY_DETAILS(id));
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection("companies", ENDPOINTS.COMPANIES), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the company.');
@@ -572,9 +616,7 @@ const useStore = create(
             lastError: null,
           }));
           if (res?.id && res.id !== id) {
-            // Returns, sales and reports read the code off the product, so
-            // everything that referenced the old one has to be re-read.
-            await get().fetchAllData();
+            await Promise.allSettled([get().refreshInventory(), get().refreshSales(), get().refreshPurchases(), get().refreshReturns()]);
           }
           return { success: true, data: res };
         } catch (err) {
@@ -678,7 +720,7 @@ const useStore = create(
             paymentMethod: extra.paymentMethod || undefined,
             notes: extra.notes || undefined,
           });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSettlements(), get().refreshCustomers(), get().refreshSales()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to record the payment.');
@@ -702,7 +744,7 @@ const useStore = create(
             paymentMethod: extra.paymentMethod || undefined,
             notes: extra.notes || undefined,
           });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSettlements(), get().refreshSuppliers(), get().refreshPurchases()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to record the payment.');
@@ -719,7 +761,7 @@ const useStore = create(
             amount: parseFloat(amount),
             date: dateStr || undefined,
           });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSettlements(), get().refreshCollection('staff', ENDPOINTS.STAFF)]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to record the payment.');
@@ -763,7 +805,7 @@ const useStore = create(
               id: entityId,
             });
             await get().fetchLedgerStatement(entityType, entityId);
-            await get().fetchAllData();
+            await Promise.allSettled([get().refreshSettlements(), get().refreshCustomers(), get().refreshSales(), get().refreshSuppliers(), get().refreshPurchases()]);
             return { success: true, data: res };
           } catch (endpointErr) {
             if (endpointErr?.response?.status !== 404 && endpointErr?.response?.status !== 405) {
@@ -820,8 +862,9 @@ const useStore = create(
               const settlements = await apiClient.get(ENDPOINTS.SETTLEMENTS, {
                 params: { target_id: entityId }
               });
-              if (Array.isArray(settlements)) {
-                const dup = settlements
+              const stlList = Array.isArray(settlements) ? settlements : (Array.isArray(settlements?.results) ? settlements.results : []);
+              if (stlList.length > 0) {
+                const dup = stlList
                   .filter(s => s.notes && s.notes.includes(inv.id))
                   .sort((a, b) => (b.id || 0) - (a.id || 0))[0];
                 if (dup && (dup.settlement_code || dup.id)) {
@@ -838,7 +881,7 @@ const useStore = create(
           }
 
           await get().fetchLedgerStatement(entityType, entityId);
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSettlements(), get().refreshCustomers(), get().refreshSales()]);
 
           return {
             success: true,
@@ -861,7 +904,7 @@ const useStore = create(
           const res = await apiClient.post(ENDPOINTS.SALES, salePayload);
           set({ cart: [], lastError: null });
           get().scheduleCartPush();
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSales(), get().refreshInventory(), get().refreshCustomers()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to save the sale.');
@@ -873,7 +916,7 @@ const useStore = create(
       updateSale: async (invoiceId, updates) => {
         try {
           const res = await apiClient.patch(ENDPOINTS.SALE_DETAILS(invoiceId), updates);
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSales(), get().refreshInventory(), get().refreshCustomers()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to update the invoice.');
@@ -885,7 +928,7 @@ const useStore = create(
       lockSale: async (invoiceId) => {
         try {
           const res = await apiClient.post(ENDPOINTS.SALE_LOCK(invoiceId));
-          await get().fetchAllData();
+          await get().refreshSales();
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to lock the invoice.');
@@ -897,7 +940,7 @@ const useStore = create(
       paySaleInvoice: async (invoiceId, payload) => {
         try {
           const res = await apiClient.post(ENDPOINTS.SALE_PAY(invoiceId), payload);
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSales(), get().refreshCustomers(), get().refreshSettlements()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to process invoice payment.');
@@ -918,7 +961,7 @@ const useStore = create(
             notes: extra.notes || '',
             paid_on: extra.paidOn || undefined,
           });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSales(), get().refreshCustomers(), get().refreshSettlements()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, "Failed to collect the day's dues.");
@@ -930,7 +973,7 @@ const useStore = create(
       processPurchase: async (purchasePayload) => {
         try {
           const res = await apiClient.post(ENDPOINTS.PURCHASES, purchasePayload);
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshPurchases(), get().refreshInventory(), get().refreshSuppliers()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to save the purchase.');
@@ -942,7 +985,7 @@ const useStore = create(
       updatePurchase: async (id, updates) => {
         try {
           const res = await apiClient.patch(ENDPOINTS.PURCHASE_DETAILS(id), updates);
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshPurchases(), get().refreshInventory(), get().refreshSuppliers()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to update the purchase.');
@@ -958,24 +1001,35 @@ const useStore = create(
             const codes = [];
             let lastData = null;
 
-            for (const item of items) {
-              const res = await apiClient.post(ENDPOINTS.RETURNS, {
-                returnType,
-                productId: item.productId,
-                quantity: parseInt(item.quantity, 10) || 1,
-                rate: item.rate === '' || item.rate === undefined || item.rate === null ? '' : Number(item.rate),
-                reason: item.reason || reason,
-                partyName: partyName || '',
-                referenceId: referenceId || '',
-                date: date || undefined,
-              });
+            const itemResults = await Promise.all(
+              items.map((item) =>
+                apiClient.post(ENDPOINTS.RETURNS, {
+                  returnType,
+                  productId: item.productId,
+                  quantity: parseInt(item.quantity, 10) || 1,
+                  rate: item.rate === '' || item.rate === undefined || item.rate === null ? '' : Number(item.rate),
+                  reason: item.reason || reason,
+                  partyName: partyName || '',
+                  referenceId: referenceId || '',
+                  date: date || undefined,
+                })
+              )
+            );
+            itemResults.forEach((res) => {
               lastData = res;
               totalCredited += Number(res?.credit_amount || 0);
               const code = res?.return_code || res?.id;
               if (code) codes.push(code);
-            }
+            });
 
-            await get().fetchAllData();
+            await Promise.allSettled([
+              get().refreshReturns(),
+              get().refreshInventory(),
+              get().refreshSales(),
+              get().refreshPurchases(),
+              get().refreshCustomers(),
+              get().refreshSuppliers(),
+            ]);
             return {
               success: true,
               data: {
@@ -1001,7 +1055,14 @@ const useStore = create(
             referenceId: referenceId || '',
             date: date || undefined,
           });
-          await get().fetchAllData();
+          await Promise.allSettled([
+            get().refreshReturns(),
+            get().refreshInventory(),
+            get().refreshSales(),
+            get().refreshPurchases(),
+            get().refreshCustomers(),
+            get().refreshSuppliers(),
+          ]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to record the return.');
@@ -1019,7 +1080,7 @@ const useStore = create(
       deleteSale: async (invoiceId) => {
         try {
           await apiClient.delete(ENDPOINTS.SALE_DETAILS(invoiceId));
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshSales(), get().refreshInventory(), get().refreshCustomers()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the invoice.');
@@ -1031,7 +1092,7 @@ const useStore = create(
       deletePurchase: async (purchaseId) => {
         try {
           await apiClient.delete(ENDPOINTS.PURCHASE_DETAILS(purchaseId));
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshPurchases(), get().refreshInventory(), get().refreshSuppliers()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the purchase.');
@@ -1043,7 +1104,7 @@ const useStore = create(
       deleteReturn: async (returnId) => {
         try {
           await apiClient.delete(ENDPOINTS.RETURN_DETAILS(returnId));
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshReturns(), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the return.');
@@ -1055,7 +1116,7 @@ const useStore = create(
       deleteSRSettlement: async (settlementId) => {
         try {
           await apiClient.delete(ENDPOINTS.SR_SETTLEMENT_DETAILS(settlementId));
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection("srSettlements", ENDPOINTS.SR_SETTLEMENTS), get().refreshInventory()]);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the SR settlement.');
@@ -1105,7 +1166,7 @@ const useStore = create(
               price: item.price,
             })),
           });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection('srSettlements', ENDPOINTS.SR_SETTLEMENTS), get().refreshInventory()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to issue stock to the SR.');
@@ -1123,7 +1184,7 @@ const useStore = create(
               returnQty: parseInt(item.returnQty, 10) || 0,
             })),
           });
-          await get().fetchAllData();
+          await Promise.allSettled([get().refreshCollection('srSettlements', ENDPOINTS.SR_SETTLEMENTS), get().refreshInventory()]);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to settle the SR account.');
@@ -1151,7 +1212,7 @@ const useStore = create(
         return queueSrMutation(async () => {
           try {
             const res = await apiClient.patch(ENDPOINTS.SR_ISSUED_ITEMS(id), { items });
-            await get().fetchAllData();
+            await Promise.allSettled([get().refreshCollection('srSettlements', ENDPOINTS.SR_SETTLEMENTS), get().refreshInventory()]);
             return { success: true, data: res };
           } catch (err) {
             const message = extractError(err, 'Failed to update the issued quantities.');
@@ -1195,7 +1256,7 @@ const useStore = create(
             failures.push(`${id}: ${extractError(err, 'could not be reopened')}`);
           }
         }
-        await get().fetchAllData();
+        await Promise.allSettled([get().refreshCollection('srSettlements', ENDPOINTS.SR_SETTLEMENTS), get().refreshInventory()]);
 
         if (failures.length) {
           const message = failures.join('; ');
@@ -1294,7 +1355,7 @@ const useStore = create(
       markAttendance: async (staffId, date, status) => {
         try {
           await apiClient.post(ENDPOINTS.MARK_ATTENDANCE, { staffId, date, status });
-          await get().fetchAllData();
+          await get().refreshCollection("attendance", ENDPOINTS.ATTENDANCE);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to mark attendance.');
@@ -1306,7 +1367,7 @@ const useStore = create(
       addLeaveRequest: async (leaveData) => {
         try {
           const res = await apiClient.post(ENDPOINTS.LEAVES, leaveData);
-          await get().fetchAllData();
+          await get().refreshCollection("leaves", ENDPOINTS.LEAVES);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to submit the leave request.');
@@ -1318,7 +1379,7 @@ const useStore = create(
       updateLeaveStatus: async (leaveId, status) => {
         try {
           await apiClient.post(`/hr/leaves/${leaveId}/status/`, { status });
-          await get().fetchAllData();
+          await get().refreshCollection("leaves", ENDPOINTS.LEAVES);
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to update the leave request.');
@@ -1330,7 +1391,7 @@ const useStore = create(
       generatePayslip: async (payrollData) => {
         try {
           const res = await apiClient.post(ENDPOINTS.GENERATE_PAYSLIP, payrollData);
-          await get().fetchAllData();
+          await get().refreshCollection("payrolls", ENDPOINTS.PAYROLLS);
           return { success: true, data: res };
         } catch (err) {
           const message = extractError(err, 'Failed to generate the payslip.');
@@ -1349,7 +1410,7 @@ const useStore = create(
             customerIds: smsData.receivers?.map((r) => r.id) || smsData.selectedCustomers || [],
             numbers: smsData.numbers || [],
           });
-          await get().fetchAllData();
+          await get().refreshSMS();
           return { success: true, data: res, delivered: res?.delivered === true, status: res?.status };
         } catch (err) {
           const message = extractError(err, 'Failed to send the SMS.');
