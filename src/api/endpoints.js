@@ -51,6 +51,7 @@ export const ENDPOINTS = {
   TRANSACTION_DETAILS: (id) => `/ledger/transactions/${id}/`,
   LEDGER_STATEMENT: (type, id) => `/ledger/statement/${type}/${id}/`,
   SETTLEMENTS: '/ledger/settlements/',
+  SETTLEMENT_DETAILS: (id) => `/ledger/settlements/${id}/`,
 
   // Expenses
   EXPENSES: '/expenses/',

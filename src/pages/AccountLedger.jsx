@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Printer, Wallet, X, RefreshCcw, Users, Truck, FileText, Receipt, BookOpen, Eye, Package, Search, Sparkles } from 'lucide-react';
+import { Printer, Wallet, X, RefreshCcw, Users, Truck, FileText, Receipt, BookOpen, Eye, Package, Search, Sparkles, FileEdit, Trash2 } from 'lucide-react';
 import useStore from '../store/useStore';
 import { confirmDialog } from '../utils/swal';
 import PrintablePayment from '../components/PrintablePayment';
@@ -25,7 +25,7 @@ const today = () => new Date().toISOString().split('T')[0];
 const AccountLedger = () => {
   const {
     customers, suppliers, sales = [], purchases = [], user,
-    fetchLedgerStatement, settleCustomerDue, settleSupplierDue, adjustPartyAdvance, showToast,
+    fetchLedgerStatement, settleCustomerDue, settleSupplierDue, adjustPartyAdvance, showToast, updateSettlement, deleteSettlement,
   } = useStore();
 
   const location = useLocation();
@@ -53,6 +53,67 @@ const AccountLedger = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showProducts, setShowProducts] = useState(true);
   const [productSearch, setProductSearch] = useState('');
+
+  // Edit Payment Modal State
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [editPayDate, setEditPayDate] = useState('');
+  const [editPayAmount, setEditPayAmount] = useState('');
+  const [editPayMethod, setEditPayMethod] = useState('Cash');
+  const [editPayNotes, setEditPayNotes] = useState('');
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+
+  const handleOpenEditPayment = (p) => {
+    setEditingPayment(p);
+    setEditPayDate(p.date ? String(p.date).slice(0, 10) : today());
+    setEditPayAmount(p.amount !== undefined && p.amount !== null ? p.amount : '');
+    setEditPayMethod(p.paymentMethod || 'Cash');
+    setEditPayNotes(p.notes || '');
+  };
+
+  const handleSaveEditPayment = async (e) => {
+    e.preventDefault();
+    if (!editingPayment) return;
+    const amt = parseFloat(editPayAmount);
+    if (isNaN(amt) || amt <= 0) {
+      showToast('Please enter a valid amount greater than 0', 'error');
+      return;
+    }
+
+    setIsUpdatingPayment(true);
+    const res = await updateSettlement(editingPayment.id, {
+      amount: amt,
+      date: editPayDate,
+      paymentMethod: editPayMethod,
+      notes: editPayNotes.trim(),
+    });
+    setIsUpdatingPayment(false);
+
+    if (res.success) {
+      showToast(`Payment ${editingPayment.id} updated successfully. Ledger & dues adjusted.`, 'success');
+      setEditingPayment(null);
+      await load(kind, partyId);
+    } else {
+      showToast(`Failed to update payment: ${res.error}`, 'error');
+    }
+  };
+
+  const handleDeletePayment = async (p) => {
+    const isConfirmed = await confirmDialog({
+      title: 'Delete Payment?',
+      text: `Are you sure you want to delete receipt ${p.id} (${money(p.amount)})? The party's balance and invoice dues will be restored.`,
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#e53e3e',
+    });
+    if (!isConfirmed) return;
+
+    const res = await deleteSettlement(p.id);
+    if (res.success) {
+      showToast(`Payment ${p.id} deleted. Dues restored.`, 'success');
+      await load(kind, partyId);
+    } else {
+      showToast(`Failed to delete payment: ${res.error}`, 'error');
+    }
+  };
 
   const [payOpen, setPayOpen] = useState(false);
   const [payForm, setPayForm] = useState({ date: today(), amount: '', method: 'Cash', note: '' });
@@ -598,7 +659,24 @@ const AccountLedger = () => {
                     {book.rows.map((r, idx) => (
                       <tr key={`${r.id}-${idx}`}>
                         <td style={{ verticalAlign: 'top' }}>{fmtLedgerDate(r.date)}</td>
-                        <td className="is-code" style={{ verticalAlign: 'top' }}>{r.docNo || r.id}</td>
+                        <td className="is-code" style={{ verticalAlign: 'top' }}>
+                          {r.docNo || r.id}
+                          {r.type === 'payment' && (
+                            <button
+                              type="button"
+                              className="lg-iconbtn"
+                              style={{ marginLeft: '6px', padding: '2px', verticalAlign: 'middle' }}
+                              title="Edit payment"
+                              onClick={() => {
+                                const matched = payments.find(p => p.id === r.id);
+                                if (matched) handleOpenEditPayment(matched);
+                                else handleOpenEditPayment({ id: r.id, amount: r.amount, date: r.date, notes: r.notes || r.description, paymentMethod: 'Cash' });
+                              }}
+                            >
+                              <FileEdit size={12} />
+                            </button>
+                          )}
+                        </td>
                         <td style={{ verticalAlign: 'top' }}>
                           <div style={{ textTransform: 'uppercase' }}>
                             <strong>{r.particulars.head}</strong> {r.particulars.detail}
@@ -822,7 +900,7 @@ const AccountLedger = () => {
                       <th className="is-num">Due Before</th>
                       <th className="is-num">Due After</th>
                       <th>Note</th>
-                      <th className="is-center">&nbsp;</th>
+                      <th className="is-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -837,9 +915,19 @@ const AccountLedger = () => {
                         <td className="is-num">{money(p.remainingDue)}</td>
                         <td className="lg-note" title={p.notes}>{p.notes || '-'}</td>
                         <td className="is-center">
-                          <button type="button" className="lg-iconbtn" title="Print receipt" onClick={() => reprint(p)}>
-                            <Printer size={15} />
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                            <button type="button" className="lg-iconbtn" title="Print receipt" onClick={() => reprint(p)}>
+                              <Printer size={15} />
+                            </button>
+                            <button type="button" className="lg-iconbtn" title="Edit payment" onClick={() => handleOpenEditPayment(p)}>
+                              <FileEdit size={15} />
+                            </button>
+                            {user?.role === 'Admin' && (
+                              <button type="button" className="lg-iconbtn lg-iconbtn--danger" title="Delete payment" onClick={() => handleDeletePayment(p)}>
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1036,6 +1124,93 @@ const AccountLedger = () => {
                 <Printer size={15} /> Print
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Payment Modal */}
+      {editingPayment && createPortal(
+        <div className="lg-modal-overlay" onClick={() => !isUpdatingPayment && setEditingPayment(null)}>
+          <div className="lg-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit payment">
+            <div className="lg-modal__head">
+              <h2>
+                <FileEdit size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                Edit Payment &middot; <strong>{editingPayment.id}</strong>
+              </h2>
+              <button type="button" className="lg-iconbtn" onClick={() => !isUpdatingPayment && setEditingPayment(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditPayment}>
+              <div className="lg-modal__body" style={{ padding: '1.25rem' }}>
+                <div className="lg-field" style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="edit-pay-date">Payment Date</label>
+                  <input
+                    id="edit-pay-date"
+                    type="date"
+                    value={editPayDate}
+                    onChange={(e) => setEditPayDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="lg-field" style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="edit-pay-method">Payment Method</label>
+                  <select
+                    id="edit-pay-method"
+                    value={editPayMethod}
+                    onChange={(e) => setEditPayMethod(e.target.value)}
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank Transfer</option>
+                    <option value="bKash">bKash</option>
+                    <option value="Nagad">Nagad</option>
+                    <option value="Rocket">Rocket</option>
+                    <option value="Cheque">Cheque</option>
+                  </select>
+                </div>
+
+                <div className="lg-field" style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="edit-pay-amount">Amount (Tk.)</label>
+                  <input
+                    id="edit-pay-amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="0.00"
+                    value={editPayAmount}
+                    onChange={(e) => setEditPayAmount(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="lg-field">
+                  <label htmlFor="edit-pay-notes">Note / Remarks</label>
+                  <textarea
+                    id="edit-pay-notes"
+                    rows="2"
+                    placeholder="Optional notes..."
+                    value={editPayNotes}
+                    onChange={(e) => setEditPayNotes(e.target.value)}
+                  />
+                  <span className="lg-hint" style={{ fontSize: '0.78rem', color: 'var(--lg-muted)', marginTop: '4px', display: 'block' }}>
+                    Saving will automatically recalculate ledger statement, party dues, and invoice allocations.
+                  </span>
+                </div>
+              </div>
+
+              <div className="lg-modal__foot" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '1rem', borderTop: '1px solid var(--lg-border)' }}>
+                <button type="button" className="lg-btn" onClick={() => setEditingPayment(null)} disabled={isUpdatingPayment}>
+                  Cancel
+                </button>
+                <button type="submit" className="lg-btn lg-btn--primary" disabled={isUpdatingPayment}>
+                  <RefreshCcw size={15} />
+                  {isUpdatingPayment ? 'Saving Changes...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>,
         document.body

@@ -162,8 +162,8 @@ body:not(.light-mode) .lg-modal-overlay {
   color: var(--lg-text);
 }
 
-.ledger-page .lg-field :is(input, select),
-.lg-modal-overlay .lg-field :is(input, select) {
+.ledger-page .lg-field :is(input, select, textarea),
+.lg-modal-overlay .lg-field :is(input, select, textarea) {
   width: 100%;
   padding: 0.5rem 0.65rem;
   font-size: 0.875rem;
@@ -176,8 +176,8 @@ body:not(.light-mode) .lg-modal-overlay {
   box-shadow: none;
 }
 
-.ledger-page .lg-field :is(input, select):focus,
-.lg-modal-overlay .lg-field :is(input, select):focus {
+.ledger-page .lg-field :is(input, select, textarea):focus,
+.lg-modal-overlay .lg-field :is(input, select, textarea):focus {
   outline: 2px solid var(--lg-accent);
   outline-offset: -1px;
   border-color: var(--lg-accent);
@@ -922,3 +922,15 @@ body:not(.light-mode) .lg-advance-highlight {
   color: #a7f3d0;
 }
 
+
+.ledger-page .lg-iconbtn--danger,
+.lg-modal-overlay .lg-iconbtn--danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.ledger-page .lg-iconbtn--danger:hover,
+.lg-modal-overlay .lg-iconbtn--danger:hover {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #b91c1c;
+}

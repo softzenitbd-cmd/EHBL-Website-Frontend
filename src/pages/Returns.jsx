@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { RefreshCcw, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Trash2, Users, X, Search } from 'lucide-react';
+import { RefreshCcw, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Trash2, Users, X, Search, FileEdit } from 'lucide-react';
 import useStore from '../store/useStore';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
@@ -31,7 +31,7 @@ const money = (value) => Number(value || 0).toLocaleString('en-US', {
 const lineAmount = (r) => Number(r.rate || 0) * Number(r.quantity || 0);
 
 const Returns = () => {
-  const { inventory, processReturn, returns, returnsTotalCount, fetchReturnsPage, showToast, deleteReturn, user, customers, suppliers, sales = [], purchases = [] } = useStore();
+  const { inventory, processReturn, updateReturn, returns, returnsTotalCount, fetchReturnsPage, showToast, deleteReturn, user, customers, suppliers, sales = [], purchases = [] } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   // The number of the document just saved. A toast fades, but the shop needs
   // to copy this onto the paper slip, so it stays on screen until the next one.
@@ -236,6 +236,108 @@ const Returns = () => {
       clearTimeout(timer);
     };
   }, [activeTab, currentPage, pageSize, startDate, endDate, returnSearch]);
+
+  // Edit Return Modal State
+  const [editingReturn, setEditingReturn] = useState(null);
+  const [editDate, setEditDate] = useState('');
+  const [editReturnType, setEditReturnType] = useState('Customer');
+  const [editProductId, setEditProductId] = useState('');
+  const [editQuantity, setEditQuantity] = useState(1);
+  const [editRate, setEditRate] = useState('');
+  const [editPartyName, setEditPartyName] = useState('');
+  const [editPartyPickedId, setEditPartyPickedId] = useState('');
+  const [editReferenceId, setEditReferenceId] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [isUpdatingReturn, setIsUpdatingReturn] = useState(false);
+
+  const editPartyOptions = useMemo(() => {
+    const list = (editReturnType === 'Customer' ? customers : suppliers) || [];
+    return list.map((pt) => ({
+      value: pt.id || pt.customer_code || pt.supplier_code,
+      name: pt.name,
+      label: pt.name,
+      sub: [pt.phone, pt.company].filter(Boolean).join(' · '),
+      side: Number(pt.due || 0) > 0 ? `Due ${Number(pt.due).toFixed(2)}` : '',
+      muted: Number(pt.due || 0) > 0,
+    }));
+  }, [editReturnType, customers, suppliers]);
+
+  const editDocOptions = useMemo(() => {
+    const who = editPartyName.trim().toLowerCase();
+    const docs = editReturnType === 'Customer'
+      ? (sales || []).filter((d) => d.status !== 'Cancelled').map((d) => ({
+          id: d.id, party: d.customerName || '', date: d.date, due: Number(d.due_amount || 0),
+        }))
+      : (purchases || []).map((d) => ({
+          id: d.id, party: d.supplierName || '', date: d.date, due: Number(d.dueAmount || 0),
+        }));
+    return docs
+      .filter((d) => !who || d.party.toLowerCase() === who)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      .slice(0, 200)
+      .map((d) => ({
+        value: d.id,
+        label: d.id,
+        party: d.party,
+        sub: `${d.party || 'No party'} · ${String(d.date || '').slice(0, 10)}`,
+        side: `Due ${d.due.toFixed(2)}`,
+        muted: d.due > 0,
+      }));
+  }, [editReturnType, editPartyName, sales, purchases]);
+
+  const editSelectedProduct = inventory.find((i) => i.id === editProductId);
+
+  const handleOpenEdit = (r) => {
+    setEditingReturn(r);
+    setEditDate(r.date ? r.date.split('T')[0] : '');
+    setEditReturnType(r.returnType || 'Customer');
+    setEditProductId(r.productId || '');
+    setEditQuantity(r.quantity || 1);
+    setEditRate(r.rate !== undefined && r.rate !== null ? r.rate : '');
+    setEditPartyName(r.partyName || '');
+    setEditPartyPickedId(r.partyId || '');
+    setEditReferenceId(r.referenceId || '');
+    setEditReason(r.reason || '');
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingReturn) return;
+    if (!editProductId) {
+      showToast('Please select a product', 'error');
+      return;
+    }
+    const q = parseInt(editQuantity, 10);
+    if (!q || q <= 0) {
+      showToast('Quantity must be at least 1', 'error');
+      return;
+    }
+    if (!editReason.trim()) {
+      showToast('Please provide a reason for the return', 'error');
+      return;
+    }
+
+    setIsUpdatingReturn(true);
+    const result = await updateReturn(editingReturn.id, {
+      date: editDate,
+      returnType: editReturnType,
+      productId: editProductId,
+      quantity: q,
+      rate: editRate === '' ? '' : parseFloat(editRate) || 0,
+      partyName: editPartyName.trim(),
+      partyId: editPartyPickedId,
+      referenceId: editReferenceId.trim(),
+      reason: editReason.trim(),
+    });
+    setIsUpdatingReturn(false);
+
+    if (result.success) {
+      showToast(`Return ${editingReturn.id} updated successfully. Stock & ledger adjusted.`, 'success');
+      setEditingReturn(null);
+    } else {
+      showToast(`Failed to update return: ${result.error}`, 'error');
+    }
+  };
 
   const handleViewMemo = (record) => {
     const related = record.referenceId
@@ -895,6 +997,9 @@ const Returns = () => {
                         <button type="button" className="rt-iconbtn" title="View & print memo" onClick={() => handleViewMemo(r)}>
                           <Eye size={16} />
                         </button>
+                        <button type="button" className="rt-iconbtn" title="Edit return" onClick={() => handleOpenEdit(r)}>
+                          <FileEdit size={16} />
+                        </button>
                         {user?.role === 'Admin' && (
                           <button type="button" className="rt-iconbtn rt-iconbtn--danger" title="Delete return" onClick={() => handleDeleteReturn(r)}>
                             <Trash2 size={16} />
@@ -1028,8 +1133,191 @@ const Returns = () => {
         document.body
       )}
 
+{/* Edit Return Modal */}
+      {editingReturn && createPortal(
+        <div className="rt-modal-overlay" onClick={() => !isUpdatingReturn && setEditingReturn(null)}>
+          <div className="rt-modal" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit return">
+            <div className="rt-modal__head">
+              <h2>
+                <FileEdit size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                Edit Return &middot; <strong>{editingReturn.id}</strong>
+                <span className={`rt-badge ${editReturnType === 'Customer' ? 'rt-badge--in' : 'rt-badge--out'}`} style={{ marginLeft: '10px' }}>
+                  {returnLabel(editReturnType)}
+                </span>
+              </h2>
+              <button type="button" className="rt-iconbtn" onClick={() => !isUpdatingReturn && setEditingReturn(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit}>
+              <div className="rt-modal__body" style={{ background: 'var(--rt-bg)', padding: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="rt-field">
+                    <label htmlFor="edit-rt-date">Date</label>
+                    <input
+                      id="edit-rt-date"
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="rt-field">
+                    <label htmlFor="edit-rt-type">Return Type</label>
+                    <select
+                      id="edit-rt-type"
+                      value={editReturnType}
+                      onChange={(e) => {
+                        setEditReturnType(e.target.value);
+                        setEditPartyPickedId('');
+                        setEditPartyName('');
+                        setEditReferenceId('');
+                      }}
+                    >
+                      <option value="Customer">Customer Return (Add to Stock)</option>
+                      <option value="Supplier">Supplier Reject (Remove from Stock)</option>
+                      <option value="Stock Out">Manual Stock Out (Remove from Stock)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {editReturnType !== 'Stock Out' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div className="rt-field">
+                      <label htmlFor="edit-rt-party">{editReturnType === 'Customer' ? 'Customer' : 'Supplier'}</label>
+                      <SearchSelect
+                        id="edit-rt-party"
+                        options={editPartyOptions}
+                        value={editPartyPickedId}
+                        text={editPartyName}
+                        freeText
+                        onText={setEditPartyName}
+                        onSelect={(o) => {
+                          setEditPartyPickedId(o ? o.value : '');
+                          if (o?.name) setEditPartyName(o.name);
+                        }}
+                        search={searchParties}
+                        placeholder={editReturnType === 'Customer' ? 'Search customer by name or phone' : 'Search supplier by name or phone'}
+                        emptyText="Not on file"
+                      />
+                    </div>
+
+                    <div className="rt-field">
+                      <label htmlFor="edit-rt-ref">{editReturnType === 'Customer' ? 'Invoice No' : 'Purchase No'}</label>
+                      <SearchSelect
+                        id="edit-rt-ref"
+                        options={editDocOptions}
+                        value={editReferenceId}
+                        text={editReferenceId}
+                        freeText
+                        onText={setEditReferenceId}
+                        onSelect={(o) => {
+                          if (!o) return;
+                          setEditReferenceId(o.value);
+                          if (!editPartyName.trim() && o.party) setEditPartyName(o.party);
+                        }}
+                        placeholder="Optional"
+                        emptyText="No matching document"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ borderTop: '1px solid var(--rt-border-soft)', paddingTop: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem', marginBottom: '0.5rem' }}>
+                    <div className="rt-field">
+                      <label htmlFor="edit-rt-product">Product</label>
+                      <SearchSelect
+                        id="edit-rt-product"
+                        options={productOptions}
+                        value={editProductId}
+                        onSelect={(o) => {
+                          if (!o) return;
+                          setEditProductId(o.value);
+                          const prod = inventory.find(p => p.id === o.value);
+                          if (prod && (editRate === '' || Number(editRate) === 0)) {
+                            setEditRate(editReturnType === 'Customer' ? (prod.price || '') : (prod.cost_price ?? prod.purchasePrice ?? ''));
+                          }
+                        }}
+                        search={searchProductOptions}
+                        placeholder="Search product by name or code"
+                        emptyText="No product matches"
+                      />
+                      {editSelectedProduct && (
+                        <span className="rt-hint">
+                          Code: {editSelectedProduct.id} &middot; In stock: {editSelectedProduct.stock} {editSelectedProduct.unit || 'pcs'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="rt-field">
+                      <label htmlFor="edit-rt-qty">Quantity</label>
+                      <input
+                        id="edit-rt-qty"
+                        type="number"
+                        min="1"
+                        value={editQuantity}
+                        onChange={(e) => setEditQuantity(parseInt(e.target.value, 10) || '')}
+                        required
+                      />
+                    </div>
+
+                    <div className="rt-field">
+                      <label htmlFor="edit-rt-rate">Rate ({editSelectedProduct?.unit || 'unit'})</label>
+                      <input
+                        id="edit-rt-rate"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={editRate}
+                        onChange={(e) => setEditRate(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right', fontSize: '0.9rem', color: 'var(--rt-text)', marginTop: '0.5rem' }}>
+                    Total Amount: <strong style={{ color: 'var(--rt-accent)', fontSize: '1.05rem' }}>{money((Number(editQuantity) || 0) * (Number(editRate) || 0))}</strong>
+                  </div>
+                </div>
+
+                <div className="rt-field">
+                  <label htmlFor="edit-rt-reason">Reason</label>
+                  <textarea
+                    id="edit-rt-reason"
+                    rows="2"
+                    placeholder="Why are these goods being returned?"
+                    value={editReason}
+                    onChange={(e) => setEditReason(e.target.value)}
+                    required
+                  />
+                  <span className="rt-hint">Updating automatically recalculates inventory stock, party ledger dues, and invoice/purchase balances.</span>
+                </div>
+              </div>
+
+              <div className="rt-modal__foot">
+                <button type="button" className="rt-btn" onClick={() => setEditingReturn(null)} disabled={isUpdatingReturn}>
+                  Cancel
+                </button>
+                <button type="submit" className="rt-btn rt-btn--primary" disabled={isUpdatingReturn}>
+                  <RefreshCcw size={16} />
+                  {isUpdatingReturn ? 'Saving Changes...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+
     </div>
   );
 };
 
+
+      
 export default Returns;

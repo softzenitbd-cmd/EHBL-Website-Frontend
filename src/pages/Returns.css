@@ -315,13 +315,13 @@ body:not(.light-mode) .rt-modal-overlay {
   min-width: 0;
 }
 
-.returns-page .rt-field > label {
+:is(.returns-page, .rt-modal-overlay) .rt-field > label {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--rt-text);
 }
 
-.returns-page .rt-field :is(input, select, textarea) {
+:is(.returns-page, .rt-modal-overlay) .rt-field :is(input, select, textarea) {
   width: 100%;
   padding: 0.5rem 0.65rem;
   font-size: 0.875rem;
@@ -334,7 +334,7 @@ body:not(.light-mode) .rt-modal-overlay {
   box-shadow: none;
 }
 
-.returns-page .rt-field :is(input, select, textarea):focus {
+:is(.returns-page, .rt-modal-overlay) .rt-field :is(input, select, textarea):focus {
   outline: 2px solid var(--rt-accent);
   outline-offset: -1px;
   border-color: var(--rt-accent);
@@ -342,7 +342,7 @@ body:not(.light-mode) .rt-modal-overlay {
   background: var(--rt-bg);
 }
 
-.returns-page .rt-field textarea {
+:is(.returns-page, .rt-modal-overlay) .rt-field textarea {
   resize: vertical;
   min-height: 72px;
   line-height: 1.5;

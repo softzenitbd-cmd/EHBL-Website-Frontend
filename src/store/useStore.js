@@ -826,6 +826,48 @@ const useStore = create(
       paySupplierDue: (supplierId, amount) => get().settleSupplierDue(supplierId, amount),
 
       /**
+       * Edit an existing settlement / payment. Recalculates party dues and document allocations.
+       */
+      updateSettlement: async (id, patch) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.SETTLEMENT_DETAILS(id), patch);
+          await Promise.allSettled([
+            get().refreshSettlements(),
+            get().refreshCustomers(),
+            get().refreshSuppliers(),
+            get().refreshSales(),
+            get().refreshPurchases(),
+          ]);
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update payment.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      /**
+       * Delete an existing settlement / payment. Reverses allocations and party due.
+       */
+      deleteSettlement: async (id) => {
+        try {
+          await apiClient.delete(ENDPOINTS.SETTLEMENT_DETAILS(id));
+          await Promise.allSettled([
+            get().refreshSettlements(),
+            get().refreshCustomers(),
+            get().refreshSuppliers(),
+            get().refreshSales(),
+            get().refreshPurchases(),
+          ]);
+          return { success: true };
+        } catch (err) {
+          const message = extractError(err, 'Failed to delete payment.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      /**
        * Running-balance statement for one customer or supplier.
        * The server owns this because it sees every invoice, not just the ones
        * currently loaded into the store, and it starts from the opening balance.
@@ -1147,6 +1189,25 @@ const useStore = create(
           return { success: true };
         } catch (err) {
           const message = extractError(err, 'Failed to delete the purchase.');
+          set({ lastError: message });
+          return { success: false, error: message };
+        }
+      },
+
+      updateReturn: async (returnId, payload) => {
+        try {
+          const res = await apiClient.patch(ENDPOINTS.RETURN_DETAILS(returnId), payload);
+          await Promise.allSettled([
+            get().refreshReturns(),
+            get().refreshInventory(),
+            get().refreshCustomers(),
+            get().refreshSuppliers(),
+            get().refreshSales(),
+            get().refreshPurchases()
+          ]);
+          return { success: true, data: res };
+        } catch (err) {
+          const message = extractError(err, 'Failed to update the return.');
           set({ lastError: message });
           return { success: false, error: message };
         }
