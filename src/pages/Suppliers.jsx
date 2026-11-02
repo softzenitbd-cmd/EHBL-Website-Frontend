@@ -5,6 +5,7 @@ import { Search, Printer, Eye, Download, Plus, Phone, Edit, X, Wallet } from 'lu
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
+import Pagination from '../components/Pagination';
 import PrintFooter from '../components/PrintFooter';
 import PrintablePayment from '../components/PrintablePayment';
 import { printElement } from '../utils/printElement';
@@ -159,6 +160,18 @@ const Suppliers = () => {
       person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (person.phone && person.phone.includes(searchTerm))
   );
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredList.slice(start, start + pageSize);
+  }, [filteredList, currentPage, pageSize]);
   const handleAddSupplier = async (e) => {
     e.preventDefault();
     if (!newSupplier.name) {
@@ -259,13 +272,13 @@ const Suppliers = () => {
               {filteredList.length === 0 ? (
                 <tr><td colSpan="8" className="text-center text-muted">No suppliers found.</td></tr>
               ) : (
-                filteredList.map((person, index) => {
+                paginatedList.map((person, index) => {
                   const pt = getSupplierTransactions(person.id);
                   const pTotalPurchased = pt.filter(t => t.type === 'Purchase').reduce((sum, t) => sum + Number(t.amount || 0), 0);
                   const pTotalPaid = pt.filter(t => t.type === 'Payment').reduce((sum, t) => sum + Number(t.amount || 0), 0);
                   return (
                     <tr key={person.id}>
-                      <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{index + 1}</td>
+                      <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                       <td>{person.id}</td>
                       <td>{person.name}</td>
                       <td className="flex-align-gap"><Phone size={14} className="text-muted" /> {person.phone || 'N/A'}</td>
@@ -298,6 +311,18 @@ const Suppliers = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredList.length}
+          pageSize={pageSize}
+          pageSizeOptions={[30, 50, 100]}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+        />
       </div>
       <PrintFooter />
 

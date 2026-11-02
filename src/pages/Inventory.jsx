@@ -5,6 +5,7 @@ import Barcode from 'react-barcode';
 import { Plus, Search, Printer, Trash2, FolderPlus, Building2, Layers, X, RotateCcw, Calendar, Edit, Check } from 'lucide-react';
 import useStore from '../store/useStore';
 import PrintableInventory from '../components/PrintableInventory';
+import Pagination from '../components/Pagination';
 import { confirmDialog } from '../utils/swal';
 import { printElement } from '../utils/printElement';
 import { searchProducts } from '../utils/productSearch';
@@ -425,6 +426,18 @@ const Inventory = () => {
   const totalItems = sortedInventory.reduce((sum, item) => sum + Number(item.stock || 0), 0);
   const totalValue = sortedInventory.reduce((sum, item) => sum + (Number(item.stock || 0) * Number(item.price || 0)), 0);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCategory, filterCompany, filterStock, filterDate, sortBy]);
+
+  const paginatedInventory = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedInventory.slice(start, start + pageSize);
+  }, [sortedInventory, currentPage, pageSize]);
+
   const hasActiveFilters = searchTerm || filterCategory !== 'All' || filterCompany !== 'All' || filterStock !== 'All' || filterDate !== 'All Time' || sortBy !== 'newest';
 
   const formatProductDate = (dateVal) => {
@@ -722,9 +735,9 @@ const Inventory = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedInventory.map((item, index) => (
+              {paginatedInventory.map((item, index) => (
                 <tr key={item.id}>
-                  <td className="is-center inv-sl">{index + 1}</td>
+                  <td className="is-center inv-sl">{(currentPage - 1) * pageSize + index + 1}</td>
                   <td className="is-code">{item.id}</td>
                   <td className="is-strong">{item.name}</td>
                   <td>
@@ -803,6 +816,18 @@ const Inventory = () => {
             )}
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={sortedInventory.length}
+          pageSize={pageSize}
+          pageSizeOptions={[30, 50, 100]}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+        />
       </section>
 
       {/* Printable stock report (hidden on screen) */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, X, PieChart, DollarSign, Printer, Eye, Download } from 'lucide-react';
@@ -7,6 +7,7 @@ import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
+import Pagination from '../components/Pagination';
 
 // Shown even before the server list loads, and kept so an existing shop never
 // sees its usual heads disappear.
@@ -25,6 +26,14 @@ const Expenses = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showModal, setShowModal] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+
+  const paginatedExpenses = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return (expenses || []).slice(start, start + pageSize);
+  }, [expenses, currentPage, pageSize]);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -152,7 +161,7 @@ const Expenses = () => {
                 </tr>
               </thead>
               <tbody>
-                {expenses.slice(0, 50).map(exp => ( // show only recent 50
+                {paginatedExpenses.map(exp => (
                   <tr key={exp.id}>
                     <td>{exp.date}</td>
                     <td>{exp.category}</td>
@@ -173,6 +182,18 @@ const Expenses = () => {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={(expenses || []).length}
+            pageSize={pageSize}
+            pageSizeOptions={[30, 50, 100]}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
         </div>
       </div>
 

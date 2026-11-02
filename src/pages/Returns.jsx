@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { RefreshCcw, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Trash2, Users, X } from 'lucide-react';
+import { RefreshCcw, PackageMinus, PackagePlus, List, Plus, Printer, Eye, Trash2, Users, X, Search } from 'lucide-react';
 import useStore from '../store/useStore';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 import PrintableReturn from '../components/PrintableReturn';
+import Pagination from '../components/Pagination';
 import SearchSelect from '../components/SearchSelect';
 import { searchProducts } from '../utils/productSearch';
 import { confirmDialog } from '../utils/swal';
@@ -208,6 +209,7 @@ const Returns = () => {
   // History State
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [returnSearch, setReturnSearch] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const handleViewMemo = (record) => {
@@ -352,13 +354,57 @@ const Returns = () => {
     setEntryDate(new Date().toISOString().split('T')[0]);
   };
 
-  const filteredReturns = returns.filter(r => {
-    if (!startDate && !endDate) return true;
-    const rDate = r.date.split('T')[0];
-    if (startDate && rDate < startDate) return false;
-    if (endDate && rDate > endDate) return false;
-    return true;
-  });
+  const getProductName = (id) => {
+    const item = inventory.find(i => i.id === id);
+    return item ? item.name : 'Unknown Product';
+  };
+
+  const filteredReturns = useMemo(() => {
+    return returns.filter(r => {
+      if (startDate) {
+        const rDate = r.date.split('T')[0];
+        if (rDate < startDate) return false;
+      }
+      if (endDate) {
+        const rDate = r.date.split('T')[0];
+        if (rDate > endDate) return false;
+      }
+      if (returnSearch.trim()) {
+        const q = returnSearch.trim().toLowerCase();
+        const retCode = String(r.id || r.return_code || '').toLowerCase();
+        const refId = String(r.referenceId || r.reference_id || '').toLowerCase();
+        const party = String(r.partyName || r.party_name || '').toLowerCase();
+        const partyId = String(r.partyId || r.customer || r.supplier || '').toLowerCase();
+        const retType = String(r.returnType || r.return_type || '').toLowerCase();
+        const prodName = String(r.productName || getProductName(r.productId) || '').toLowerCase();
+        const prodCode = String(r.productId || '').toLowerCase();
+        const reasonStr = String(r.reason || '').toLowerCase();
+
+        let partyPhone = '';
+        if (r.returnType === 'Customer' && customers) {
+          const cust = customers.find(c => String(c.id) === partyId || c.customer_code === partyId || (c.name && c.name.toLowerCase() === party));
+          if (cust) partyPhone = String(cust.phone || '').toLowerCase();
+        } else if (r.returnType === 'Supplier' && suppliers) {
+          const sup = suppliers.find(s => String(s.id) === partyId || s.supplier_code === partyId || (s.name && s.name.toLowerCase() === party));
+          if (sup) partyPhone = String(sup.phone || sup.contact_number || '').toLowerCase();
+        }
+
+        const matches = (
+          retCode.includes(q) ||
+          refId.includes(q) ||
+          party.includes(q) ||
+          partyPhone.includes(q) ||
+          partyId.includes(q) ||
+          retType.includes(q) ||
+          prodName.includes(q) ||
+          prodCode.includes(q) ||
+          reasonStr.includes(q)
+        );
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [returns, startDate, endDate, returnSearch, customers, suppliers, inventory]);
 
   const partyGroups = useMemo(() => {
     const groups = new Map();
@@ -370,17 +416,30 @@ const Returns = () => {
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredReturns]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [startDate, endDate, returnSearch, groupByParty]);
+
+  const paginatedReturns = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredReturns.slice(start, start + pageSize);
+  }, [filteredReturns, currentPage, pageSize]);
+
+  const paginatedPartyGroups = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return partyGroups.slice(start, start + pageSize);
+  }, [partyGroups, currentPage, pageSize]);
+
   const totalQty = filteredReturns.reduce((n, r) => n + Number(r.quantity || 0), 0);
   const totalValue = filteredReturns.reduce((n, r) => n + lineAmount(r), 0);
-
-  const getProductName = (id) => {
-    const item = inventory.find(i => i.id === id);
-    return item ? item.name : 'Unknown Product';
-  };
 
   const clearFilters = () => {
     setStartDate('');
     setEndDate('');
+    setReturnSearch('');
   };
 
   return (
@@ -748,6 +807,40 @@ const Returns = () => {
           </div>
 
           <div className="rt-toolbar">
+            <div className="rt-filter" style={{ minWidth: '220px' }}>
+              <label htmlFor="rt-search">Search</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={14} style={{ position: 'absolute', left: '8px', color: 'var(--rt-muted)', pointerEvents: 'none' }} />
+                <input
+                  id="rt-search"
+                  type="text"
+                  placeholder="Return no, invoice, party, phone..."
+                  value={returnSearch}
+                  onChange={e => setReturnSearch(e.target.value)}
+                  style={{ paddingLeft: '28px', paddingRight: returnSearch ? '26px' : '8px', width: '100%' }}
+                />
+                {returnSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setReturnSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: '6px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--rt-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0
+                    }}
+                    title="Clear"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="rt-filter">
               <label htmlFor="rt-from">From</label>
               <input id="rt-from" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -756,7 +849,7 @@ const Returns = () => {
               <label htmlFor="rt-to">To</label>
               <input id="rt-to" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
-            {(startDate || endDate) && (
+            {(startDate || endDate || returnSearch) && (
               <button type="button" className="rt-btn rt-btn--link" onClick={clearFilters}>Clear</button>
             )}
 
@@ -795,7 +888,7 @@ const Returns = () => {
               </thead>
               <tbody>
                 {(() => { let sl = 0; return (groupByParty
-                  ? partyGroups.flatMap(([party, rows]) => [
+                  ? paginatedPartyGroups.flatMap(([party, rows]) => [
                       <tr key={`grp-${party}`} className="rt-group">
                         <td colSpan={11}>
                           <strong>{party}</strong>
@@ -808,7 +901,7 @@ const Returns = () => {
                       </tr>,
                       ...rows,
                     ])
-                  : filteredReturns
+                  : paginatedReturns
                 ).map(r => (
                   React.isValidElement(r) ? r : (
                   <tr key={r.id}>
@@ -844,7 +937,7 @@ const Returns = () => {
                 {filteredReturns.length === 0 && (
                   <tr>
                     <td colSpan="11" className="rt-empty">
-                      No returns recorded{(startDate || endDate) ? ' in this date range' : ''}.
+                      No returns recorded{(startDate || endDate || returnSearch) ? ' matching the search criteria' : ''}.
                     </td>
                   </tr>
                 )}
@@ -862,6 +955,18 @@ const Returns = () => {
               )}
             </table>
           </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={groupByParty ? partyGroups.length : filteredReturns.length}
+            pageSize={pageSize}
+            pageSizeOptions={[30, 50, 100]}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
 
           <div style={{ display: 'none' }}>
             <div id="printable-all-returns-details" style={{ padding: '2rem', background: '#fff', color: '#000' }}>

@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, List, Printer, FilePlus, Eye, X, Edit, Users } from 'lucide-react';
 import useStore from '../store/useStore';
 import InvoiceHeader from '../components/InvoiceHeader';
+import Pagination from '../components/Pagination';
 import PrintFooter from '../components/PrintFooter';
 import PrintablePurchase from '../components/PrintablePurchase';
 import { confirmDialog } from '../utils/swal';
@@ -265,6 +266,23 @@ const Purchase = () => {
     });
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredPurchases]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [startDate, endDate, groupByParty]);
+
+  const paginatedPurchases = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPurchases.slice(start, start + pageSize);
+  }, [filteredPurchases, currentPage, pageSize]);
+
+  const paginatedPartyGroups = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return partyGroups.slice(start, start + pageSize);
+  }, [partyGroups, currentPage, pageSize]);
 
   const currentTotal = items.reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.price || 0)), 0) +
     (items.length === 0 && tempProductId ? (Number(tempQty) * Number(tempPrice)) : 0);
@@ -725,7 +743,7 @@ const Purchase = () => {
               </thead>
               <tbody>
                 {(() => { let sl = 0; return (groupByParty
-                  ? partyGroups.flatMap(([party, rows]) => [
+                  ? paginatedPartyGroups.flatMap(([party, rows]) => [
                       <tr key={`grp-${party}`} className="pur-group">
                         <td colSpan={10}>
                           <strong>{party}</strong>
@@ -738,7 +756,7 @@ const Purchase = () => {
                       </tr>,
                       ...rows,
                     ])
-                  : filteredPurchases
+                  : paginatedPurchases
                 ).map((purchase) => {
                   if (React.isValidElement(purchase)) return purchase;
                   const totalCost = Number(purchase.total || 0);
@@ -813,6 +831,18 @@ const Purchase = () => {
               )}
             </table>
           </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={groupByParty ? partyGroups.length : filteredPurchases.length}
+            pageSize={pageSize}
+            pageSizeOptions={[30, 50, 100]}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
 
           {/* Printable detailed report of all purchases */}
           <div style={{ display: 'none' }}>

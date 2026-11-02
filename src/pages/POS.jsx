@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import { Search, Plus, Minus, Trash2, Gift, Database, List, Printer, Eye, Users, FileEdit, X, Lock, CreditCard, CheckCircle } from 'lucide-react';
 import InvoiceHeader from '../components/InvoiceHeader';
+import Pagination from '../components/Pagination';
 import PrintableInvoice from '../components/PrintableInvoice';
 import PrintFooter from '../components/PrintFooter';
 import { confirmDialog } from '../utils/swal';
@@ -282,6 +283,7 @@ const POS = () => {
   // History State
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [invoiceSearch, setInvoiceSearch] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   // Payment Modal State
@@ -295,13 +297,45 @@ const POS = () => {
   });
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const filteredSales = sales.filter(s => {
-    if (!startDate && !endDate) return true;
-    const sDate = s.date.split('T')[0];
-    if (startDate && sDate < startDate) return false;
-    if (endDate && sDate > endDate) return false;
-    return true;
-  });
+  const filteredSales = useMemo(() => {
+    return sales.filter(s => {
+      if (startDate) {
+        const sDate = s.date.split('T')[0];
+        if (sDate < startDate) return false;
+      }
+      if (endDate) {
+        const sDate = s.date.split('T')[0];
+        if (sDate > endDate) return false;
+      }
+      if (invoiceSearch.trim()) {
+        const q = invoiceSearch.trim().toLowerCase();
+        const invId = String(s.id || s.invoice_number || '').toLowerCase();
+        const custName = String(s.customerName || s.customerInfo?.name || '').toLowerCase();
+        const custPhone = String(s.customer_phone || s.customerPhone || s.customerInfo?.phone || '').toLowerCase();
+        const custId = String(s.customerId || '').toLowerCase();
+        const salesman = String(s.salesmanName || '').toLowerCase();
+
+        let matchedPhone = '';
+        if (s.customerId && customers) {
+          const matchedCust = customers.find(c => String(c.id) === String(s.customerId) || c.customer_code === s.customerId);
+          if (matchedCust) {
+            matchedPhone = String(matchedCust.phone || '').toLowerCase();
+          }
+        }
+
+        const matches = (
+          invId.includes(q) ||
+          custName.includes(q) ||
+          custPhone.includes(q) ||
+          matchedPhone.includes(q) ||
+          custId.includes(q) ||
+          salesman.includes(q)
+        );
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [sales, startDate, endDate, invoiceSearch, customers]);
 
   const partyGroups = useMemo(() => {
     const groups = new Map();
@@ -312,6 +346,23 @@ const POS = () => {
     });
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredSales]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [startDate, endDate, groupByParty, invoiceSearch]);
+
+  const paginatedSales = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSales.slice(start, start + pageSize);
+  }, [filteredSales, currentPage, pageSize]);
+
+  const paginatedPartyGroups = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return partyGroups.slice(start, start + pageSize);
+  }, [partyGroups, currentPage, pageSize]);
 
   // Automatically focus barcode input on mount
   useEffect(() => {
@@ -1323,6 +1374,40 @@ const POS = () => {
         <div className="pos-history__head">
           <h2>Invoice List</h2>
           <div className="pos-history__tools">
+            <div className="pos-filter" style={{ minWidth: '220px' }}>
+              <label htmlFor="pos-search">Search</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={14} style={{ position: 'absolute', left: '8px', color: 'var(--pos-muted)', pointerEvents: 'none' }} />
+                <input
+                  id="pos-search"
+                  type="text"
+                  placeholder="Invoice no, customer, phone..."
+                  value={invoiceSearch}
+                  onChange={(e) => setInvoiceSearch(e.target.value)}
+                  style={{ paddingLeft: '28px', paddingRight: invoiceSearch ? '26px' : '8px', width: '100%' }}
+                />
+                {invoiceSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setInvoiceSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: '6px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--pos-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0
+                    }}
+                    title="Clear"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="pos-filter">
               <label htmlFor="pos-from">From</label>
               <input id="pos-from" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -1331,6 +1416,20 @@ const POS = () => {
               <label htmlFor="pos-to">To</label>
               <input id="pos-to" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
+            {(startDate || endDate || invoiceSearch) && (
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                  setInvoiceSearch('');
+                }}
+              >
+                Clear
+              </button>
+            )}
             <button
               type="button"
               className={groupByParty ? 'btn-primary flex-align-gap' : 'btn-outline flex-align-gap'}
@@ -1363,7 +1462,7 @@ const POS = () => {
             </thead>
             <tbody>
               {(groupByParty
-                ? partyGroups.flatMap(([party, rows]) => [
+                ? paginatedPartyGroups.flatMap(([party, rows]) => [
                     <tr key={`grp-${party}`} style={{ background: 'var(--bg-muted, rgba(127,127,127,0.10))' }}>
                       <td colSpan={7} style={{ fontWeight: 700, padding: '0.5rem 0.75rem' }}>
                         {party}
@@ -1375,7 +1474,7 @@ const POS = () => {
                     </tr>,
                     ...rows,
                   ])
-                : filteredSales
+                : paginatedSales
               ).map(s => (
                 React.isValidElement(s) ? s : (() => {
                   const invTotal = Number(s.total || 0);
@@ -1459,10 +1558,22 @@ const POS = () => {
                   );
                 })()
               ))}
-              {filteredSales.length === 0 && <tr><td colSpan="7" className="text-center text-muted">No invoices found for this date range.</td></tr>}
+              {filteredSales.length === 0 && <tr><td colSpan="7" className="text-center text-muted">No invoices found{(startDate || endDate || invoiceSearch) ? ' matching the search criteria' : ''}.</td></tr>}
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={groupByParty ? partyGroups.length : filteredSales.length}
+          pageSize={pageSize}
+          pageSizeOptions={[30, 50, 100]}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+        />
 
         <div style={{ display: 'none' }}>
           <div id="printable-all-sales-details" style={{ background: '#fff', color: '#000' }}>

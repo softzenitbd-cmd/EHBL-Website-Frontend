@@ -5,6 +5,7 @@ import { Search, MessageSquare, Phone, Printer, Eye, Download, Plus, Edit, X } f
 import useStore from '../store/useStore';
 import { downloadAsPDF } from '../utils/pdfGenerator';
 import InvoiceHeader from '../components/InvoiceHeader';
+import Pagination from '../components/Pagination';
 import PrintFooter from '../components/PrintFooter';
 import { confirmDialog } from '../utils/swal';
 
@@ -71,6 +72,18 @@ const Customers = () => {
       person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       person.phone.includes(searchTerm)
   );
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab]);
+
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredList.slice(start, start + pageSize);
+  }, [filteredList, currentPage, pageSize]);
   const handleSendSMS = (e) => {
     e.preventDefault();
     showToast(`SMS sent to ${smsModal.target.name}!`, 'success');
@@ -247,7 +260,7 @@ const Customers = () => {
               {filteredList.length === 0 ? (
                 <tr><td colSpan="7" className="text-center text-muted">No records found.</td></tr>
               ) : (
-                filteredList.map((person) => (
+                paginatedList.map((person) => (
                   <tr key={person.id}>
                     <td><span className="search-badge">{person.customer_code || person.id}</span></td>
                     <td><strong>{person.name}</strong></td>
@@ -280,6 +293,18 @@ const Customers = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredList.length}
+          pageSize={pageSize}
+          pageSizeOptions={[30, 50, 100]}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* Hidden Printable List (Excel Style) */}
