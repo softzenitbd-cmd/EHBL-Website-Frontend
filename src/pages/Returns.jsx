@@ -31,7 +31,7 @@ const money = (value) => Number(value || 0).toLocaleString('en-US', {
 const lineAmount = (r) => Number(r.rate || 0) * Number(r.quantity || 0);
 
 const Returns = () => {
-  const { inventory, processReturn, returns, showToast, deleteReturn, user, customers, suppliers, sales = [], purchases = [] } = useStore();
+  const { inventory, processReturn, returns, returnsTotalCount, fetchReturnsPage, showToast, deleteReturn, user, customers, suppliers, sales = [], purchases = [] } = useStore();
   const [activeTab, setActiveTab] = useState('New'); // 'New' or 'History'
   // The number of the document just saved. A toast fades, but the shop needs
   // to copy this onto the paper slip, so it stays on screen until the next one.
@@ -211,6 +211,31 @@ const Returns = () => {
   const [endDate, setEndDate] = useState('');
   const [returnSearch, setReturnSearch] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'History') return;
+    let isCancelled = false;
+    const loadData = async () => {
+      setIsLoadingHistory(true);
+      await fetchReturnsPage({
+        page: currentPage,
+        pageSize,
+        search: returnSearch.trim(),
+        startDate,
+        endDate,
+      });
+      if (!isCancelled) setIsLoadingHistory(false);
+    };
+
+    const timer = setTimeout(loadData, returnSearch ? 350 : 0);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [activeTab, currentPage, pageSize, startDate, endDate, returnSearch]);
 
   const handleViewMemo = (record) => {
     const related = record.referenceId
@@ -359,52 +384,8 @@ const Returns = () => {
     return item ? item.name : 'Unknown Product';
   };
 
-  const filteredReturns = useMemo(() => {
-    return returns.filter(r => {
-      if (startDate) {
-        const rDate = r.date.split('T')[0];
-        if (rDate < startDate) return false;
-      }
-      if (endDate) {
-        const rDate = r.date.split('T')[0];
-        if (rDate > endDate) return false;
-      }
-      if (returnSearch.trim()) {
-        const q = returnSearch.trim().toLowerCase();
-        const retCode = String(r.id || r.return_code || '').toLowerCase();
-        const refId = String(r.referenceId || r.reference_id || '').toLowerCase();
-        const party = String(r.partyName || r.party_name || '').toLowerCase();
-        const partyId = String(r.partyId || r.customer || r.supplier || '').toLowerCase();
-        const retType = String(r.returnType || r.return_type || '').toLowerCase();
-        const prodName = String(r.productName || getProductName(r.productId) || '').toLowerCase();
-        const prodCode = String(r.productId || '').toLowerCase();
-        const reasonStr = String(r.reason || '').toLowerCase();
-
-        let partyPhone = '';
-        if (r.returnType === 'Customer' && customers) {
-          const cust = customers.find(c => String(c.id) === partyId || c.customer_code === partyId || (c.name && c.name.toLowerCase() === party));
-          if (cust) partyPhone = String(cust.phone || '').toLowerCase();
-        } else if (r.returnType === 'Supplier' && suppliers) {
-          const sup = suppliers.find(s => String(s.id) === partyId || s.supplier_code === partyId || (s.name && s.name.toLowerCase() === party));
-          if (sup) partyPhone = String(sup.phone || sup.contact_number || '').toLowerCase();
-        }
-
-        const matches = (
-          retCode.includes(q) ||
-          refId.includes(q) ||
-          party.includes(q) ||
-          partyPhone.includes(q) ||
-          partyId.includes(q) ||
-          retType.includes(q) ||
-          prodName.includes(q) ||
-          prodCode.includes(q) ||
-          reasonStr.includes(q)
-        );
-        if (!matches) return false;
-      }
-      return true;
-    });
-  }, [returns, startDate, endDate, returnSearch, customers, suppliers, inventory]);
+  // Server provides the exact page of records matching any active search or date filters
+  const filteredReturns = returns || [];
 
   const partyGroups = useMemo(() => {
     const groups = new Map();
@@ -416,22 +397,8 @@ const Returns = () => {
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredReturns]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [startDate, endDate, returnSearch, groupByParty]);
-
-  const paginatedReturns = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredReturns.slice(start, start + pageSize);
-  }, [filteredReturns, currentPage, pageSize]);
-
-  const paginatedPartyGroups = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return partyGroups.slice(start, start + pageSize);
-  }, [partyGroups, currentPage, pageSize]);
+  const paginatedReturns = filteredReturns;
+  const paginatedPartyGroups = partyGroups;
 
   const totalQty = filteredReturns.reduce((n, r) => n + Number(r.quantity || 0), 0);
   const totalValue = filteredReturns.reduce((n, r) => n + lineAmount(r), 0);
@@ -440,6 +407,7 @@ const Returns = () => {
     setStartDate('');
     setEndDate('');
     setReturnSearch('');
+    setCurrentPage(1);
   };
 
   return (
@@ -467,7 +435,7 @@ const Returns = () => {
           onClick={() => setActiveTab('History')}
         >
           <List size={15} /> History
-          <span className="rt-tab__count">{returns.length}</span>
+          <span className="rt-tab__count">{returnsTotalCount || returns.length}</span>
         </button>
       </nav>
 
@@ -816,7 +784,10 @@ const Returns = () => {
                   type="text"
                   placeholder="Return no, invoice, party, phone..."
                   value={returnSearch}
-                  onChange={e => setReturnSearch(e.target.value)}
+                  onChange={e => {
+                    setReturnSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   style={{ paddingLeft: '28px', paddingRight: returnSearch ? '26px' : '8px', width: '100%' }}
                 />
                 {returnSearch && (
@@ -843,11 +814,11 @@ const Returns = () => {
             </div>
             <div className="rt-filter">
               <label htmlFor="rt-from">From</label>
-              <input id="rt-from" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              <input id="rt-from" type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }} />
             </div>
             <div className="rt-filter">
               <label htmlFor="rt-to">To</label>
-              <input id="rt-to" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <input id="rt-to" type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }} />
             </div>
             {(startDate || endDate || returnSearch) && (
               <button type="button" className="rt-btn rt-btn--link" onClick={clearFilters}>Clear</button>
@@ -958,7 +929,7 @@ const Returns = () => {
 
           <Pagination
             currentPage={currentPage}
-            totalItems={groupByParty ? partyGroups.length : filteredReturns.length}
+            totalItems={returnsTotalCount || filteredReturns.length}
             pageSize={pageSize}
             pageSizeOptions={[30, 50, 100]}
             onPageChange={setCurrentPage}

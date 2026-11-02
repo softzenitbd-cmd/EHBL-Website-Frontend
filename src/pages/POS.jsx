@@ -31,6 +31,8 @@ const POS = () => {
     lockSale,
     paySaleInvoice,
     sales,
+    salesTotalCount,
+    fetchSalesPage,
     showToast,
     deleteSale
   } = useStore();
@@ -285,6 +287,32 @@ const POS = () => {
   const [endDate, setEndDate] = useState('');
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // Fetch paginated sales from server whenever page, pageSize, search or date filters change
+  useEffect(() => {
+    if (activeTab !== 'History') return;
+    let isCancelled = false;
+    const loadData = async () => {
+      setIsLoadingHistory(true);
+      await fetchSalesPage({
+        page: currentPage,
+        pageSize,
+        search: invoiceSearch.trim(),
+        startDate,
+        endDate,
+      });
+      if (!isCancelled) setIsLoadingHistory(false);
+    };
+
+    const timer = setTimeout(loadData, invoiceSearch ? 350 : 0);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [activeTab, currentPage, pageSize, startDate, endDate, invoiceSearch]);
 
   // Payment Modal State
   const [paymentModal, setPaymentModal] = useState({
@@ -297,45 +325,8 @@ const POS = () => {
   });
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const filteredSales = useMemo(() => {
-    return sales.filter(s => {
-      if (startDate) {
-        const sDate = s.date.split('T')[0];
-        if (sDate < startDate) return false;
-      }
-      if (endDate) {
-        const sDate = s.date.split('T')[0];
-        if (sDate > endDate) return false;
-      }
-      if (invoiceSearch.trim()) {
-        const q = invoiceSearch.trim().toLowerCase();
-        const invId = String(s.id || s.invoice_number || '').toLowerCase();
-        const custName = String(s.customerName || s.customerInfo?.name || '').toLowerCase();
-        const custPhone = String(s.customer_phone || s.customerPhone || s.customerInfo?.phone || '').toLowerCase();
-        const custId = String(s.customerId || '').toLowerCase();
-        const salesman = String(s.salesmanName || '').toLowerCase();
-
-        let matchedPhone = '';
-        if (s.customerId && customers) {
-          const matchedCust = customers.find(c => String(c.id) === String(s.customerId) || c.customer_code === s.customerId);
-          if (matchedCust) {
-            matchedPhone = String(matchedCust.phone || '').toLowerCase();
-          }
-        }
-
-        const matches = (
-          invId.includes(q) ||
-          custName.includes(q) ||
-          custPhone.includes(q) ||
-          matchedPhone.includes(q) ||
-          custId.includes(q) ||
-          salesman.includes(q)
-        );
-        if (!matches) return false;
-      }
-      return true;
-    });
-  }, [sales, startDate, endDate, invoiceSearch, customers]);
+  // Server already provides the filtered & paginated page of records
+  const filteredSales = sales || [];
 
   const partyGroups = useMemo(() => {
     const groups = new Map();
@@ -347,22 +338,8 @@ const POS = () => {
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredSales]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [startDate, endDate, groupByParty, invoiceSearch]);
-
-  const paginatedSales = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredSales.slice(start, start + pageSize);
-  }, [filteredSales, currentPage, pageSize]);
-
-  const paginatedPartyGroups = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return partyGroups.slice(start, start + pageSize);
-  }, [partyGroups, currentPage, pageSize]);
+  const paginatedSales = filteredSales;
+  const paginatedPartyGroups = partyGroups;
 
   // Automatically focus barcode input on mount
   useEffect(() => {
@@ -927,7 +904,7 @@ const POS = () => {
           onClick={() => setActiveTab('History')}
         >
           <List size={15} /> Invoice List
-          <span className="pos-tab__count">{sales.length}</span>
+          <span className="pos-tab__count">{salesTotalCount || sales.length}</span>
         </button>
       </nav>
 
@@ -1383,7 +1360,10 @@ const POS = () => {
                   type="text"
                   placeholder="Invoice no, customer, phone..."
                   value={invoiceSearch}
-                  onChange={(e) => setInvoiceSearch(e.target.value)}
+                  onChange={(e) => {
+                    setInvoiceSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   style={{ paddingLeft: '28px', paddingRight: invoiceSearch ? '26px' : '8px', width: '100%' }}
                 />
                 {invoiceSearch && (
@@ -1410,11 +1390,11 @@ const POS = () => {
             </div>
             <div className="pos-filter">
               <label htmlFor="pos-from">From</label>
-              <input id="pos-from" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <input id="pos-from" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} />
             </div>
             <div className="pos-filter">
               <label htmlFor="pos-to">To</label>
-              <input id="pos-to" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <input id="pos-to" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} />
             </div>
             {(startDate || endDate || invoiceSearch) && (
               <button
@@ -1425,6 +1405,7 @@ const POS = () => {
                   setStartDate('');
                   setEndDate('');
                   setInvoiceSearch('');
+                  setCurrentPage(1);
                 }}
               >
                 Clear
@@ -1565,7 +1546,7 @@ const POS = () => {
 
         <Pagination
           currentPage={currentPage}
-          totalItems={groupByParty ? partyGroups.length : filteredSales.length}
+          totalItems={salesTotalCount || filteredSales.length}
           pageSize={pageSize}
           pageSizeOptions={[30, 50, 100]}
           onPageChange={setCurrentPage}

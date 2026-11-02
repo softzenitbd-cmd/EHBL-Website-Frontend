@@ -299,9 +299,11 @@ const useStore = create(
       customers: [],
       suppliers: [],
       sales: [],
+      salesTotalCount: 0,
       drafts: [],
       purchases: [],
       returns: [],
+      returnsTotalCount: 0,
       settlements: [],
       srSettlements: [],
       expenses: [],
@@ -348,8 +350,15 @@ const useStore = create(
 
           const updates = {};
           results.forEach((result, i) => {
+            const key = keys[i];
             const value = asArray(result);
-            if (value) updates[keys[i]] = value;
+            if (value) updates[key] = value;
+            if (key === 'sales' && result?.value?.count !== undefined) {
+              updates['salesTotalCount'] = result.value.count;
+            }
+            if (key === 'returns' && result?.value?.count !== undefined) {
+              updates['returnsTotalCount'] = result.value.count;
+            }
           });
 
           const failed = results.filter((r) => r.status === 'rejected').length;
@@ -385,12 +394,54 @@ const useStore = create(
           return null;
         }
       },
-      refreshSales: async () => get().refreshCollection('sales', ENDPOINTS.SALES),
+      fetchSalesPage: async ({ page = 1, pageSize = 30, search = '', startDate = '', endDate = '' } = {}) => {
+        try {
+          const params = { page, page_size: pageSize };
+          if (search) params.search = search;
+          if (startDate) params.start_date = startDate;
+          if (endDate) params.end_date = endDate;
+
+          const res = await apiClient.get(ENDPOINTS.SALES, { params });
+          if (res && res.results) {
+            set({ sales: res.results, salesTotalCount: res.count });
+            return res;
+          } else if (Array.isArray(res)) {
+            set({ sales: res, salesTotalCount: res.length });
+            return { count: res.length, results: res };
+          }
+          return null;
+        } catch (err) {
+          console.error('Failed to fetch sales page:', err);
+          return null;
+        }
+      },
+      fetchReturnsPage: async ({ page = 1, pageSize = 30, search = '', startDate = '', endDate = '' } = {}) => {
+        try {
+          const params = { page, page_size: pageSize };
+          if (search) params.search = search;
+          if (startDate) params.start_date = startDate;
+          if (endDate) params.end_date = endDate;
+
+          const res = await apiClient.get(ENDPOINTS.RETURNS, { params });
+          if (res && res.results) {
+            set({ returns: res.results, returnsTotalCount: res.count });
+            return res;
+          } else if (Array.isArray(res)) {
+            set({ returns: res, returnsTotalCount: res.length });
+            return { count: res.length, results: res };
+          }
+          return null;
+        } catch (err) {
+          console.error('Failed to fetch returns page:', err);
+          return null;
+        }
+      },
+      refreshSales: async () => get().fetchSalesPage({ page: 1, pageSize: 30 }),
       refreshPurchases: async () => get().refreshCollection('purchases', ENDPOINTS.PURCHASES),
       refreshInventory: async () => get().refreshCollection('inventory', ENDPOINTS.PRODUCTS),
       refreshCustomers: async () => get().refreshCollection('customers', ENDPOINTS.CUSTOMERS),
       refreshSuppliers: async () => get().refreshCollection('suppliers', ENDPOINTS.SUPPLIERS),
-      refreshReturns: async () => get().refreshCollection('returns', ENDPOINTS.RETURNS),
+      refreshReturns: async () => get().fetchReturnsPage({ page: 1, pageSize: 30 }),
       refreshSettlements: async () => get().refreshCollection('settlements', ENDPOINTS.SETTLEMENTS),
       refreshExpenses: async () => {
         await Promise.allSettled([
