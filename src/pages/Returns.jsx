@@ -28,7 +28,7 @@ const money = (value) => Number(value || 0).toLocaleString('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
-const lineAmount = (r) => Number(r.rate || 0) * Number(r.quantity || 0);
+const lineAmount = (r) => (r.amount !== undefined && r.amount !== null ? Number(r.amount) : Number(r.rate || 0) * Number(r.quantity || 0));
 
 const Returns = () => {
   const { inventory, processReturn, updateReturn, returns, returnsTotalCount, fetchReturnsPage, showToast, deleteReturn, user, customers, suppliers, sales = [], purchases = [] } = useStore();
@@ -481,9 +481,14 @@ const Returns = () => {
     setEntryDate(new Date().toISOString().split('T')[0]);
   };
 
-  const getProductName = (id) => {
+  const getProductName = (id, r) => {
+    if (r?.productName) return r.productName;
+    if (r?.items && r.items.length > 1) {
+      const first = r.items[0]?.productName || inventory.find(i => i.id === r.items[0]?.productId)?.name || 'Product';
+      return `${first} (+${r.items.length - 1} more)`;
+    }
     const item = inventory.find(i => i.id === id);
-    return item ? item.name : 'Unknown Product';
+    return item ? item.name : (r?.productName || 'Unknown Product');
   };
 
   // Server provides the exact page of records matching any active search or date filters
@@ -987,9 +992,9 @@ const Returns = () => {
                         {returnLabel(r.returnType)}
                       </span>
                     </td>
-                    <td>{getProductName(r.productId)}</td>
+                    <td>{getProductName(r.productId, r)}</td>
                     <td className="is-num">{r.quantity}</td>
-                    <td className="is-num">{money(r.rate)}</td>
+                    <td className="is-num">{r.items && r.items.length > 1 ? '-' : money(r.rate)}</td>
                     <td className="is-num is-strong">{money(lineAmount(r))}</td>
                     <td className="rt-reason" title={r.reason}><span>{r.reason}</span></td>
                     <td className="is-center">

@@ -1090,30 +1090,21 @@ const useStore = create(
       processReturn: async ({ returnType, productId, quantity, rate, reason, referenceId, partyName, date, items }) => {
         try {
           if (Array.isArray(items) && items.length > 0) {
-            let totalCredited = 0;
-            const codes = [];
-            let lastData = null;
+            const payload = {
+              returnType,
+              partyName: partyName || '',
+              referenceId: referenceId || '',
+              reason,
+              date: date || undefined,
+              items: items.map((item) => ({
+                productId: item.productId,
+                quantity: parseInt(item.quantity, 10) || 1,
+                rate: item.rate === '' || item.rate === undefined || item.rate === null ? '' : Number(item.rate),
+                reason: item.reason || reason,
+              })),
+            };
 
-            const itemResults = await Promise.all(
-              items.map((item) =>
-                apiClient.post(ENDPOINTS.RETURNS, {
-                  returnType,
-                  productId: item.productId,
-                  quantity: parseInt(item.quantity, 10) || 1,
-                  rate: item.rate === '' || item.rate === undefined || item.rate === null ? '' : Number(item.rate),
-                  reason: item.reason || reason,
-                  partyName: partyName || '',
-                  referenceId: referenceId || '',
-                  date: date || undefined,
-                })
-              )
-            );
-            itemResults.forEach((res) => {
-              lastData = res;
-              totalCredited += Number(res?.credit_amount || 0);
-              const code = res?.return_code || res?.id;
-              if (code) codes.push(code);
-            });
+            const res = await apiClient.post(ENDPOINTS.RETURNS, payload);
 
             await Promise.allSettled([
               get().refreshReturns(),
@@ -1123,16 +1114,10 @@ const useStore = create(
               get().refreshCustomers(),
               get().refreshSuppliers(),
             ]);
+
             return {
               success: true,
-              data: {
-                ...lastData,
-                return_code: codes.join(', '),
-                credit_amount: totalCredited,
-                count: items.length,
-                codes,
-                partyName: partyName || '',
-              },
+              data: res,
             };
           }
 
