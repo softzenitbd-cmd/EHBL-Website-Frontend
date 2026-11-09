@@ -325,7 +325,7 @@ const useStore = create(
             apiClient.get(ENDPOINTS.UNITS),
             apiClient.get(ENDPOINTS.CUSTOMERS),
             apiClient.get(ENDPOINTS.SUPPLIERS),
-            apiClient.get(ENDPOINTS.SALES),
+            apiClient.get(`${ENDPOINTS.SALES}?all=true`),
             apiClient.get(ENDPOINTS.DRAFTS),
             apiClient.get(ENDPOINTS.PURCHASES),
             apiClient.get(ENDPOINTS.RETURNS),

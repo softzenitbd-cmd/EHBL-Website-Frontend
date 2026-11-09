@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { BarChart, PieChart, TrendingUp, DollarSign, Users, Package, Calendar, Printer, Database, ShoppingCart, Eye, Plus, X, Gift, PackageSearch } from 'lucide-react';
+import { BarChart, PieChart, TrendingUp, DollarSign, Users, Package, Calendar, Printer, Database, ShoppingCart, Eye, Plus, X, Gift, PackageSearch, Search, RotateCcw } from 'lucide-react';
 import useStore from '../store/useStore';
+import { ENDPOINTS } from '../api/endpoints';
 import InvoiceHeader from '../components/InvoiceHeader';
 import PrintFooter from '../components/PrintFooter';
 import { printElement } from '../utils/printElement';
@@ -20,12 +21,20 @@ const Reports = () => {
   const [endDate, setEndDate] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [invoiceType, setInvoiceType] = useState(''); // 'Sale' or 'Purchase'
+  const [salesSearchTerm, setSalesSearchTerm] = useState('');
   const [ppSearchTerm, setPpSearchTerm] = useState('');
   const [ppFilterCategory, setPpFilterCategory] = useState('All');
   const [ppFilterCompany, setPpFilterCompany] = useState('All');
   const [ppSortBy, setPpSortBy] = useState('profit_desc');
   const [selectedProductReport, setSelectedProductReport] = useState(null);
-  const { sales = [], inventory = [], purchases = [], expenses = [], customers = [], suppliers = [], staff = [], payrolls = [], returns = [], attendance = [], leaves = [], fetchAllData, loadDummyData } = useStore();
+  const { sales = [], inventory = [], purchases = [], expenses = [], customers = [], suppliers = [], staff = [], payrolls = [], returns = [], attendance = [], leaves = [], fetchAllData, loadDummyData, refreshCollection } = useStore();
+
+  // Load complete sales list for accurate reporting across any date range
+  useEffect(() => {
+    if (refreshCollection) {
+      refreshCollection('sales', `${ENDPOINTS.SALES}?all=true`);
+    }
+  }, [refreshCollection]);
 
   // Initial data loaded globally by Layout.jsx
 
@@ -45,25 +54,35 @@ const Reports = () => {
     };
   }, [selectedProductReport]);
 
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  const currentMonthStr = today.toISOString().substring(0, 7);
-  
-  const lastWeek = new Date(today);
-  lastWeek.setDate(today.getDate() - 7);
+  const toLocalDateString = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const now = new Date();
+  const todayStr = toLocalDateString(now);
+  const currentMonthStr = todayStr.substring(0, 7);
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 6);
+  const sevenDaysAgoStr = toLocalDateString(sevenDaysAgo);
+
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const firstDayOfMonthStr = toLocalDateString(firstDayOfMonth);
 
   // Helper to check if a date string falls within the selected filter
   const isWithinFilter = (dateStr) => {
     if (!dateStr) return false;
-    const itemDateStr = dateStr.split('T')[0];
+    const itemDateStr = String(dateStr).split('T')[0];
     
     if (dateFilter === 'Daily') {
       return itemDateStr === todayStr;
     } else if (dateFilter === 'Weekly') {
-      const itemDate = new Date(itemDateStr);
-      return itemDate >= lastWeek && itemDate <= today;
+      return itemDateStr >= sevenDaysAgoStr && itemDateStr <= todayStr;
     } else if (dateFilter === 'Monthly') {
-      return itemDateStr.startsWith(currentMonthStr);
+      return itemDateStr >= firstDayOfMonthStr && itemDateStr <= todayStr;
     } else if (dateFilter === 'Custom') {
       if (!startDate && !endDate) return true;
       if (startDate && itemDateStr < startDate) return false;
@@ -73,10 +92,97 @@ const Reports = () => {
     return true;
   };
 
-  // 1. Sales Report Data
-  const filteredSales = sales.filter(s => isWithinFilter(s.date));
-  const totalSalesAmount = filteredSales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-  const totalInvoices = filteredSales.length;
+  // Build product cost lookup map
+  const costMap = useMemo(() => {
+    const byCode = new Map();
+    const byNameVariant = new Map();
+    (inventory || []).forEach((p) => {
+      const cost = Number(p.purchasePrice ?? p.cost_price ?? p.costPrice ?? 0);
+      if (p.id) byCode.set(String(p.id).trim(), cost);
+      if (p.product_code) byCode.set(String(p.product_code).trim(), cost);
+      const name = String(p.name || '').toLowerCase().trim();
+      const variant = String(p.variant || '').toLowerCase().trim();
+      if (name) {
+        byNameVariant.set(`${name}__${variant}`, cost);
+        if (!byNameVariant.has(name)) byNameVariant.set(name, cost);
+      }
+    });
+    return { byCode, byNameVariant };
+  }, [inventory]);
+
+  const getItemCost = (it) => {
+    const code = String(it.currentCode || it.id || it.product_code || '').trim();
+    if (code && costMap.byCode.has(code)) {
+      return costMap.byCode.get(code);
+    }
+    const name = String(it.name || '').toLowerCase().trim();
+    const variant = String(it.variant || '').toLowerCase().trim();
+    const key = `${name}__${variant}`;
+    if (costMap.byNameVariant.has(key)) {
+      return costMap.byNameVariant.get(key);
+    }
+    if (name && costMap.byNameVariant.has(name)) {
+      return costMap.byNameVariant.get(name);
+    }
+    return 0;
+  };
+
+  // 1. Sales Report Data with cost and profit calculation
+  const filteredSales = useMemo(() => {
+    return sales.filter((s) => isWithinFilter(s.date));
+  }, [sales, dateFilter, startDate, endDate, todayStr, sevenDaysAgoStr, firstDayOfMonthStr]);
+
+  const salesWithMetrics = useMemo(() => {
+    return filteredSales
+      .filter((s) => s && s.status !== 'Cancelled')
+      .map((s) => {
+        const items = s.items || [];
+        const totalQty = items.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+        const saleTotal = Number(s.total || 0);
+        const saleCost = items.reduce((sum, it) => {
+          const unitCost = getItemCost(it);
+          const qty = Number(it.quantity || 0);
+          return sum + (unitCost * qty);
+        }, 0);
+        const saleProfit = saleTotal - saleCost;
+        const profitMargin = saleTotal > 0 ? (saleProfit / saleTotal) * 100 : 0;
+        return {
+          ...s,
+          totalQty,
+          itemCount: items.length,
+          saleTotal,
+          saleCost,
+          saleProfit,
+          profitMargin,
+        };
+      });
+  }, [filteredSales, costMap]);
+
+  const displaySales = useMemo(() => {
+    if (!salesSearchTerm.trim()) return salesWithMetrics;
+    const term = salesSearchTerm.toLowerCase().trim();
+    return salesWithMetrics.filter((s) => {
+      const invNum = String(s.id || s.invoice_number || '').toLowerCase();
+      const cust = String(s.customerName || s.customer_name || '').toLowerCase();
+      const phone = String(s.customer_phone || s.customerInfo?.phone || '').toLowerCase();
+      return invNum.includes(term) || cust.includes(term) || phone.includes(term);
+    });
+  }, [salesWithMetrics, salesSearchTerm]);
+
+  const totalSalesAmount = useMemo(() => {
+    return displaySales.reduce((acc, s) => acc + s.saleTotal, 0);
+  }, [displaySales]);
+
+  const totalCostAmount = useMemo(() => {
+    return displaySales.reduce((acc, s) => acc + s.saleCost, 0);
+  }, [displaySales]);
+
+  const totalProfitAmount = totalSalesAmount - totalCostAmount;
+  const overallMargin = totalSalesAmount > 0 ? (totalProfitAmount / totalSalesAmount) * 100 : 0;
+  const totalItemsSold = useMemo(() => {
+    return displaySales.reduce((acc, s) => acc + s.totalQty, 0);
+  }, [displaySales]);
+  const totalInvoices = displaySales.length;
 
   // 1.5 Purchase Report Data
   const filteredPurchases = purchases.filter(p => isWithinFilter(p.date));
@@ -454,9 +560,9 @@ const Reports = () => {
             <label htmlFor="rp-timeframe">Timeframe</label>
             <select id="rp-timeframe" value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
               <option value="Daily">Today</option>
-              <option value="Weekly">Last 7 days</option>
-              <option value="Monthly">This month</option>
-              <option value="Custom">Custom range</option>
+              <option value="Weekly">7 Days</option>
+              <option value="Monthly">This Month</option>
+              <option value="Custom">Custom</option>
             </select>
           </div>
 
@@ -502,35 +608,243 @@ const Reports = () => {
       {/* 1. Sales Report */}
       {activeTab === 'Sales' && (
         <div className="card glass">
-          <h3>Sales Report ({dateFilter})</h3>
-          <div className="grid responsive-grid-2 mt-4 mb-4">
-             <div className="card bg-input text-center">
-               <h4 className="text-muted">Total Revenue</h4>
-               <p className="text-2xl text-primary font-bold">{totalSalesAmount.toLocaleString()}</p>
-             </div>
-             <div className="card bg-input text-center">
-               <h4 className="text-muted">Invoices Generated</h4>
-               <p className="text-2xl font-bold">{totalInvoices}</p>
-             </div>
+          <div className="flex-between flex-wrap gap-2 mb-2" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Sales Report</h3>
+              <p className="text-muted text-xs mt-1" style={{ margin: '0.25rem 0 0 0' }}>
+                Timeframe: <strong>
+                  {dateFilter === 'Daily' ? 'Today' : dateFilter === 'Weekly' ? '7 Days' : dateFilter === 'Monthly' ? 'This Month' : (startDate || endDate ? `${startDate || 'Any'} to ${endDate || 'Today'}` : 'Custom Range')}
+                </strong>
+              </p>
+            </div>
+
+            {/* Quick Filter Pill Buttons */}
+            <div className="rp-quick-filters rp-screen-only">
+              <span className="rp-filter-label">Filter:</span>
+              <button
+                type="button"
+                className={`rp-pill-btn ${dateFilter === 'Daily' ? 'is-active' : ''}`}
+                onClick={() => setDateFilter('Daily')}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                className={`rp-pill-btn ${dateFilter === 'Weekly' ? 'is-active' : ''}`}
+                onClick={() => setDateFilter('Weekly')}
+              >
+                7 Days
+              </button>
+              <button
+                type="button"
+                className={`rp-pill-btn ${dateFilter === 'Monthly' ? 'is-active' : ''}`}
+                onClick={() => setDateFilter('Monthly')}
+              >
+                This Month
+              </button>
+              <button
+                type="button"
+                className={`rp-pill-btn ${dateFilter === 'Custom' ? 'is-active' : ''}`}
+                onClick={() => setDateFilter('Custom')}
+              >
+                Custom
+              </button>
+            </div>
           </div>
+
+          {/* Custom Date Range selector if Custom filter is active */}
+          {dateFilter === 'Custom' && (
+            <div className="rp-custom-date-bar rp-screen-only">
+              <div className="rp-filter">
+                <label htmlFor="sales-filter-from">From Date</label>
+                <input
+                  id="sales-filter-from"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="rp-filter">
+                <label htmlFor="sales-filter-to">To Date</label>
+                <input
+                  id="sales-filter-to"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              {(startDate || endDate) && (
+                <button
+                  type="button"
+                  className="rp-btn text-xs"
+                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                  title="Clear custom dates"
+                >
+                  <RotateCcw size={14} /> Clear
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* KPI Stat Cards */}
+          <div className="rp-sales-kpis">
+            <div className="rp-kpi-card is-sales">
+              <h4>Total Sales</h4>
+              <p className="rp-kpi-val is-accent">৳{money(totalSalesAmount)}</p>
+              <span className="rp-kpi-sub">{totalInvoices} Invoices generated</span>
+            </div>
+            <div className="rp-kpi-card is-cost">
+              <h4>Total Cost</h4>
+              <p className="rp-kpi-val text-muted">৳{money(totalCostAmount)}</p>
+              <span className="rp-kpi-sub">Purchase price of sold items</span>
+            </div>
+            <div className={`rp-kpi-card ${totalProfitAmount >= 0 ? 'is-profit-good' : 'is-profit-bad'}`}>
+              <h4>Total Profit</h4>
+              <p className={`rp-kpi-val ${totalProfitAmount >= 0 ? 'is-good' : 'is-bad'}`}>
+                ৳{money(totalProfitAmount)}
+              </p>
+              <span className="rp-kpi-sub">
+                Overall Margin: <strong>{overallMargin.toFixed(1)}%</strong>
+              </span>
+            </div>
+            <div className="rp-kpi-card is-count">
+              <h4>Items Sold</h4>
+              <p className="rp-kpi-val">{totalItemsSold} pcs</p>
+              <span className="rp-kpi-sub">Across {totalInvoices} invoices</span>
+            </div>
+          </div>
+
+          {/* Toolbar with Search */}
+          <div className="rp-sales-toolbar rp-screen-only">
+            <div className="rp-sales-search">
+              <Search size={15} className="text-muted" />
+              <input
+                type="text"
+                placeholder="Search invoice no, customer, phone..."
+                value={salesSearchTerm}
+                onChange={(e) => setSalesSearchTerm(e.target.value)}
+                className="rp-search-input"
+              />
+              {salesSearchTerm && (
+                <button
+                  type="button"
+                  className="btn-icon"
+                  style={{ width: '24px', height: '24px' }}
+                  onClick={() => setSalesSearchTerm('')}
+                  title="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+            <div className="text-muted text-xs">
+              Showing <strong>{displaySales.length}</strong> {displaySales.length === 1 ? 'invoice' : 'invoices'}
+            </div>
+          </div>
+
+          {/* Sales Table */}
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>Invoice ID</th><th>Date</th><th>Customer</th><th>Items</th><th>Total Amount</th><th style={{textAlign:'center'}}>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th style={{ width: '40px' }}>SL</th>
+                  <th>Invoice No</th>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Items &amp; Qty</th>
+                  <th className="is-num">Total Sales</th>
+                  <th className="is-num">Cost</th>
+                  <th className="is-num">Profit</th>
+                  <th style={{ textAlign: 'center' }}>Payment</th>
+                  <th className="rp-screen-only" style={{ textAlign: 'center', width: '60px' }}>Actions</th>
+                </tr>
+              </thead>
               <tbody>
-                {filteredSales.map(s => (
-                  <tr key={s.id}>
-                    <td>{s.id}</td><td>{s.date.split('T')[0]}</td><td>{s.customerName}</td><td>{s.items.length}</td><td className="text-primary font-bold">{s.total.toLocaleString()}</td>
-                    <td style={{textAlign:'center'}}>
-                      <div className="flex-align-gap" style={{justifyContent:'center'}}>
-                        <button className="btn-icon" title="View & Print" onClick={() => { setSelectedInvoice(s); setInvoiceType('Sale'); }}>
+                {displaySales.map((s, idx) => {
+                  const firstItem = (s.items && s.items[0]?.name) || '';
+                  const moreItemsCount = (s.items?.length || 0) - 1;
+                  const itemSummary = firstItem
+                    ? (moreItemsCount > 0 ? `${firstItem} (+${moreItemsCount} more)` : firstItem)
+                    : '';
+
+                  return (
+                    <tr key={s.id || s.invoice_number || idx}>
+                      <td>{idx + 1}</td>
+                      <td className="is-strong">{s.id || s.invoice_number}</td>
+                      <td>{String(s.date || '').split('T')[0]}</td>
+                      <td>
+                        <div className="font-semibold">{s.customerName || s.customer_name || 'Walk-in Customer'}</div>
+                        {(s.customer_phone || s.customerInfo?.phone) && (
+                          <div className="text-muted text-xs">{s.customer_phone || s.customerInfo?.phone}</div>
+                        )}
+                      </td>
+                      <td>
+                        <div><strong>{s.itemCount} items</strong> ({s.totalQty} pcs)</div>
+                        {itemSummary && (
+                          <div className="text-muted text-xs" title={itemSummary} style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {itemSummary}
+                          </div>
+                        )}
+                      </td>
+                      <td className="is-num is-strong text-primary">
+                        ৳{money(s.saleTotal)}
+                      </td>
+                      <td className="is-num text-muted">
+                        ৳{money(s.saleCost)}
+                      </td>
+                      <td className={`is-num is-strong ${s.saleProfit >= 0 ? 'is-good' : 'is-bad'}`}>
+                        <div>৳{money(s.saleProfit)}</div>
+                        <span className={`rp-margin-badge ${s.saleProfit >= 0 ? 'is-good' : 'is-bad'}`}>
+                          {s.profitMargin.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge ${s.paymentType === 'Cash' ? 'badge-success' : s.paymentType === 'Baki' ? 'badge-danger' : 'badge-warning'}`}>
+                          {s.paymentType || 'Cash'}
+                        </span>
+                      </td>
+                      <td className="rp-screen-only" style={{ textAlign: 'center' }}>
+                        <button
+                          className="btn-icon"
+                          title="View &amp; Print Invoice"
+                          onClick={() => { setSelectedInvoice(s); setInvoiceType('Sale'); }}
+                        >
                           <Eye size={16} />
                         </button>
-</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {displaySales.length === 0 && (
+                  <tr>
+                    <td colSpan="10" className="text-center text-muted" style={{ padding: '2.5rem' }}>
+                      No sales found for {dateFilter === 'Daily' ? 'Today' : dateFilter === 'Weekly' ? '7 Days' : dateFilter === 'Monthly' ? 'This Month' : 'the selected timeframe'}.
                     </td>
                   </tr>
-                ))}
-                {filteredSales.length === 0 && <tr><td colSpan="6" className="text-center text-muted">No sales found.</td></tr>}
+                )}
               </tbody>
+              {displaySales.length > 0 && (
+                <tfoot>
+                  <tr className="rp-table-footer">
+                    <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, paddingRight: '1rem' }}>
+                      TOTAL ({totalInvoices} Invoices, {totalItemsSold} pcs):
+                    </td>
+                    <td className="is-num is-strong text-primary" style={{ fontSize: '0.95rem' }}>
+                      ৳{money(totalSalesAmount)}
+                    </td>
+                    <td className="is-num is-strong text-muted" style={{ fontSize: '0.95rem' }}>
+                      ৳{money(totalCostAmount)}
+                    </td>
+                    <td className={`is-num is-strong ${totalProfitAmount >= 0 ? 'is-good' : 'is-bad'}`} style={{ fontSize: '0.95rem' }}>
+                      <div>৳{money(totalProfitAmount)}</div>
+                      <span className={`rp-margin-badge ${totalProfitAmount >= 0 ? 'is-good' : 'is-bad'}`}>
+                        Margin: {overallMargin.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>

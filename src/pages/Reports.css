@@ -19,6 +19,10 @@
   --rp-accent: #b45309;
   --rp-accent-bg: #fff7ed;
   --rp-on-accent: #ffffff;
+  --rp-good: #16a34a;
+  --rp-good-bg: #f0fdf4;
+  --rp-bad: #dc2626;
+  --rp-bad-bg: #fef2f2;
   --rp-radius: 6px;
 
   color: var(--rp-text);
@@ -36,6 +40,10 @@ body:not(.light-mode) .reports-page {
   --rp-accent: #f59e0b;
   --rp-accent-bg: #2a1f0c;
   --rp-on-accent: #1f2937;
+  --rp-good: #22c55e;
+  --rp-good-bg: #052e16;
+  --rp-bad: #ef4444;
+  --rp-bad-bg: #450a0a;
 }
 
 /* Colour is the only feedback here, as on the other rebuilt screens. */
@@ -339,12 +347,190 @@ body:not(.light-mode) .reports-page .data-table th {
   border-color: var(--rp-accent);
 }
 
+/* ----------------------------------------------------------- Sales Report */
+
+.rp-sales-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.rp-kpi-card {
+  padding: 0.85rem 1rem;
+  background: var(--rp-bg-alt);
+  border: 1px solid var(--rp-border);
+  border-left-width: 4px;
+  border-radius: var(--rp-radius);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.rp-kpi-card.is-sales { border-left-color: var(--rp-accent); }
+.rp-kpi-card.is-cost { border-left-color: var(--rp-muted); }
+.rp-kpi-card.is-profit-good { border-left-color: var(--rp-good); }
+.rp-kpi-card.is-profit-bad { border-left-color: var(--rp-bad); }
+.rp-kpi-card.is-count { border-left-color: #3b82f6; }
+
+.rp-kpi-card h4 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--rp-muted);
+  margin: 0;
+}
+
+.rp-kpi-card .rp-kpi-val {
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin: 0.35rem 0 0.15rem 0;
+  color: var(--rp-text);
+  line-height: 1.2;
+}
+
+.rp-kpi-card .rp-kpi-val.is-good { color: var(--rp-good); }
+.rp-kpi-card .rp-kpi-val.is-bad { color: var(--rp-bad); }
+.rp-kpi-card .rp-kpi-val.is-accent { color: var(--rp-accent); }
+
+.rp-kpi-card .rp-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--rp-muted);
+}
+
+.rp-sales-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.rp-quick-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.rp-filter-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--rp-muted);
+  margin-right: 0.25rem;
+}
+
+.rp-pill-btn {
+  padding: 0.32rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  border: 1px solid var(--rp-border);
+  background: var(--rp-bg);
+  color: var(--rp-muted);
+  cursor: pointer;
+}
+
+.rp-pill-btn:hover {
+  background: var(--rp-bg-alt);
+  color: var(--rp-text);
+  border-color: var(--rp-accent);
+}
+
+.rp-pill-btn.is-active {
+  background: var(--rp-accent);
+  color: var(--rp-on-accent);
+  border-color: var(--rp-accent);
+}
+
+.rp-sales-search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.rp-search-input {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.825rem;
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+  background: var(--rp-bg);
+  color: var(--rp-text);
+  width: 240px;
+}
+
+.rp-search-input:focus {
+  outline: 2px solid var(--rp-accent);
+  outline-offset: -1px;
+}
+
+.rp-custom-date-bar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--rp-bg-alt);
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius);
+  margin-bottom: 0.75rem;
+}
+
+.reports-page .data-table tfoot tr.rp-table-footer {
+  background: var(--rp-bg-head);
+  border-top: 2px solid var(--rp-border);
+}
+
+.reports-page .data-table tfoot td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 2px solid var(--rp-border);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.reports-page .data-table .is-good {
+  color: var(--rp-good);
+}
+
+.reports-page .data-table .is-bad {
+  color: var(--rp-bad);
+}
+
+.reports-page .data-table .is-accent {
+  color: var(--rp-accent);
+}
+
+.rp-margin-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  margin-left: 0.25rem;
+}
+
+.rp-margin-badge.is-good {
+  background: var(--rp-good-bg);
+  color: var(--rp-good);
+}
+
+.rp-margin-badge.is-bad {
+  background: var(--rp-bad-bg);
+  color: var(--rp-bad);
+}
+
 /* ----------------------------------------------------------------- print */
 
 /* "Print Report" prints the page itself, so the controls have to drop out and
    the report has to sit on white. */
 @media print {
-  .rp-screen-only {
+  .rp-screen-only,
+  .rp-sales-toolbar,
+  .rp-custom-date-bar,
+  .rp-quick-filters {
     display: none !important;
   }
 
