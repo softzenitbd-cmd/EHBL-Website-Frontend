@@ -27,7 +27,17 @@ const Reports = () => {
   const [ppFilterCompany, setPpFilterCompany] = useState('All');
   const [ppSortBy, setPpSortBy] = useState('profit_desc');
   const [selectedProductReport, setSelectedProductReport] = useState(null);
-  const { sales = [], inventory = [], purchases = [], expenses = [], customers = [], suppliers = [], staff = [], payrolls = [], returns = [], attendance = [], leaves = [], fetchAllData, loadDummyData, refreshCollection } = useStore();
+  const { sales = [], inventory = [], purchases = [], expenses = [], customers = [], suppliers = [], staff = [], payrolls = [], returns = [], attendance = [], leaves = [], fetchAllData, loadDummyData, refreshCollection, user } = useStore();
+
+  const handlePrintReport = () => {
+    if (activeTab === 'Sales') {
+      printElement('printable-sales-report');
+    } else if (activeTab === 'ProductProfit') {
+      printElement('printable-product-profit');
+    } else {
+      window.print();
+    }
+  };
 
   // Load complete sales list for accurate reporting across any date range
   useEffect(() => {
@@ -584,7 +594,7 @@ const Reports = () => {
               <Database size={16} /> Sync Live Data
             </button>
           )}
-          <button type="button" className="rp-btn rp-btn--primary" onClick={() => window.print()}>
+          <button type="button" className="rp-btn rp-btn--primary" onClick={handlePrintReport}>
             <Printer size={16} /> Print Report
           </button>
         </div>
@@ -648,6 +658,15 @@ const Reports = () => {
                 onClick={() => setDateFilter('Custom')}
               >
                 Custom
+              </button>
+              <button
+                type="button"
+                className="rp-btn rp-btn--primary rp-screen-only"
+                style={{ marginLeft: '0.4rem', padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                onClick={() => printElement('printable-sales-report')}
+                title="Print Sales Report / Save as PDF"
+              >
+                <Printer size={14} /> Print / Save PDF
               </button>
             </div>
           </div>
@@ -1927,6 +1946,357 @@ const Reports = () => {
         </div>,
         document.body
       )}
+
+      {/* Hidden off-screen standard printable sales report for printElement & PDF export */}
+      <div style={{ display: 'none' }}>
+        <div
+          id="printable-sales-report"
+          style={{
+            padding: '1.25rem 1rem',
+            background: '#ffffff',
+            color: '#0f172a',
+            fontFamily: "'Outfit', 'Segoe UI', Arial, sans-serif",
+            width: '100%',
+            maxWidth: '780px',
+            margin: '0 auto',
+            boxSizing: 'border-box',
+          }}
+        >
+          <style>
+            {`
+              @page {
+                size: A4 portrait;
+                margin: 10mm 12mm 10mm 12mm;
+              }
+              * {
+                box-sizing: border-box !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              body {
+                background: #ffffff !important;
+                color: #0f172a !important;
+              }
+              thead {
+                display: table-header-group;
+              }
+              tr {
+                page-break-inside: avoid;
+              }
+              .pdf-table th, .pdf-table td {
+                border: 1px solid #cbd5e1;
+                padding: 6px 8px;
+                font-size: 11px;
+                vertical-align: middle;
+              }
+              .pdf-table th {
+                background: #f1f5f9 !important;
+                font-weight: 700;
+                color: #1e293b;
+                text-transform: uppercase;
+                font-size: 10px;
+                letter-spacing: 0.03em;
+              }
+            `}
+          </style>
+
+          {/* Standard Company Letterhead */}
+          <InvoiceHeader compact={true} />
+
+          {/* Report Title & Metadata Banner */}
+          <div
+            style={{
+              borderTop: '2px solid #0f172a',
+              borderBottom: '1px solid #cbd5e1',
+              padding: '8px 0',
+              marginTop: '8px',
+              marginBottom: '12px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '16px',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  color: '#0f172a',
+                }}
+              >
+                SALES &amp; PROFIT REPORT
+              </h2>
+              <div style={{ fontSize: '11px', color: '#475569', marginTop: '3px' }}>
+                Period:{' '}
+                <strong>
+                  {dateFilter === 'Daily'
+                    ? `Today (${todayStr})`
+                    : dateFilter === 'Weekly'
+                    ? `Last 7 Days (${sevenDaysAgoStr} to ${todayStr})`
+                    : dateFilter === 'Monthly'
+                    ? `This Month (${todayStr.substring(0, 7)})`
+                    : startDate || endDate
+                    ? `${startDate || 'Start'} to ${endDate || 'Today'}`
+                    : 'All Dates'}
+                </strong>
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'right', fontSize: '11px', color: '#475569' }}>
+              <div>
+                Date Printed:{' '}
+                <strong>
+                  {new Date().toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })}{' '}
+                  {new Date().toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  })}
+                </strong>
+              </div>
+              <div>
+                Report By: <strong>{user?.name || user?.username || 'Admin'}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Executive Summary 4-KPI Banner */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '8px',
+              marginBottom: '14px',
+            }}
+          >
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderLeft: '4px solid #b45309',
+                padding: '6px 10px',
+                borderRadius: '4px',
+              }}
+            >
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>
+                Total Sales
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 800, color: '#b45309', marginTop: '2px' }}>
+                ৳{money(totalSalesAmount)}
+              </div>
+            </div>
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderLeft: '4px solid #64748b',
+                padding: '6px 10px',
+                borderRadius: '4px',
+              }}
+            >
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>
+                Total Cost
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 800, color: '#475569', marginTop: '2px' }}>
+                ৳{money(totalCostAmount)}
+              </div>
+            </div>
+            <div
+              style={{
+                background: totalProfitAmount >= 0 ? '#f0fdf4' : '#fef2f2',
+                border: '1px solid #cbd5e1',
+                borderLeft: `4px solid ${totalProfitAmount >= 0 ? '#16a34a' : '#dc2626'}`,
+                padding: '6px 10px',
+                borderRadius: '4px',
+              }}
+            >
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>
+                Net Profit
+              </div>
+              <div
+                style={{
+                  fontSize: '15px',
+                  fontWeight: 800,
+                  color: totalProfitAmount >= 0 ? '#16a34a' : '#dc2626',
+                  marginTop: '2px',
+                }}
+              >
+                ৳{money(totalProfitAmount)}{' '}
+                <span style={{ fontSize: '11px', fontWeight: 600 }}>({overallMargin.toFixed(1)}%)</span>
+              </div>
+            </div>
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderLeft: '4px solid #3b82f6',
+                padding: '6px 10px',
+                borderRadius: '4px',
+              }}
+            >
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>
+                Invoices &amp; Qty
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                {totalInvoices}{' '}
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>({totalItemsSold} pcs)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Data Table */}
+          <table className="pdf-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '30px', textAlign: 'center' }}>#</th>
+                <th style={{ width: '75px', textAlign: 'center' }}>Date</th>
+                <th style={{ width: '85px', textAlign: 'left' }}>Invoice No</th>
+                <th style={{ textAlign: 'left' }}>Customer</th>
+                <th style={{ width: '135px', textAlign: 'left' }}>Items / Products</th>
+                <th style={{ width: '90px', textAlign: 'right' }}>Sale (৳)</th>
+                <th style={{ width: '85px', textAlign: 'right' }}>Cost (৳)</th>
+                <th style={{ width: '95px', textAlign: 'right' }}>Profit (৳)</th>
+                <th style={{ width: '60px', textAlign: 'center' }}>Payment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displaySales.map((s, idx) => {
+                const firstItem = (s.items && s.items[0]?.name) || '';
+                const moreItemsCount = (s.items?.length || 0) - 1;
+                const itemSummary = firstItem
+                  ? moreItemsCount > 0
+                    ? `${firstItem} (+${moreItemsCount})`
+                    : firstItem
+                  : '';
+
+                return (
+                  <tr
+                    key={s.id || s.invoice_number || idx}
+                    style={{ background: idx % 2 === 1 ? '#f8fafc' : '#ffffff' }}
+                  >
+                    <td style={{ textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
+                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {String(s.date || '').split('T')[0]}
+                    </td>
+                    <td style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{s.id || s.invoice_number}</td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{s.customerName || s.customer_name || 'Walk-in'}</div>
+                      {(s.customer_phone || s.customerInfo?.phone) && (
+                        <div style={{ fontSize: '10px', color: '#64748b' }}>
+                          {s.customer_phone || s.customerInfo?.phone}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>
+                        {s.itemCount} items ({s.totalQty} pcs)
+                      </div>
+                      {itemSummary && (
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            color: '#64748b',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxWidth: '140px',
+                          }}
+                          title={itemSummary}
+                        >
+                          {itemSummary}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>
+                      {money(s.saleTotal)}
+                    </td>
+                    <td style={{ textAlign: 'right', color: '#475569' }}>{money(s.saleCost)}</td>
+                    <td
+                      style={{
+                        textAlign: 'right',
+                        fontWeight: 700,
+                        color: s.saleProfit >= 0 ? '#16a34a' : '#dc2626',
+                      }}
+                    >
+                      <div>{money(s.saleProfit)}</div>
+                      <div style={{ fontSize: '9.5px', fontWeight: 600 }}>({s.profitMargin.toFixed(1)}%)</div>
+                    </td>
+                    <td style={{ textAlign: 'center', fontSize: '10.5px', fontWeight: 600 }}>
+                      {s.paymentType || 'Cash'}
+                    </td>
+                  </tr>
+                );
+              })}
+              {displaySales.length === 0 && (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+                    No sales records found for this period.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {displaySales.length > 0 && (
+              <tfoot>
+                <tr style={{ background: '#f1f5f9', borderTop: '2px solid #0f172a', fontWeight: 800 }}>
+                  <td colSpan={5} style={{ textAlign: 'right', padding: '8px 10px', textTransform: 'uppercase' }}>
+                    Total ({totalInvoices} Invoices, {totalItemsSold} pcs):
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '8px', color: '#b45309', fontSize: '12.5px' }}>
+                    ৳{money(totalSalesAmount)}
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '8px', color: '#475569', fontSize: '12.5px' }}>
+                    ৳{money(totalCostAmount)}
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'right',
+                      padding: '8px',
+                      color: totalProfitAmount >= 0 ? '#16a34a' : '#dc2626',
+                      fontSize: '12.5px',
+                    }}
+                  >
+                    <div>৳{money(totalProfitAmount)}</div>
+                    <div style={{ fontSize: '10px' }}>Margin: {overallMargin.toFixed(1)}%</div>
+                  </td>
+                  <td style={{ textAlign: 'center', fontSize: '10px', color: '#64748b' }}>-</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+
+          {/* Signature Section */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-end',
+              marginTop: '36px',
+              paddingTop: '10px',
+              pageBreakInside: 'avoid',
+            }}
+          >
+            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+              <div style={{ borderTop: '1px dashed #64748b', width: '140px', margin: '0 auto 4px auto' }}></div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>Prepared By</div>
+            </div>
+            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+              <div style={{ borderTop: '1px dashed #64748b', width: '140px', margin: '0 auto 4px auto' }}></div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>Authorized Signature</div>
+            </div>
+          </div>
+
+          {/* Standard Print Footer */}
+          <PrintFooter compact={true} />
+        </div>
+      </div>
       <PrintFooter />
     </div>
   );

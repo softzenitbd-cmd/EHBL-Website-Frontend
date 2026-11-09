@@ -61,9 +61,9 @@ export const printElement = (elementId) => {
           }
           .print-document-container {
             width: 100%;
-            max-width: 720px;
+            max-width: 780px;
             margin: 0 auto;
-            padding: 10px 15px;
+            padding: 5px 10px;
             box-sizing: border-box;
           }
           .printable-invoice-wrapper {
