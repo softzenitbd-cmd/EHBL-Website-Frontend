@@ -241,9 +241,8 @@ const Returns = () => {
   const [editingReturn, setEditingReturn] = useState(null);
   const [editDate, setEditDate] = useState('');
   const [editReturnType, setEditReturnType] = useState('Customer');
-  const [editProductId, setEditProductId] = useState('');
-  const [editQuantity, setEditQuantity] = useState(1);
-  const [editRate, setEditRate] = useState('');
+  // One row per product on the return: { key, productId, quantity, rate }.
+  const [editLines, setEditLines] = useState([]);
   const [editPartyName, setEditPartyName] = useState('');
   const [editPartyPickedId, setEditPartyPickedId] = useState('');
   const [editReferenceId, setEditReferenceId] = useState('');
@@ -285,19 +284,24 @@ const Returns = () => {
       }));
   }, [editReturnType, editPartyName, sales, purchases]);
 
-  const editSelectedProduct = inventory.find((i) => i.id === editProductId);
+  const newEditLine = () => ({ key: `${Date.now()}-${Math.random()}`, productId: '', quantity: 1, rate: '' });
+  const setEditLine = (key, patch) => setEditLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const editTotal = editLines.reduce((n, l) => n + (Number(l.quantity) || 0) * (Number(l.rate) || 0), 0);
+  const editTotalQty = editLines.reduce((n, l) => n + (Number(l.quantity) || 0), 0);
 
   const handleOpenEdit = (r) => {
-    if (Number(r.itemCount || 0) > 1) {
-      showToast(`${r.id} has ${r.itemCount} products. Delete it and enter it again to change it.`, 'warning');
-      return;
-    }
     setEditingReturn(r);
     setEditDate(r.date ? r.date.split('T')[0] : '');
     setEditReturnType(r.returnType || 'Customer');
-    setEditProductId(r.productId || '');
-    setEditQuantity(r.quantity || 1);
-    setEditRate(r.rate !== undefined && r.rate !== null ? r.rate : '');
+    const lines = Array.isArray(r.items) && r.items.length
+      ? r.items
+      : [{ productId: r.productId, quantity: r.quantity, rate: r.rate }];
+    setEditLines(lines.map((it, i) => ({
+      key: `${r.id}-${i}`,
+      productId: it.productId || '',
+      quantity: Number(it.quantity) || 1,
+      rate: it.rate !== undefined && it.rate !== null ? it.rate : '',
+    })));
     setEditPartyName(r.partyName || '');
     setEditPartyPickedId(r.partyId || '');
     setEditReferenceId(r.referenceId || '');
@@ -307,14 +311,19 @@ const Returns = () => {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editingReturn) return;
-    if (!editProductId) {
-      showToast('Please select a product', 'error');
+    if (editLines.length === 0) {
+      showToast('Add at least one product', 'error');
       return;
     }
-    const q = parseInt(editQuantity, 10);
-    if (!q || q <= 0) {
-      showToast('Quantity must be at least 1', 'error');
-      return;
+    for (const l of editLines) {
+      if (!l.productId) {
+        showToast('Pick a product on every row, or remove the empty row', 'error');
+        return;
+      }
+      if (!(parseInt(l.quantity, 10) > 0)) {
+        showToast('Quantity must be at least 1 on every row', 'error');
+        return;
+      }
     }
     if (!editReason.trim()) {
       showToast('Please provide a reason for the return', 'error');
@@ -325,9 +334,11 @@ const Returns = () => {
     const result = await updateReturn(editingReturn.id, {
       date: editDate,
       returnType: editReturnType,
-      productId: editProductId,
-      quantity: q,
-      rate: editRate === '' ? '' : parseFloat(editRate) || 0,
+      items: editLines.map((l) => ({
+        productId: l.productId,
+        quantity: parseInt(l.quantity, 10),
+        rate: l.rate === '' ? '' : parseFloat(l.rate) || 0,
+      })),
       partyName: editPartyName.trim(),
       partyId: editPartyPickedId,
       referenceId: editReferenceId.trim(),
@@ -1145,7 +1156,7 @@ const Returns = () => {
 {/* Edit Return Modal */}
       {editingReturn && createPortal(
         <div className="rt-modal-overlay" onClick={() => !isUpdatingReturn && setEditingReturn(null)}>
-          <div className="rt-modal" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit return">
+          <div className="rt-modal" style={{ maxWidth: '760px' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit return">
             <div className="rt-modal__head">
               <h2>
                 <FileEdit size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
@@ -1235,61 +1246,82 @@ const Returns = () => {
                 )}
 
                 <div style={{ borderTop: '1px solid var(--rt-border-soft)', paddingTop: '1rem', marginBottom: '1rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem', marginBottom: '0.5rem' }}>
-                    <div className="rt-field">
-                      <label htmlFor="edit-rt-product">Product</label>
-                      <SearchSelect
-                        id="edit-rt-product"
-                        options={productOptions}
-                        value={editProductId}
-                        onSelect={(o) => {
-                          if (!o) return;
-                          setEditProductId(o.value);
-                          const prod = inventory.find(p => p.id === o.value);
-                          if (prod && (editRate === '' || Number(editRate) === 0)) {
-                            setEditRate(editReturnType === 'Customer' ? (prod.price || '') : (prod.cost_price ?? prod.purchasePrice ?? ''));
-                          }
-                        }}
-                        search={searchProductOptions}
-                        placeholder="Search product by name or code"
-                        emptyText="No product matches"
-                      />
-                      {editSelectedProduct && (
-                        <span className="rt-hint">
-                          Code: {editSelectedProduct.id} &middot; In stock: {editSelectedProduct.stock} {editSelectedProduct.unit || 'pcs'}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="rt-field">
-                      <label htmlFor="edit-rt-qty">Quantity</label>
-                      <input
-                        id="edit-rt-qty"
-                        type="number"
-                        min="1"
-                        value={editQuantity}
-                        onChange={(e) => setEditQuantity(parseInt(e.target.value, 10) || '')}
-                        required
-                      />
-                    </div>
-
-                    <div className="rt-field">
-                      <label htmlFor="edit-rt-rate">Rate ({editSelectedProduct?.unit || 'unit'})</label>
-                      <input
-                        id="edit-rt-rate"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={editRate}
-                        onChange={(e) => setEditRate(e.target.value)}
-                        required
-                      />
-                    </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) 0.8fr 1fr 0.9fr 36px', gap: '0.6rem', marginBottom: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--rt-muted)', textTransform: 'uppercase' }}>
+                    <span>Product</span><span>Qty</span><span>Rate</span><span style={{ textAlign: 'right' }}>Amount</span><span />
                   </div>
+                  {editLines.map((l, idx) => {
+                    const prod = inventory.find((p) => p.id === l.productId);
+                    return (
+                      <div key={l.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) 0.8fr 1fr 0.9fr 36px', gap: '0.6rem', alignItems: 'start', marginBottom: '0.6rem' }}>
+                        <div className="rt-field">
+                          <SearchSelect
+                            id={`edit-rt-product-${idx}`}
+                            options={productOptions}
+                            value={l.productId}
+                            onSelect={(o) => {
+                              if (!o) { setEditLine(l.key, { productId: '' }); return; }
+                              const p = inventory.find((x) => x.id === o.value);
+                              const patch = { productId: o.value };
+                              if (p && (l.rate === '' || Number(l.rate) === 0)) {
+                                patch.rate = editReturnType === 'Customer' ? (p.price || '') : (p.cost_price ?? p.purchasePrice ?? '');
+                              }
+                              setEditLine(l.key, patch);
+                            }}
+                            search={searchProductOptions}
+                            placeholder="Search product by name or code"
+                            emptyText="No product matches"
+                          />
+                          {prod && (
+                            <span className="rt-hint">Code {prod.id} &middot; In stock {prod.stock} {prod.unit || 'pcs'}</span>
+                          )}
+                        </div>
+                        <div className="rt-field">
+                          <input
+                            type="number"
+                            min="1"
+                            aria-label="Quantity"
+                            value={l.quantity}
+                            onChange={(e) => setEditLine(l.key, { quantity: e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                            required
+                          />
+                        </div>
+                        <div className="rt-field">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            aria-label="Rate"
+                            placeholder="0.00"
+                            value={l.rate}
+                            onChange={(e) => setEditLine(l.key, { rate: e.target.value })}
+                          />
+                        </div>
+                        <div style={{ textAlign: 'right', paddingTop: '0.55rem', fontWeight: 700 }}>
+                          {money((Number(l.quantity) || 0) * (Number(l.rate) || 0))}
+                        </div>
+                        <button
+                          type="button"
+                          className="rt-iconbtn"
+                          title="Remove this product"
+                          aria-label="Remove this product"
+                          onClick={() => setEditLines((ls) => ls.filter((x) => x.key !== l.key))}
+                          disabled={editLines.length === 1}
+                          style={{ marginTop: '0.2rem' }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    );
+                  })}
 
-                  <div style={{ textAlign: 'right', fontSize: '0.9rem', color: 'var(--rt-text)', marginTop: '0.5rem' }}>
-                    Total Amount: <strong style={{ color: 'var(--rt-accent)', fontSize: '1.05rem' }}>{money((Number(editQuantity) || 0) * (Number(editRate) || 0))}</strong>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <button type="button" className="rt-btn" onClick={() => setEditLines((ls) => [...ls, newEditLine()])}>
+                      <Plus size={15} /> Add Product
+                    </button>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--rt-text)' }}>
+                      {editLines.length} product{editLines.length === 1 ? '' : 's'} &middot; Qty {editTotalQty} &middot; Total Amount:{' '}
+                      <strong style={{ color: 'var(--rt-accent)', fontSize: '1.05rem' }}>{money(editTotal)}</strong>
+                    </div>
                   </div>
                 </div>
 
