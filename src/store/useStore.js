@@ -361,12 +361,19 @@ const useStore = create(
             }
           });
 
-          const failed = results.filter((r) => r.status === 'rejected').length;
+          const failedKeys = keys.filter((_, i) => results[i].status === 'rejected');
+          const failed = failedKeys.length;
           set({
             ...updates,
             isLoading: false,
-            lastError: failed === results.length ? 'Cannot reach the server. Showing last loaded data.' : null,
+            lastError: failed === results.length
+              ? 'Cannot reach the server. Showing last loaded data.'
+              : failed ? `Some data did not load (${failedKeys.join(', ')}). Showing last loaded copy.` : null,
           });
+          // Say so instead of quietly leaving a page empty.
+          if (failed && failed < results.length) {
+            get().showToast?.(`Some data did not load: ${failedKeys.join(', ')}. Press Refresh to try again.`, 'warning');
+          }
 
           get().fetchShopProfile();
           get().migrateLegacyTransactions();

@@ -8,8 +8,12 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 12000,
+  // The full invoice list (with every line) is large; at 12s it was cut off
+  // whenever the server was busy, and that page simply showed nothing.
+  timeout: 60000,
 });
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Request Interceptor to auto-inject JWT token
 apiClient.interceptors.request.use(
@@ -32,6 +36,19 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const config = error.config;
+
+    // A read that timed out, lost the connection, or hit a server hiccup
+    // (502/503/504 while a deploy restarts) is tried again, up to twice.
+    // Only GETs: repeating a save could save it twice.
+    const status = error.response?.status;
+    const transient = !error.response || [502, 503, 504].includes(status);
+    if (config && transient && (config.method || 'get').toLowerCase() === 'get') {
+      config._retries = (config._retries || 0) + 1;
+      if (config._retries <= 2) {
+        await sleep(1000 * config._retries);
+        return apiClient(config);
+      }
+    }
     
     // Auto-switch between 8000 and 8001 if server is running on either port
     if (!error.response && config && !config._retryPort) {
