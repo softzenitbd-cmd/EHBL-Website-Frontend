@@ -288,6 +288,10 @@ const Returns = () => {
   const editSelectedProduct = inventory.find((i) => i.id === editProductId);
 
   const handleOpenEdit = (r) => {
+    if (Number(r.itemCount || 0) > 1) {
+      showToast(`${r.id} has ${r.itemCount} products. Delete it and enter it again to change it.`, 'warning');
+      return;
+    }
     setEditingReturn(r);
     setEditDate(r.date ? r.date.split('T')[0] : '');
     setEditReturnType(r.returnType || 'Customer');
